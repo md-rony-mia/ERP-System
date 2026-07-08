@@ -1,0 +1,3343 @@
+import React, { useState } from 'react';
+import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
+import {
+  Landmark,
+  DollarSign,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Settings as SetIcon,
+  ShieldCheck,
+  CheckCircle,
+  Smartphone,
+  Users,
+  Percent,
+  TrendingUp,
+  FileText,
+  AlertTriangle,
+  Download,
+  Upload,
+  Sliders,
+  Building,
+  CreditCard,
+  Truck,
+  ShoppingCart,
+  UserCheck,
+  Shield,
+  Menu,
+  Trash2,
+  RotateCcw,
+  Clock,
+  ShoppingBag,
+  Database,
+  Lock,
+  Search,
+  Eye,
+  RefreshCw,
+  Edit,
+  Check,
+  X,
+} from 'lucide-react';
+
+interface BankingAndLoanViewProps {
+  bankAccounts: BankAccount[];
+  loanAccounts: LoanAccount[];
+  transactions: Transaction[];
+  currentTab: 'banking' | 'loan' | 'settings';
+  activeSubTab?: string;
+  onAddBankAccount: (bank: Omit<BankAccount, 'id' | 'balance'>) => void;
+  onAddLoan: (loan: Omit<LoanAccount, 'id' | 'accountNo' | 'disbursedAmount' | 'outstandingAmount' | 'status'>) => void;
+  settings?: AppSettings;
+  onUpdateSettings?: (settings: AppSettings) => void;
+  onResetData?: () => void;
+  onImportData?: (importedData: any) => void;
+  systemData?: any;
+}
+
+export default function BankingAndLoanView({
+  bankAccounts,
+  loanAccounts,
+  transactions,
+  currentTab,
+  activeSubTab,
+  onAddBankAccount,
+  onAddLoan,
+  settings,
+  onUpdateSettings,
+  onResetData,
+  onImportData,
+  systemData,
+}: BankingAndLoanViewProps) {
+  // --- SUB-TAB ROUTERS ---
+  const subTab = activeSubTab || (currentTab === 'loan' ? 'loan_accounts' : 'bank_accounts');
+
+  // --- LOCAL MUTABLE STATS ---
+  const [localBanks, setLocalBanks] = useState<BankAccount[]>(bankAccounts);
+  const [localLoans, setLocalLoans] = useState<LoanAccount[]>(loanAccounts);
+  const [localTxs, setLocalTxs] = useState<Transaction[]>(transactions);
+
+  // --- SETTINGS FORM STATES & SYNC ---
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'billing' | 'inventory' | 'backup'>('profile');
+
+  const [compName, setCompName] = useState(settings?.companyName || '');
+  const [compAddr, setCompAddr] = useState(settings?.companyAddress || '');
+  const [phone, setPhone] = useState(settings?.phone || '');
+  const [tin, setTin] = useState(settings?.tinNumber || '');
+  const [bin, setBin] = useState(settings?.binNumber || '');
+  const [tradeLic, setTradeLic] = useState(settings?.tradeLicense || '');
+  const [vat, setVat] = useState(settings?.defaultVatRate || 5);
+  const [discount, setDiscount] = useState(settings?.defaultDiscountRate || 0);
+  const [curr, setCurr] = useState(settings?.baseCurrency || '৳');
+  const [footer, setFooter] = useState(settings?.receiptFooterMessage || '');
+  const [autoPrint, setAutoPrint] = useState(settings?.autoPrintReceipt ?? true);
+  const [smsNotif, setSmsNotif] = useState(settings?.enableSmsNotification ?? false);
+  const [warehouse, setWarehouse] = useState(settings?.defaultWarehouse || '');
+  const [defUnit, setDefUnit] = useState(settings?.defaultUnit || 'Pcs');
+  const [threshold, setThreshold] = useState(settings?.lowStockThreshold || 5);
+  const [tz, setTz] = useState(settings?.timezone || 'Asia/Dhaka');
+
+  // --- SUB-MENU SELECTOR STATE ---
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>('system_settings');
+
+  React.useEffect(() => {
+    if (currentTab === 'settings' && activeSubTab) {
+      setSelectedSettingsTab(activeSubTab);
+    }
+  }, [activeSubTab, currentTab]);
+
+  // 1. Tax Rates
+  const [taxes, setTaxes] = useState<any[]>(settings?.taxes || [
+    { id: '1', name: 'Standard VAT', rate: 5, type: 'Sales', status: 'Active' },
+    { id: '2', name: 'Supplementary Duty (SD)', rate: 10, type: 'Both', status: 'Active' },
+    { id: '3', name: 'Import Custom Duty', rate: 15, type: 'Purchase', status: 'Active' },
+    { id: '4', name: 'Zero Rated Tax', rate: 0, type: 'Both', status: 'Active' },
+  ]);
+  const [newTaxName, setNewTaxName] = useState('');
+  const [newTaxRate, setNewTaxRate] = useState('');
+  const [newTaxType, setNewTaxType] = useState('Sales');
+
+  // --- INLINE EDIT STATES FOR ERP CORE SETTINGS ---
+  const [editingTaxId, setEditingTaxId] = useState<string | null>(null);
+  const [editTaxName, setEditTaxName] = useState('');
+  const [editTaxRate, setEditTaxRate] = useState('');
+  const [editTaxType, setEditTaxType] = useState('Sales');
+  const [editTaxStatus, setEditTaxStatus] = useState<'Active' | 'Inactive'>('Active');
+
+  const [editingPayId, setEditingPayId] = useState<string | null>(null);
+  const [editPayName, setEditPayName] = useState('');
+  const [editPayType, setEditPayType] = useState('Cash');
+  const [editPayCharge, setEditPayCharge] = useState('');
+  const [editPayStatus, setEditPayStatus] = useState<'Active' | 'Inactive'>('Active');
+
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editUserFullName, setEditUserFullName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserUsername, setEditUserUsername] = useState('');
+  const [editUserRole, setEditUserRole] = useState('Cashier');
+  const [editUserStatus, setEditUserStatus] = useState<'Active' | 'Inactive'>('Active');
+
+  // TAX RATES ACTIONS
+  const startEditTax = (tax: any) => {
+    setEditingTaxId(tax.id);
+    setEditTaxName(tax.name);
+    setEditTaxRate(tax.rate.toString());
+    setEditTaxType(tax.type);
+    setEditTaxStatus(tax.status);
+  };
+
+  const handleSaveEditTax = (id: string) => {
+    const updated = taxes.map(t => t.id === id ? {
+      ...t,
+      name: editTaxName,
+      rate: Number(editTaxRate),
+      type: editTaxType,
+      status: editTaxStatus
+    } : t);
+    setTaxes(updated);
+    setEditingTaxId(null);
+    
+    // Auto save to settings
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        taxes: updated,
+        defaultVatRate: id === '1' ? Number(editTaxRate) : settings.defaultVatRate,
+      });
+    }
+  };
+
+  const handleDeleteTax = (id: string) => {
+    if (confirm('Are you sure you want to delete this tax rate setting?')) {
+      const updated = taxes.filter(t => t.id !== id);
+      setTaxes(updated);
+      if (onUpdateSettings && settings) {
+        onUpdateSettings({
+          ...settings,
+          taxes: updated,
+        });
+      }
+    }
+  };
+
+  const handleAddTax = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaxName || !newTaxRate) return;
+    const newTax = {
+      id: Date.now().toString(),
+      name: newTaxName,
+      rate: Number(newTaxRate),
+      type: newTaxType,
+      status: 'Active',
+    };
+    const updated = [...taxes, newTax];
+    setTaxes(updated);
+    setNewTaxName('');
+    setNewTaxRate('');
+    
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        taxes: updated
+      });
+    }
+    alert('Custom Tax Rate added successfully!');
+  };
+
+  // 2. Payment Methods
+  const [paymentMethods, setPaymentMethods] = useState<any[]>(settings?.paymentMethods || [
+    { id: '1', name: 'Cash on Hand', type: 'Cash', charge: 0, status: 'Active' },
+    { id: '2', name: 'bKash Merchant Pay', type: 'Mobile Wallet', charge: 1.5, status: 'Active' },
+    { id: '3', name: 'Nagad Business Account', type: 'Mobile Wallet', charge: 1.0, status: 'Active' },
+    { id: '4', name: 'Mutual Trust Bank Transfer', type: 'Bank', charge: 0, status: 'Active' },
+    { id: '5', name: 'Visa/Mastercard Terminal', type: 'Card Gateway', charge: 2.0, status: 'Active' },
+  ]);
+  const [newPayName, setNewPayName] = useState('');
+  const [newPayType, setNewPayType] = useState('Cash');
+  const [newPayCharge, setNewPayCharge] = useState('');
+
+  // PAYMENT METHODS ACTIONS
+  const startEditPay = (method: any) => {
+    setEditingPayId(method.id);
+    setEditPayName(method.name);
+    setEditPayType(method.type);
+    setEditPayCharge(method.charge.toString());
+    setEditPayStatus(method.status);
+  };
+
+  const handleSaveEditPay = (id: string) => {
+    const updated = paymentMethods.map(p => p.id === id ? {
+      ...p,
+      name: editPayName,
+      type: editPayType,
+      charge: Number(editPayCharge),
+      status: editPayStatus
+    } : p);
+    setPaymentMethods(updated);
+    setEditingPayId(null);
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        paymentMethods: updated,
+      });
+    }
+  };
+
+  const handleDeletePay = (id: string) => {
+    if (confirm('Are you sure you want to remove this payment instrument?')) {
+      const updated = paymentMethods.filter(p => p.id !== id);
+      setPaymentMethods(updated);
+      if (onUpdateSettings && settings) {
+        onUpdateSettings({
+          ...settings,
+          paymentMethods: updated,
+        });
+      }
+    }
+  };
+
+  const handleAddPaymentMethod = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPayName) return;
+    const newMethod = {
+      id: Date.now().toString(),
+      name: newPayName,
+      type: newPayType,
+      charge: Number(newPayCharge || 0),
+      status: 'Active',
+    };
+    const updated = [...paymentMethods, newMethod];
+    setPaymentMethods(updated);
+    setNewPayName('');
+    setNewPayCharge('');
+    
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        paymentMethods: updated
+      });
+    }
+    alert('Payment Method registered!');
+  };
+
+  // 3. Suppliers Setting
+  const [supplierCreditTerms, setSupplierCreditTerms] = useState('Net 30');
+  const [supplierCodePrefix, setSupplierCodePrefix] = useState('SUP-');
+  const [reorderLeadTime, setReorderLeadTime] = useState(5);
+  const [supplierReqLimit, setSupplierReqLimit] = useState(50000);
+
+  // 4. Customers Setting
+  const [customerCreditLimit, setCustomerCreditLimit] = useState(100000);
+  const [customerGroupDefault, setCustomerGroupDefault] = useState('General');
+  const [customerGracePeriod, setCustomerGracePeriod] = useState(7);
+  const [customerAllowUnregistered, setCustomerAllowUnregistered] = useState(true);
+
+  // 5. Product Setting
+  const [productSkuRule, setProductSkuRule] = useState('Auto');
+  const [productSkuPrefix, setProductSkuPrefix] = useState('PRD-');
+  const [productMarkup, setProductMarkup] = useState(15);
+  const [productValuation, setProductValuation] = useState('Weighted Average');
+
+  // 6. POS Setting
+  const [posDefaultCustomer, setPosDefaultCustomer] = useState('Walk-In Cash Customer');
+  const [posShowImageGrid, setPosShowImageGrid] = useState(true);
+  const [posQuickDiscounts, setPosQuickDiscounts] = useState('5, 10, 15, 20');
+  const [posCashDrawTrigger, setPosCashDrawTrigger] = useState('Auto Open');
+
+  // 7. Collection & Payment Settings
+  const [collectionAutoAlloc, setCollectionAutoAlloc] = useState(true);
+  const [collectionBounceFee, setCollectionBounceFee] = useState(500);
+  const [collectionEarlyDiscount, setCollectionEarlyDiscount] = useState(2);
+  const [collectionTargetDays, setCollectionTargetDays] = useState(10);
+
+  // 8. Users
+  const [usersList, setUsersList] = useState<any[]>(settings?.usersList || [
+    { id: '1', name: 'Rony Mia', username: 'admin_rony', email: 'ronymia2022@gmail.com', role: 'Administrator', status: 'Active', avatar: 'RM' },
+    { id: '2', name: 'Tasnim Ahmed', username: 'tasnim_mgr', email: 'tasnim@madani.com', role: 'Manager', status: 'Active', avatar: 'TA' },
+    { id: '3', name: 'Sabbir Rahman', username: 'sabbir_csh', email: 'sabbir@madani.com', role: 'Cashier', status: 'Active', avatar: 'SR' },
+    { id: '4', name: 'Sumona Yasmin', username: 'sumona_sales', email: 'sumona@madani.com', role: 'Sales Agent', status: 'Inactive', avatar: 'SY' },
+  ]);
+  const [newUserFullName, setNewUserFullName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserUsername, setNewUserUsername] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Cashier');
+
+  // SYSTEM USER ACTIONS
+  const startEditUser = (usr: any) => {
+    setEditingUserId(usr.id);
+    setEditUserFullName(usr.name);
+    setEditUserEmail(usr.email);
+    setEditUserUsername(usr.username);
+    setEditUserRole(usr.role);
+    setEditUserStatus(usr.status);
+  };
+
+  const handleSaveEditUser = (id: string) => {
+    const updated = usersList.map(u => u.id === id ? {
+      ...u,
+      name: editUserFullName,
+      email: editUserEmail,
+      username: editUserUsername,
+      role: editUserRole,
+      status: editUserStatus
+    } : u);
+    setUsersList(updated);
+    setEditingUserId(null);
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        usersList: updated,
+      });
+    }
+  };
+
+  const handleDeleteUser = (id: string) => {
+    if (confirm('Are you sure you want to delete this user login account?')) {
+      const updated = usersList.filter(u => u.id !== id);
+      setUsersList(updated);
+      if (onUpdateSettings && settings) {
+        onUpdateSettings({
+          ...settings,
+          usersList: updated,
+        });
+      }
+    }
+  };
+
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserFullName || !newUserUsername || !newUserEmail) return;
+    const initials = newUserFullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const newUser = {
+      id: Date.now().toString(),
+      name: newUserFullName,
+      username: newUserUsername.toLowerCase().replace(/\s/g, '_'),
+      email: newUserEmail,
+      role: newUserRole,
+      status: 'Active',
+      avatar: initials || 'U',
+    };
+    const updated = [...usersList, newUser];
+    setUsersList(updated);
+    setNewUserFullName('');
+    setNewUserEmail('');
+    setNewUserUsername('');
+    
+    if (onUpdateSettings && settings) {
+      onUpdateSettings({
+        ...settings,
+        usersList: updated
+      });
+    }
+    alert(`User Account for ${newUserFullName} created!`);
+  };
+
+  // 9. Roles Permissions Matrix
+  const [rolesPermissions, setRolesPermissions] = useState([
+    { role: 'Administrator', sales: { read: true, write: true, delete: true }, purchase: { read: true, write: true, delete: true }, inventory: { read: true, write: true, delete: true }, banking: { read: true, write: true, delete: true }, hr: { read: true, write: true, delete: true } },
+    { role: 'Manager', sales: { read: true, write: true, delete: false }, purchase: { read: true, write: true, delete: false }, inventory: { read: true, write: true, delete: true }, banking: { read: true, write: true, delete: false }, hr: { read: true, write: true, delete: false } },
+    { role: 'Cashier', sales: { read: true, write: true, delete: false }, purchase: { read: false, write: false, delete: false }, inventory: { read: true, write: false, delete: false }, banking: { read: true, write: false, delete: false }, hr: { read: false, write: false, delete: false } },
+    { role: 'Inventory Officer', sales: { read: false, write: false, delete: false }, purchase: { read: true, write: true, delete: false }, inventory: { read: true, write: true, delete: true }, banking: { read: false, write: false, delete: false }, hr: { read: false, write: false, delete: false } },
+  ]);
+
+  const handleTogglePermission = (roleIdx: number, module: 'sales' | 'purchase' | 'inventory' | 'banking' | 'hr', action: 'read' | 'write' | 'delete') => {
+    const updated = [...rolesPermissions];
+    updated[roleIdx][module][action] = !updated[roleIdx][module][action];
+    setRolesPermissions(updated);
+  };
+
+  // 10. Loan Setting
+  const [loanDefaultInt, setLoanDefaultInt] = useState(9);
+  const [loanMaxTenure, setLoanMaxTenure] = useState(36);
+  const [loanEarlyRepayPenalty, setLoanEarlyRepayPenalty] = useState(1);
+  const [loanMinMargin, setLoanMinMargin] = useState(20);
+
+  // 12. Menu Management
+  const [sidebarMenusEnabled, setSidebarMenusEnabled] = useState({
+    dashboard: true,
+    inventory: true,
+    sales: true,
+    purchase: true,
+    employee: true,
+    accounting: true,
+    banking: true,
+    loan: true,
+    reports: true,
+  });
+
+  // 13. Delete History
+  const [deletedItems, setDeletedItems] = useState([
+    { id: 'DEL-01', date: '2026-07-06 14:20:05', module: 'Sales Invoice', details: 'Invoice #INV-2026-003, Value: ৳12,400', deletedBy: 'admin_rony' },
+    { id: 'DEL-02', date: '2026-07-05 09:12:44', module: 'Banking Account', details: 'Nagad Personal Wallet, Initial Balance: ৳5,000', deletedBy: 'tasnim_mgr' },
+    { id: 'DEL-03', date: '2026-07-04 18:45:10', module: 'Employee Payroll', details: 'June Advance disbursement for Sabbir Rahman', deletedBy: 'admin_rony' },
+  ]);
+
+  const handleRestoreItem = (id: string, module: string) => {
+    setDeletedItems(deletedItems.filter(item => item.id !== id));
+    alert(`Successfully restored ${module} entry back into active tables!`);
+  };
+
+  // 14. Sales Return Setting
+  const [salesReturnWindow, setSalesReturnWindow] = useState('15 Days');
+  const [salesRestockingFee, setSalesRestockingFee] = useState(5);
+  const [salesReturnAction, setSalesReturnAction] = useState('Credit Note');
+  const [salesReturnInspection, setSalesReturnInspection] = useState(true);
+
+  // 15. Sales Order Setting
+  const [salesOrderAutoRelease, setSalesOrderAutoRelease] = useState(true);
+  const [salesOrderPartial, setSalesOrderPartial] = useState(false);
+  const [salesOrderPrefix, setSalesOrderPrefix] = useState('SO-');
+  const [salesOrderTerms, setSalesOrderTerms] = useState('Immediate Delivery');
+
+  // 16. Activity Log
+  const [activityLogs, setActivityLogs] = useState([
+    { id: 'LOG-304', time: '2026-07-07 09:54:10', user: 'admin_rony', action: 'System Login', module: 'Security', status: 'Success', ip: '192.168.1.104' },
+    { id: 'LOG-303', time: '2026-07-06 18:32:15', user: 'admin_rony', action: 'Update Base VAT Rate', module: 'Settings', status: 'Success', ip: '192.168.1.104' },
+    { id: 'LOG-302', time: '2026-07-06 15:45:00', user: 'tasnim_mgr', action: 'Approved Purchase PO #PO-02', module: 'Purchase', status: 'Success', ip: '192.168.1.112' },
+    { id: 'LOG-301', time: '2026-07-06 11:20:44', user: 'sabbir_csh', action: 'Created POS Receipt #INV-109', module: 'Sales', status: 'Success', ip: '192.168.1.135' },
+    { id: 'LOG-300', time: '2026-07-05 17:01:29', user: 'admin_rony', action: 'Added Supplier "Apex Ltd."', module: 'Purchase', status: 'Success', ip: '192.168.1.104' },
+  ]);
+  const [activityLogSearch, setActivityLogSearch] = useState('');
+
+  // 17. Purchase Setting
+  const [purchaseStrictPOAmt, setPurchaseStrictPOAmt] = useState(100000);
+  const [purchaseAutoReorder, setPurchaseAutoReorder] = useState(true);
+  const [purchaseDefaultUnit, setPurchaseDefaultUnit] = useState('Box');
+  const [purchaseGrnAutoDisburse, setPurchaseGrnAutoDisburse] = useState(false);
+
+  // 18. Entry Setting
+  const [entryAutoPosting, setEntryAutoPosting] = useState(true);
+  const [entryLockDays, setEntryLockDays] = useState(30);
+  const [entryVoucherPrefix, setEntryVoucherPrefix] = useState('VOU-');
+  const [entryAllowManualLedger, setEntryAllowManualLedger] = useState(false);
+
+  React.useEffect(() => {
+    if (settings) {
+      setCompName(settings.companyName || '');
+      setCompAddr(settings.companyAddress || '');
+      setPhone(settings.phone || '');
+      setTin(settings.tinNumber || '');
+      setBin(settings.binNumber || '');
+      setTradeLic(settings.tradeLicense || '');
+      setVat(settings.defaultVatRate || 5);
+      setDiscount(settings.defaultDiscountRate || 0);
+      setCurr(settings.baseCurrency || '৳');
+      setFooter(settings.receiptFooterMessage || '');
+      setAutoPrint(settings.autoPrintReceipt ?? true);
+      setSmsNotif(settings.enableSmsNotification ?? false);
+      setWarehouse(settings.defaultWarehouse || '');
+      setDefUnit(settings.defaultUnit || 'Pcs');
+      setThreshold(settings.lowStockThreshold || 5);
+      setTz(settings.timezone || 'Asia/Dhaka');
+      
+      if (settings.taxes) setTaxes(settings.taxes);
+      if (settings.paymentMethods) setPaymentMethods(settings.paymentMethods);
+      if (settings.usersList) setUsersList(settings.usersList);
+    }
+  }, [settings]);
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateSettings) {
+      onUpdateSettings({
+        companyName: compName,
+        companyAddress: compAddr,
+        phone,
+        tinNumber: tin,
+        binNumber: bin,
+        tradeLicense: tradeLic,
+        defaultVatRate: Number(vat),
+        defaultDiscountRate: Number(discount),
+        baseCurrency: curr,
+        receiptFooterMessage: footer,
+        autoPrintReceipt: autoPrint,
+        enableSmsNotification: smsNotif,
+        defaultWarehouse: warehouse,
+        defaultUnit: defUnit,
+        lowStockThreshold: Number(threshold),
+        timezone: tz,
+        taxes: taxes,
+        paymentMethods: paymentMethods,
+        usersList: usersList,
+      });
+      alert('System settings updated successfully!');
+    }
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(systemData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `axiom_erp_backup_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target?.result as string);
+          if (onImportData) {
+            onImportData(parsed);
+          }
+        } catch (err) {
+          alert("Invalid JSON file uploaded.");
+        }
+      };
+    }
+  };
+
+  const [mobileWallets, setMobileWallets] = useState([
+    { name: 'bKash Merchant Wallet', provider: 'bKash', number: '01712-940129', balance: 145000, status: 'Active' },
+    { name: 'Nagad Business Pay', provider: 'Nagad', number: '01815-402910', balance: 82000, status: 'Active' },
+    { name: 'Rocket Corp Wallet', provider: 'Rocket', number: '01911-301291', balance: 12500, status: 'Active' },
+  ]);
+
+  // --- GENERAL FORM MODAL ON/OFF ---
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [showLoanModal, setShowLoanModal] = useState(false);
+
+  // --- FORM VALUES ---
+  // Bank Form
+  const [bName, setBName] = useState('');
+  const [bAccName, setBAccName] = useState('');
+  const [bAccNo, setBAccNo] = useState('');
+  const [bType, setBType] = useState<BankAccount['type']>('Current');
+
+  // Loan Form
+  const [lBorrower, setLBorrower] = useState('');
+  const [lAmt, setLAmt] = useState('');
+  const [lInt, setLInt] = useState('9');
+  const [lDur, setLDur] = useState('12');
+
+  // Deposit / Withdrawal Forms
+  const [txTargetBank, setTxTargetBank] = useState(bankAccounts[0]?.id || '');
+  const [txAmount, setTxAmount] = useState('');
+  const [txDesc, setTxDesc] = useState('');
+
+  // Transfer Form
+  const [xfrFrom, setXfrFrom] = useState(bankAccounts[0]?.id || '');
+  const [xfrTo, setXfrTo] = useState(bankAccounts[1]?.id || '');
+  const [xfrAmt, setXfrAmt] = useState('');
+
+  // Party Transaction Form
+  const [partyName, setPartyName] = useState('');
+  const [partyRole, setPartyRole] = useState<'Customer' | 'Supplier'>('Customer');
+  const [partyAmt, setPartyAmt] = useState('');
+  const [partyBank, setPartyBank] = useState(bankAccounts[0]?.id || '');
+
+  // Mobile Banking Form
+  const [mobWalletIdx, setMobWalletIdx] = useState('0');
+  const [mobTxType, setMobTxType] = useState<'Cash In' | 'Cash Out'>('Cash In');
+  const [mobAmt, setMobAmt] = useState('');
+  const [mobDesc, setMobDesc] = useState('');
+
+  // Reconciliation Form
+  const [reconBankId, setReconBankId] = useState(bankAccounts[0]?.id || '');
+  const [reconStatementBal, setReconStatementBal] = useState('');
+  const [reconMatched, setReconMatched] = useState<boolean | null>(null);
+
+  // Repayments Form
+  const [repayLoanId, setRepayLoanId] = useState(loanAccounts[0]?.id || '');
+  const [repayAmt, setRepayAmt] = useState('');
+
+  // --- HANDLERS ---
+  const handleBankSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bName || !bAccName || !bAccNo) return;
+
+    onAddBankAccount({
+      bankName: bName,
+      accountName: bAccName,
+      accountNumber: bAccNo,
+      type: bType,
+    });
+
+    const newBank: BankAccount = {
+      id: `bank_dyn_${Date.now()}`,
+      bankName: bName,
+      accountName: bAccName,
+      accountNumber: bAccNo,
+      type: bType,
+      balance: 0,
+    };
+    setLocalBanks([...localBanks, newBank]);
+
+    setBName('');
+    setBAccName('');
+    setBAccNo('');
+    setShowBankModal(false);
+  };
+
+  const handleLoanSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lBorrower || !lAmt) return;
+
+    onAddLoan({
+      borrowerName: lBorrower,
+      amount: parseFloat(lAmt),
+      interestRate: parseFloat(lInt),
+      durationMonths: parseInt(lDur),
+    });
+
+    const newLoan: LoanAccount = {
+      id: `loan_dyn_${Date.now()}`,
+      accountNo: `LN-${Math.floor(Math.random() * 9000) + 1000}`,
+      borrowerName: lBorrower,
+      amount: parseFloat(lAmt),
+      disbursedAmount: 0,
+      outstandingAmount: parseFloat(lAmt),
+      interestRate: parseFloat(lInt),
+      durationMonths: parseInt(lDur),
+      status: 'Active',
+    };
+    setLocalLoans([...localLoans, newLoan]);
+
+    setLBorrower('');
+    setLAmt('');
+    setShowLoanModal(false);
+  };
+
+  // Deposit Inward Handler
+  const handleDepositSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!txTargetBank || !txAmount) return;
+    const amt = parseFloat(txAmount);
+    if (amt <= 0) return;
+
+    setLocalBanks(prev => prev.map(b => b.id === txTargetBank ? { ...b, balance: b.balance + amt } : b));
+
+    const selectedBank = localBanks.find(b => b.id === txTargetBank);
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `DEP-JV-${1000 + localTxs.length}`,
+      description: txDesc || 'Direct Cash Vault Deposit',
+      category: 'Capital Inflow',
+      amount: amt,
+      type: 'Deposit',
+      accountId: txTargetBank,
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setTxAmount('');
+    setTxDesc('');
+    alert(`Successfully credited ৳${amt.toLocaleString()} to ${selectedBank?.accountName}`);
+  };
+
+  // Withdrawal Outward Handler
+  const handleWithdrawalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!txTargetBank || !txAmount) return;
+    const amt = parseFloat(txAmount);
+    if (amt <= 0) return;
+
+    const selectedBank = localBanks.find(b => b.id === txTargetBank);
+    if (selectedBank && selectedBank.balance < amt) {
+      alert(`Insufficient funds! Available balance is ৳${selectedBank.balance.toLocaleString()}`);
+      return;
+    }
+
+    setLocalBanks(prev => prev.map(b => b.id === txTargetBank ? { ...b, balance: b.balance - amt } : b));
+
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `WTH-JV-${1000 + localTxs.length}`,
+      description: txDesc || 'Direct Cash Vault Withdrawal',
+      category: 'Cash Withdrawal',
+      amount: amt,
+      type: 'Expense',
+      accountId: txTargetBank,
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setTxAmount('');
+    setTxDesc('');
+    alert(`Successfully withdrew ৳${amt.toLocaleString()} from ${selectedBank?.accountName}`);
+  };
+
+  // Internal Bank to Bank Transfer
+  const handleTransferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!xfrFrom || !xfrTo || !xfrAmt || xfrFrom === xfrTo) {
+      alert('Source and destination accounts must be different!');
+      return;
+    }
+    const amt = parseFloat(xfrAmt);
+    const sourceBank = localBanks.find(b => b.id === xfrFrom);
+    if (sourceBank && sourceBank.balance < amt) {
+      alert(`Insufficient funds in source account! Available is ৳${sourceBank.balance.toLocaleString()}`);
+      return;
+    }
+
+    setLocalBanks(prev => prev.map(b => {
+      if (b.id === xfrFrom) return { ...b, balance: b.balance - amt };
+      if (b.id === xfrTo) return { ...b, balance: b.balance + amt };
+      return b;
+    }));
+
+    const destBank = localBanks.find(b => b.id === xfrTo);
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `TRF-JV-${1000 + localTxs.length}`,
+      description: `Fund transfer from ${sourceBank?.accountName} to ${destBank?.accountName}`,
+      category: 'Internal Transfer',
+      amount: amt,
+      type: 'Expense',
+      accountId: xfrFrom,
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setXfrAmt('');
+    alert(`Fund transfer of ৳${amt.toLocaleString()} completed successfully.`);
+  };
+
+  // Party Transaction (Settling Vendor/Client ledger)
+  const handlePartySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!partyName || !partyAmt || !partyBank) return;
+    const amt = parseFloat(partyAmt);
+
+    const bank = localBanks.find(b => b.id === partyBank);
+    if (partyRole === 'Supplier' && bank && bank.balance < amt) {
+      alert(`Insufficient funds in selected bank to pay supplier!`);
+      return;
+    }
+
+    setLocalBanks(prev => prev.map(b => {
+      if (b.id === partyBank) {
+        return { ...b, balance: partyRole === 'Customer' ? b.balance + amt : b.balance - amt };
+      }
+      return b;
+    }));
+
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `PRT-JV-${1000 + localTxs.length}`,
+      description: `Party Payment: ${partyRole === 'Customer' ? 'Inward from' : 'Outward to'} ${partyName}`,
+      category: partyRole === 'Customer' ? 'Sales Income' : 'Cost of Goods Sold',
+      amount: amt,
+      type: partyRole === 'Customer' ? 'Deposit' : 'Expense',
+      accountId: partyBank,
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setPartyName('');
+    setPartyAmt('');
+    alert(`Successfully posted party transaction of ৳${amt.toLocaleString()} to ledger.`);
+  };
+
+  // Mobile Banking Wallet Transaction
+  const handleMobileTxSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mobAmt) return;
+    const idx = parseInt(mobWalletIdx);
+    const amt = parseFloat(mobAmt);
+    const targetWallet = mobileWallets[idx];
+
+    if (mobTxType === 'Cash Out' && targetWallet.balance < amt) {
+      alert(`Insufficient wallet balance!`);
+      return;
+    }
+
+    setMobileWallets(prev => prev.map((w, i) => {
+      if (i === idx) {
+        return { ...w, balance: mobTxType === 'Cash In' ? w.balance + amt : w.balance - amt };
+      }
+      return w;
+    }));
+
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `MOB-JV-${1000 + localTxs.length}`,
+      description: mobDesc || `Mobile wallet ${mobTxType} on ${targetWallet.provider}`,
+      category: 'Mobile Transaction',
+      amount: amt,
+      type: mobTxType === 'Cash In' ? 'Deposit' : 'Expense',
+      accountId: 'mobile',
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setMobAmt('');
+    setMobDesc('');
+    alert(`Successfully posted ৳${amt.toLocaleString()} ${mobTxType} transaction on ${targetWallet.name}`);
+  };
+
+  // Bank Reconciliation matching
+  const handleReconSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reconStatementBal) return;
+    const targetBank = localBanks.find(b => b.id === reconBankId);
+    if (!targetBank) return;
+
+    const stmtVal = parseFloat(reconStatementBal);
+    const isMatched = Math.abs(targetBank.balance - stmtVal) < 0.01;
+    setReconMatched(isMatched);
+  };
+
+  // Disburse Loan Payout
+  const handleDisburse = (loanId: string) => {
+    const loan = localLoans.find(l => l.id === loanId);
+    if (!loan) return;
+
+    // Credit one of our bank accounts (e.g. first bank account)
+    if (localBanks.length > 0) {
+      const bId = localBanks[0].id;
+      setLocalBanks(prev => prev.map(b => b.id === bId ? { ...b, balance: b.balance + loan.amount } : b));
+    }
+
+    setLocalLoans(prev => prev.map(l => l.id === loanId ? { ...l, disbursedAmount: loan.amount, status: 'Disbursed' } : l));
+
+    // Record dynamic transaction
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `DSB-JV-${1000 + localTxs.length}`,
+      description: `Disbursed loan capital from ${loan.borrowerName}`,
+      category: 'Loan Disbursement Credit',
+      amount: loan.amount,
+      type: 'Deposit',
+      accountId: localBanks[0]?.id || 'cash',
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    alert(`Successfully disbursed ৳${loan.amount.toLocaleString()} into corporate cash reserve account.`);
+  };
+
+  // Repay Loan Installment
+  const handleRepaySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repayAmt || !repayLoanId) return;
+    const amt = parseFloat(repayAmt);
+
+    const targetLoan = localLoans.find(l => l.id === repayLoanId);
+    if (!targetLoan) return;
+
+    if (amt > targetLoan.outstandingAmount) {
+      alert(`Repayment amount cannot exceed remaining outstanding debt of ৳${targetLoan.outstandingAmount.toLocaleString()}`);
+      return;
+    }
+
+    // Deduct from bank accounts
+    if (localBanks.length > 0) {
+      const bId = localBanks[0].id;
+      setLocalBanks(prev => prev.map(b => b.id === bId ? { ...b, balance: b.balance - amt } : b));
+    }
+
+    setLocalLoans(prev => prev.map(l => l.id === repayLoanId ? { ...l, outstandingAmount: l.outstandingAmount - amt, status: l.outstandingAmount - amt <= 0 ? 'Closed' : 'Disbursed' } : l));
+
+    // Record transaction
+    const newTx: Transaction = {
+      id: `tx_dyn_${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      referenceNo: `RPY-JV-${1000 + localTxs.length}`,
+      description: `Loan Repayment installment to ${targetLoan.borrowerName}`,
+      category: 'Debt Amortization',
+      amount: amt,
+      type: 'Expense',
+      accountId: localBanks[0]?.id || 'cash',
+    };
+    setLocalTxs([newTx, ...localTxs]);
+
+    setRepayAmt('');
+    alert(`Amortization payment of ৳${amt.toLocaleString()} recorded successfully.`);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-150">
+      
+      {/* ========================================================
+          BANKING TERMINALS & COGNATES
+          ======================================================== */}
+      {currentTab === 'banking' && (
+        <div className="space-y-6">
+          
+          {/* 1. BANK ACCOUNTS VIEW */}
+          {subTab === 'bank_accounts' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 font-display">Banking Terminals</h2>
+                  <p className="text-xs text-slate-400 mt-1">Review ledger vault liquid balances and connected corporate bank accounts.</p>
+                </div>
+                <button
+                  onClick={() => setShowBankModal(true)}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Link Bank Account</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {localBanks.map((b) => (
+                  <div key={b.id} className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600" />
+                    <div className="flex items-start justify-between">
+                      <div className="h-9 w-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <Landmark className="h-5 w-5" />
+                      </div>
+                      <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-100">
+                        {b.type}
+                      </span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="font-bold text-slate-800 text-sm">{b.accountName}</h4>
+                      <p className="text-[10px] text-slate-400 font-mono font-semibold mt-0.5">{b.bankName} • {b.accountNumber}</p>
+                    </div>
+                    <div className="border-t border-slate-50 pt-4 mt-4 flex items-baseline justify-between">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Settled Balance</span>
+                      <span className="text-base font-black text-slate-800 font-display">৳{b.balance.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. TRANSACTIONS LEDGER */}
+          {subTab === 'transactions' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Bank Ledger Transactions</h2>
+                <p className="text-xs text-slate-400 mt-1">Review comprehensive deposits, payments, withdrawals, and capital transfers.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Date</th>
+                      <th className="py-3.5 px-6">Reference No</th>
+                      <th className="py-3.5 px-6">Transaction Description</th>
+                      <th className="py-3.5 px-6">Category Tag</th>
+                      <th className="py-3.5 px-6 text-right">Inflow / Outflow</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {localTxs.slice().reverse().map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/30 transition-colors">
+                        <td className="py-3.5 px-6 text-slate-500 font-medium">{t.date || '2026-07-06'}</td>
+                        <td className="py-3.5 px-6 font-mono font-bold text-indigo-600">{t.referenceNo || 'TRX-JV'}</td>
+                        <td className="py-3.5 px-6 font-bold text-slate-800">{t.description}</td>
+                        <td className="py-3.5 px-6 text-slate-500 font-semibold">{t.category}</td>
+                        <td className="py-3.5 px-6 text-right font-black">
+                          {t.type === 'Deposit' || t.type === 'Income' ? (
+                            <span className="text-emerald-600 font-bold inline-flex items-center gap-1">
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                              <span>+৳{t.amount.toLocaleString()}</span>
+                            </span>
+                          ) : (
+                            <span className="text-rose-600 font-bold inline-flex items-center gap-1">
+                              <ArrowDownRight className="h-3.5 w-3.5" />
+                              <span>-৳{t.amount.toLocaleString()}</span>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 3. DEPOSIT COGNATE */}
+          {subTab === 'deposit' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Record Bank Deposit Inward</h3>
+                <p className="text-xs text-slate-400 mt-1">Manually credit funds into one of your connected business bank terminal ledgers.</p>
+              </div>
+
+              <form onSubmit={handleDepositSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Bank Account</label>
+                  <select
+                    value={txTargetBank} onChange={(e) => setTxTargetBank(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer"
+                  >
+                    {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName} (৳{b.balance.toLocaleString()})</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Deposit Amount (৳) *</label>
+                  <input
+                    type="number" required min="1" placeholder="e.g. 50000" value={txAmount}
+                    onChange={(e) => setTxAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Inward Memo Description</label>
+                  <input
+                    type="text" placeholder="e.g. Capital injection from promoter" value={txDesc}
+                    onChange={(e) => setTxDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                >
+                  Confirm Credit Deposit
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 4. WITHDRAWAL COGNATE */}
+          {subTab === 'withdrawal' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Record Bank Withdrawal Outward</h3>
+                <p className="text-xs text-slate-400 mt-1">Manually debit funds from connected corporate banks for vault cash replenishment.</p>
+              </div>
+
+              <form onSubmit={handleWithdrawalSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Source Bank Account</label>
+                  <select
+                    value={txTargetBank} onChange={(e) => setTxTargetBank(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer"
+                  >
+                    {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName} (৳{b.balance.toLocaleString()})</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Withdrawal Amount (৳) *</label>
+                  <input
+                    type="number" required min="1" placeholder="e.g. 10000" value={txAmount}
+                    onChange={(e) => setTxAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold text-rose-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Outward Memo Description</label>
+                  <input
+                    type="text" placeholder="e.g. Petty cash replenishment" value={txDesc}
+                    onChange={(e) => setTxDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                >
+                  Confirm Debit Withdrawal
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 5. BANK TRANSFERS COGNATE */}
+          {subTab === 'transfers' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Internal Funds Transfer</h3>
+                <p className="text-xs text-slate-400 mt-1">Move cash balances seamlessly between different linked company bank accounts.</p>
+              </div>
+
+              <form onSubmit={handleTransferSubmit} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">From (Debit Source)</label>
+                    <select value={xfrFrom} onChange={(e) => setXfrFrom(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                      {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName} (৳{b.balance.toLocaleString()})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">To (Credit Dest)</label>
+                    <select value={xfrTo} onChange={(e) => setXfrTo(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                      {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName} (৳{b.balance.toLocaleString()})</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Transfer Amount (৳) *</label>
+                  <input
+                    type="number" required min="1" placeholder="e.g. 5000" value={xfrAmt}
+                    onChange={(e) => setXfrAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                >
+                  Post Transfer Journal
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 6. PARTY TRANSACTIONS */}
+          {subTab === 'party_transaction' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Client / Supplier Transactions</h3>
+                <p className="text-xs text-slate-400 mt-1">Directly log customer collection inflows or vendor pay-outs into ledgers.</p>
+              </div>
+
+              <form onSubmit={handlePartySubmit} className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Party Role</label>
+                    <select value={partyRole} onChange={(e) => setPartyRole(e.target.value as 'Customer' | 'Supplier')} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                      <option value="Customer">Customer Inflow (Credit)</option>
+                      <option value="Supplier">Supplier Pay-out (Debit)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Settlement Channel</label>
+                    <select value={partyBank} onChange={(e) => setPartyBank(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                      {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Party / Entity Name *</label>
+                  <input
+                    type="text" required placeholder="e.g. Hasan Enterprise Ltd." value={partyName}
+                    onChange={(e) => setPartyName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Settled Amount (৳) *</label>
+                  <input
+                    type="number" required min="1" placeholder="e.g. 15000" value={partyAmt}
+                    onChange={(e) => setPartyAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className={`w-full py-2.5 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors ${partyRole === 'Customer' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}
+                >
+                  Record Party Ledger Settlement
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 7. MOBILE BANKING DIRECTORY */}
+          {subTab === 'mobile_banking' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {mobileWallets.map((wallet, idx) => (
+                  <div key={idx} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-2 h-full bg-indigo-500" />
+                    <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+                      <Smartphone className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded uppercase">{wallet.provider}</span>
+                      <h4 className="font-bold text-slate-800 text-sm mt-1.5">{wallet.name}</h4>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{wallet.number}</p>
+                      <p className="font-black text-slate-800 mt-2 text-sm">৳{wallet.balance.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Post Mobile Wallet transaction</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Adjust wallet floats for instant Bkash/Nagad checkout reconciliations.</p>
+                </div>
+
+                <form onSubmit={handleMobileTxSubmit} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Wallet</label>
+                      <select value={mobWalletIdx} onChange={(e) => setMobWalletIdx(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                        {mobileWallets.map((w, i) => <option key={i} value={i}>{w.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction Float</label>
+                      <select value={mobTxType} onChange={(e) => setMobTxType(e.target.value as 'Cash In' | 'Cash Out')} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                        <option value="Cash In">Cash In (Credit Float)</option>
+                        <option value="Cash Out">Cash Out (Debit Outflow)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction Amount (৳) *</label>
+                    <input
+                      type="number" required min="1" placeholder="e.g. 5000" value={mobAmt}
+                      onChange={(e) => setMobAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction Reference</label>
+                    <input
+                      type="text" placeholder="e.g. Bkash Wallet Cash-in Ref" value={mobDesc}
+                      onChange={(e) => setMobDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                  >
+                    Confirm Mobile Wallet Float Update
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* 8. BANK RECONCILIATION */}
+          {subTab === 'reconciliation' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Bank Ledger Reconciliation</h3>
+                <p className="text-xs text-slate-400 mt-1">Cross-check system virtual ledger balance against real physical bank statement.</p>
+              </div>
+
+              <form onSubmit={handleReconSubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Recon Account</label>
+                  <select value={reconBankId} onChange={(e) => setReconBankId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                    {localBanks.map(b => <option key={b.id} value={b.id}>{b.accountName} (Ledger: ৳{b.balance.toLocaleString()})</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Statement Balance (৳) *</label>
+                  <input
+                    type="number" required placeholder="e.g. 50000" value={reconStatementBal}
+                    onChange={(e) => setReconStatementBal(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                >
+                  Verify Bank Statement
+                </button>
+              </form>
+
+              {reconMatched !== null && (
+                <div className={`p-4 rounded-xl border flex items-center gap-3 text-xs font-semibold animate-in fade-in duration-100 ${reconMatched ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-rose-50 text-rose-800 border-rose-100'}`}>
+                  {reconMatched ? (
+                    <>
+                      <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <p>Success! Ledgers match statement perfectly. Audit trails generated.</p>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
+                      <p>Mismatch detected! Adjustment entry required for unresolved discrepancies.</p>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ========================================================
+          LOANS & DEBT SERVICING
+          ======================================================== */}
+      {currentTab === 'loan' && (
+        <div className="space-y-6">
+          
+          {/* 1. LOAN ACCOUNTS VIEW */}
+          {subTab === 'loan_accounts' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 font-display">Liability Loan Registry</h2>
+                  <p className="text-xs text-slate-400 mt-1">Track company credit lines, staff advances, and monthly amortization schedules.</p>
+                </div>
+                <button
+                  onClick={() => setShowLoanModal(true)}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Record Liability Loan</span>
+                </button>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Amortization No</th>
+                      <th className="py-3.5 px-6">Borrower Entity Name</th>
+                      <th className="py-3.5 px-6 text-center">Interest / Duration</th>
+                      <th className="py-3.5 px-6 text-right">Sanctioned Principal</th>
+                      <th className="py-3.5 px-6 text-right">Disbursed Amount</th>
+                      <th className="py-3.5 px-6 text-right">Outstanding Debt</th>
+                      <th className="py-3.5 px-6 text-center">Current Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {localLoans.map((l) => (
+                      <tr key={l.id} className="hover:bg-slate-50/30 transition-colors">
+                        <td className="py-4 px-6 font-mono font-bold text-indigo-600">{l.accountNo}</td>
+                        <td className="py-4 px-6 font-bold text-slate-800">{l.borrowerName}</td>
+                        <td className="py-4 px-6 text-center font-semibold text-slate-500">
+                          {l.interestRate}% Int. • {l.durationMonths} Mos.
+                        </td>
+                        <td className="py-4 px-6 text-right font-bold text-slate-500">৳{l.amount.toLocaleString()}</td>
+                        <td className="py-4 px-6 text-right font-bold text-slate-600">৳{l.disbursedAmount.toLocaleString()}</td>
+                        <td className="py-4 px-6 text-right font-black text-rose-600">৳{l.outstandingAmount.toLocaleString()}</td>
+                        <td className="py-4 px-6 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${l.status === 'Disbursed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                            {l.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 2. DISBURSEMENTS */}
+          {subTab === 'disbursements' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Disbursement Actions</h2>
+                <p className="text-xs text-slate-400 mt-1">Disburse sanctioned loan funds directly into connected active bank balances.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Loan Ref</th>
+                      <th className="py-3.5 px-6">Lender Name</th>
+                      <th className="py-3.5 px-6 text-right">sanctioned Capital</th>
+                      <th className="py-3.5 px-6 text-center">Disbursed Ratio</th>
+                      <th className="py-3.5 px-6 text-center">Disbursed Status</th>
+                      <th className="py-3.5 px-6 text-right">Disbursement Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {localLoans.map((l) => {
+                      const isDisbursed = l.disbursedAmount > 0;
+                      return (
+                        <tr key={l.id} className="hover:bg-slate-50/30 transition-colors">
+                          <td className="py-4 px-6 font-mono font-bold text-indigo-600">{l.accountNo}</td>
+                          <td className="py-4 px-6 font-bold text-slate-800">{l.borrowerName}</td>
+                          <td className="py-4 px-6 text-right font-black text-slate-800">৳{l.amount.toLocaleString()}</td>
+                          <td className="py-4 px-6 text-center font-bold text-slate-600">
+                            {isDisbursed ? '100% Fully Disbursed' : '0% Pending'}
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${isDisbursed ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                              {isDisbursed ? 'Disbursed' : 'Sanctioned'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <button
+                              disabled={isDisbursed}
+                              onClick={() => handleDisburse(l.id)}
+                              className={`px-3.5 py-1.5 font-bold rounded-lg text-[10px] cursor-pointer transition-colors ${isDisbursed ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+                            >
+                              {isDisbursed ? 'Disbursed' : 'Release Capital'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 3. REPAYMENTS */}
+          {subTab === 'repayments' && (
+            <div className="max-w-md mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Amortization Installments Repayment</h3>
+                <p className="text-xs text-slate-400 mt-1">Settle outstanding debt installments with direct corporate bank debits.</p>
+              </div>
+
+              <form onSubmit={handleRepaySubmit} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Credit Line</label>
+                  <select value={repayLoanId} onChange={(e) => setRepayLoanId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer text-slate-700">
+                    {localLoans.filter(l => l.outstandingAmount > 0).map(l => (
+                      <option key={l.id} value={l.id}>{l.borrowerName} (Debt: ৳{l.outstandingAmount.toLocaleString()})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Repayment Installment Amount (৳) *</label>
+                  <input
+                    type="number" required min="1" placeholder="e.g. 25000" value={repayAmt}
+                    onChange={(e) => setRepayAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold text-rose-600"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors"
+                >
+                  Post Repayment installment
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 4. LOAN REPORTS */}
+          {subTab === 'loan_report' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Aggregate Loan Debt Analytics</h2>
+                <p className="text-xs text-slate-400 mt-1">Audit company debt-to-equity ratios, total accrued interest liability, and outstanding capital.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs font-semibold">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-5">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Accrued Sanctioned Capital</span>
+                    <span className="text-lg font-bold text-slate-800 mt-2 block">
+                      ৳{localLoans.reduce((sum, l) => sum + l.amount, 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-5">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Released Payout Float</span>
+                    <span className="text-lg font-bold text-indigo-600 mt-2 block">
+                      ৳{localLoans.reduce((sum, l) => sum + l.disbursedAmount, 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-5">
+                    <span className="text-[10px] font-bold uppercase text-rose-500 block">Total Outstanding Debt Liability</span>
+                    <span className="text-lg font-bold text-rose-700 mt-2 block">
+                      ৳{localLoans.reduce((sum, l) => sum + l.outstandingAmount, 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ========================================================
+          Axiom SYSTEM CONFIG SETTINGS (POLISHED TABBED VERSION)
+          ======================================================== */}
+      {currentTab === 'settings' && (
+        <div className="max-w-6xl mx-auto bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
+          {/* Scrollable Sidebar Tabs */}
+          <div className="w-full lg:w-72 bg-slate-50 border-r border-slate-200/80 p-5 flex flex-col shrink-0">
+            <div className="mb-4">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Axiom Settings Portal</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">Configure and calibrate your ERP environment</p>
+            </div>
+
+            {/* Scrollable Container for 18 menu items */}
+            <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
+              {[
+                { id: 'tax_rates', label: 'Tax Rates', icon: Percent },
+                { id: 'payment_methods', label: 'Payment Method', icon: CreditCard },
+                { id: 'add_suppliers_setting', label: 'Add Suppliers Setting', icon: Truck },
+                { id: 'add_customers_setting', label: 'Add Customers Setting', icon: Users },
+                { id: 'add_product_setting', label: 'Add Product Setting', icon: ShoppingBag },
+                { id: 'pos_setting', label: 'POS Setting', icon: ShoppingCart },
+                { id: 'collection_payment_settings', label: 'Collection & Payment', icon: TrendingUp },
+                { id: 'users', label: 'Users', icon: UserCheck },
+                { id: 'roles', label: 'Roles', icon: Shield },
+                { id: 'loan_setting', label: 'Loan Setting', icon: Landmark },
+                { id: 'system_settings', label: 'System Settings', icon: Sliders },
+                { id: 'menu_management', label: 'Menu Management', icon: Menu },
+                { id: 'delete_history', label: 'Delete History', icon: Trash2 },
+                { id: 'sales_return_setting', label: 'Sales Return Setting', icon: RotateCcw },
+                { id: 'sales_order_setting', label: 'Sales Order Setting', icon: FileText },
+                { id: 'activity_log', label: 'Activity Log', icon: Clock },
+                { id: 'purchase_setting', label: 'Purchase Setting', icon: ShoppingBag },
+                { id: 'entry_setting', label: 'Entry Setting', icon: Database },
+              ].map((menu) => {
+                const IconComponent = menu.icon;
+                const isSelected = selectedSettingsTab === menu.id;
+                return (
+                  <button
+                    key={menu.id}
+                    type="button"
+                    onClick={() => setSelectedSettingsTab(menu.id)}
+                    className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
+                        : 'text-slate-600 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <IconComponent className={`h-4 w-4 shrink-0 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                    <span className="truncate">{menu.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>Enterprise Security Sandbox</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dynamic Content Pane */}
+          <div className="flex-1 p-8 overflow-y-auto max-h-[640px]">
+            {/* 1. TAX RATES */}
+            {selectedSettingsTab === 'tax_rates' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Corporate Tax & VAT Rates</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Add and manage national VAT standard brackets and custom supplementary duties.</p>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Tax Title</th>
+                        <th className="p-3 text-center">Tax Rate (%)</th>
+                        <th className="p-3">Application Scope</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                      {taxes.map((tax) => {
+                        const isEditing = editingTaxId === tax.id;
+                        return (
+                          <tr key={tax.id} className="hover:bg-slate-50/50">
+                            {isEditing ? (
+                              <>
+                                <td className="p-2">
+                                  <input
+                                    type="text"
+                                    value={editTaxName}
+                                    onChange={(e) => setEditTaxName(e.target.value)}
+                                    className="w-full bg-white border border-slate-300 rounded p-1 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                                  />
+                                </td>
+                                <td className="p-2 text-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={editTaxRate}
+                                    onChange={(e) => setEditTaxRate(e.target.value)}
+                                    className="w-20 bg-white border border-slate-300 rounded p-1 text-xs font-mono text-center focus:outline-none focus:border-indigo-500"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <select
+                                    value={editTaxType}
+                                    onChange={(e) => setEditTaxType(e.target.value)}
+                                    className="bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                  >
+                                    <option value="Sales">Sales Only</option>
+                                    <option value="Purchase">Purchase Only</option>
+                                    <option value="Both">Both (Sales & Purchase)</option>
+                                  </select>
+                                </td>
+                                <td className="p-2">
+                                  <select
+                                    value={editTaxStatus}
+                                    onChange={(e) => setEditTaxStatus(e.target.value as any)}
+                                    className="bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer font-bold text-slate-700"
+                                  >
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                </td>
+                                <td className="p-2 text-right">
+                                  <div className="flex justify-end items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditTax(tax.id)}
+                                      className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors"
+                                      title="Save Changes"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingTaxId(null)}
+                                      className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-md transition-colors"
+                                      title="Cancel"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="p-3 font-bold text-slate-800">{tax.name}</td>
+                                <td className="p-3 text-center font-mono text-indigo-600">{tax.rate}%</td>
+                                <td className="p-3">
+                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold">{tax.type}</span>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                    tax.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                  }`}>{tax.status}</span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <div className="flex justify-end items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditTax(tax)}
+                                      className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all"
+                                      title="Edit Tax Rate"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTax(tax.id)}
+                                      className="p-1 text-red-500 hover:bg-red-50 rounded transition-all"
+                                      title="Delete Tax Rate"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <form onSubmit={handleAddTax} className="p-5 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4">
+                  <span className="block text-xs font-bold text-slate-800">Register Custom VAT/Tax Category</span>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tax Category Title</label>
+                      <input
+                        type="text" required placeholder="e.g. Export SD 12%" value={newTaxName} onChange={(e) => setNewTaxName(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Standard Rate (%)</label>
+                      <input
+                        type="number" required min="0" max="100" placeholder="12" value={newTaxRate} onChange={(e) => setNewTaxRate(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-mono text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tax Scope Context</label>
+                      <select
+                        value={newTaxType} onChange={(e) => setNewTaxType(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="Sales">Sales Only</option>
+                        <option value="Purchase">Purchase Only</option>
+                        <option value="Both">Both (Sales & Purchase)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-xs">
+                      Add Custom Tax
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* 2. PAYMENT METHODS */}
+            {selectedSettingsTab === 'payment_methods' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Financial Payment Instruments</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Activate mobile money gateways, credit card points of service, or cash drawers.</p>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Method Name</th>
+                        <th className="p-3">Gateway Class</th>
+                        <th className="p-3 text-center">Gateway Charge (%)</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                      {paymentMethods.map((method) => {
+                        const isEditing = editingPayId === method.id;
+                        return (
+                          <tr key={method.id} className="hover:bg-slate-50/50">
+                            {isEditing ? (
+                              <>
+                                <td className="p-2">
+                                  <input
+                                    type="text"
+                                    value={editPayName}
+                                    onChange={(e) => setEditPayName(e.target.value)}
+                                    className="w-full bg-white border border-slate-300 rounded p-1 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <select
+                                    value={editPayType}
+                                    onChange={(e) => setEditPayType(e.target.value)}
+                                    className="bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                  >
+                                    <option value="Cash">Cash Ledger</option>
+                                    <option value="Mobile Wallet">Mobile Money Wallet</option>
+                                    <option value="Bank">Direct Banking Account</option>
+                                    <option value="Card Gateway">Card Merchant Terminal</option>
+                                  </select>
+                                </td>
+                                <td className="p-2 text-center">
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={editPayCharge}
+                                    onChange={(e) => setEditPayCharge(e.target.value)}
+                                    className="w-20 bg-white border border-slate-300 rounded p-1 text-xs font-mono text-center focus:outline-none focus:border-indigo-500"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <select
+                                    value={editPayStatus}
+                                    onChange={(e) => setEditPayStatus(e.target.value as any)}
+                                    className="bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer font-bold text-slate-700"
+                                  >
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                </td>
+                                <td className="p-2 text-right">
+                                  <div className="flex justify-end items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditPay(method.id)}
+                                      className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-md transition-colors"
+                                      title="Save Changes"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingPayId(null)}
+                                      className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-md transition-colors"
+                                      title="Cancel"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="p-3 font-bold text-slate-800">{method.name}</td>
+                                <td className="p-3">
+                                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold">{method.type}</span>
+                                </td>
+                                <td className="p-3 text-center font-mono text-indigo-600">{method.charge}%</td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                    method.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                  }`}>{method.status}</span>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <div className="flex justify-end items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditPay(method)}
+                                      className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all"
+                                      title="Edit Instrument"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeletePay(method.id)}
+                                      className="p-1 text-red-500 hover:bg-red-50 rounded transition-all"
+                                      title="Remove Instrument"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <form onSubmit={handleAddPaymentMethod} className="p-5 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4">
+                  <span className="block text-xs font-bold text-slate-800">Add Corporate Payment Method</span>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Method Name</label>
+                      <input
+                        type="text" required placeholder="e.g. City Bank POS" value={newPayName} onChange={(e) => setNewPayName(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Gateway Class</label>
+                      <select
+                        value={newPayType} onChange={(e) => setNewPayType(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none cursor-pointer font-medium"
+                      >
+                        <option value="Cash">Cash Ledger</option>
+                        <option value="Mobile Wallet">Mobile Money Wallet</option>
+                        <option value="Bank">Direct Banking Account</option>
+                        <option value="Card Gateway">Card Merchant Terminal</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Gateway Charge (%)</label>
+                      <input
+                        type="number" step="0.1" placeholder="1.5" value={newPayCharge} onChange={(e) => setNewPayCharge(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none font-mono text-center"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-xs">
+                      Register Instrument
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* 3. SUPPLIERS SETTING */}
+            {selectedSettingsTab === 'add_suppliers_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Supplier Accounts Rules</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Control procurement invoice default terms, automated purchase triggers and lead margins.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Standard Supplier Payment Terms</label>
+                    <select
+                      value={supplierCreditTerms} onChange={(e) => setSupplierCreditTerms(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Net 15">Net 15 Days</option>
+                      <option value="Net 30">Net 30 Days (Standard)</option>
+                      <option value="Net 60">Net 60 Days</option>
+                      <option value="Immediate">Immediate Cash on Delivery</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Supplier System Code Prefix</label>
+                    <input
+                      type="text" value={supplierCodePrefix} onChange={(e) => setSupplierCodePrefix(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Safety Procurement Lead Time (Days)</label>
+                    <input
+                      type="number" value={reorderLeadTime} onChange={(e) => setReorderLeadTime(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Strict PO Sign-off Cap Limit (৳)</label>
+                    <input
+                      type="number" value={supplierReqLimit} onChange={(e) => setSupplierReqLimit(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Supplier preferences updated successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Supplier Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. CUSTOMERS SETTING */}
+            {selectedSettingsTab === 'add_customers_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Customer Accounts Rules</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Define corporate credit extension limits, payment windows, and wholesale profiles.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Maximum Extendable Credit Ceiling (৳)</label>
+                    <input
+                      type="number" value={customerCreditLimit} onChange={(e) => setCustomerCreditLimit(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Client Category Tier</label>
+                    <select
+                      value={customerGroupDefault} onChange={(e) => setCustomerGroupDefault(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="General">General Retail Consumer</option>
+                      <option value="Wholesale">Primary Wholesaler Category</option>
+                      <option value="VIP">Executive Platinum Client</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Overdue Warning Invoice Grace Period (Days)</label>
+                    <input
+                      type="number" value={customerGracePeriod} onChange={(e) => setCustomerGracePeriod(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Allow Guest Credit Invoicing</span>
+                      <span className="block text-[9px] text-slate-400">Generate liability bills for walk-in accounts.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerAllowUnregistered(!customerAllowUnregistered)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${customerAllowUnregistered ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Customer preferences saved successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Customer Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 5. PRODUCT SETTING */}
+            {selectedSettingsTab === 'add_product_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Product Catalog Rules</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Configure automated barcode/SKU parameters and standard ledger valuation formulas.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">SKU Code Auto-Generation Rule</label>
+                    <select
+                      value={productSkuRule} onChange={(e) => setProductSkuRule(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Auto">Auto-Generate from Category Prefix</option>
+                      <option value="Manual">Requires Manual Operator Code Entry</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Product SKU Base Code Prefix</label>
+                    <input
+                      type="text" value={productSkuPrefix} onChange={(e) => setProductSkuPrefix(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">System Profit Markup Target (%)</label>
+                    <input
+                      type="number" value={productMarkup} onChange={(e) => setProductMarkup(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Asset Inventory Valuation Formula</label>
+                    <select
+                      value={productValuation} onChange={(e) => setProductValuation(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Weighted Average">Weighted Average Cost (AVCO)</option>
+                      <option value="FIFO">First In, First Out (FIFO)</option>
+                      <option value="LIFO">Last In, First Out (LIFO)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Product catalog defaults saved!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Catalog Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 6. POS SETTING */}
+            {selectedSettingsTab === 'pos_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">POS Cash Register Preferences</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Customize real-time retail screen defaults, shortcuts and cash drawer rules.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Customer Mapping</label>
+                    <input
+                      type="text" value={posDefaultCustomer} onChange={(e) => setPosDefaultCustomer(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Quick Fast-Discount Buttons (%, CSV)</label>
+                    <input
+                      type="text" value={posQuickDiscounts} onChange={(e) => setPosQuickDiscounts(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Drawer Automatic Open Rule</label>
+                    <select
+                      value={posCashDrawTrigger} onChange={(e) => setPosCashDrawTrigger(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Auto Open">Auto Open on Receipt Checkout</option>
+                      <option value="Password">Requires Supervisor Overrule Password</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Display Catalog Thumbnail Images</span>
+                      <span className="block text-[9px] text-slate-400">Show visual grids on POS cashier panel.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPosShowImageGrid(!posShowImageGrid)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${posShowImageGrid ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('POS cashier register parameters saved successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save POS Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 7. COLLECTION & PAYMENT SETTINGS */}
+            {selectedSettingsTab === 'collection_payment_settings' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Invoice Collection & Payment Policies</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Regulate bank statement automated reconciliation rules, overdue penalty charges and discounts.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Bounced Check Processing Fees (৳)</label>
+                    <input
+                      type="number" value={collectionBounceFee} onChange={(e) => setCollectionBounceFee(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Early Payment Cash Discount (%)</label>
+                    <input
+                      type="number" value={collectionEarlyDiscount} onChange={(e) => setCollectionEarlyDiscount(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Discounts Validity Threshold (Days)</label>
+                    <input
+                      type="number" value={collectionTargetDays} onChange={(e) => setCollectionTargetDays(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Auto Allocation of Ledger Accounts</span>
+                      <span className="block text-[9px] text-slate-400">Match credit collection lists with open bills automatically.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCollectionAutoAlloc(!collectionAutoAlloc)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${collectionAutoAlloc ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Collection and settlement policies saved!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Policies Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 8. USERS */}
+            {selectedSettingsTab === 'users' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">System Portal User Logins</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Add, audit, or deactivate employee terminal accounts and corporate emails.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {usersList.map((usr) => {
+                    const isEditing = editingUserId === usr.id;
+                    return (
+                      <div key={usr.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50/30">
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={editUserFullName}
+                                  onChange={(e) => setEditUserFullName(e.target.value)}
+                                  className="w-full bg-white border border-slate-300 rounded p-1 text-xs font-semibold focus:outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase">Username</label>
+                                <input
+                                  type="text"
+                                  value={editUserUsername}
+                                  onChange={(e) => setEditUserUsername(e.target.value)}
+                                  className="w-full bg-white border border-slate-300 rounded p-1 text-xs font-mono focus:outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase">Email</label>
+                                <input
+                                  type="email"
+                                  value={editUserEmail}
+                                  onChange={(e) => setEditUserEmail(e.target.value)}
+                                  className="w-full bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase">Role</label>
+                                <select
+                                  value={editUserRole}
+                                  onChange={(e) => setEditUserRole(e.target.value)}
+                                  className="w-full bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                >
+                                  <option value="Administrator">Administrator</option>
+                                  <option value="Manager">Manager</option>
+                                  <option value="Cashier">Cashier</option>
+                                  <option value="Sales Agent">Sales Agent</option>
+                                  <option value="Inventory Officer">Inventory Officer</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase">Status</label>
+                                <select
+                                  value={editUserStatus}
+                                  onChange={(e) => setEditUserStatus(e.target.value as any)}
+                                  className="w-full bg-white border border-slate-300 rounded p-1 text-xs focus:outline-none focus:border-indigo-500 cursor-pointer font-bold text-slate-700"
+                                >
+                                  <option value="Active">Active</option>
+                                  <option value="Inactive">Inactive</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-1.5 mt-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditUser(usr.id)}
+                                className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-bold transition-colors flex items-center gap-1"
+                              >
+                                <Check className="h-3 w-3" /> Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingUserId(null)}
+                                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-xs font-bold transition-colors flex items-center gap-1"
+                              >
+                                <X className="h-3 w-3" /> Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3.5">
+                            <div className="h-10 w-10 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                              {usr.avatar}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="block text-xs font-bold text-slate-800 truncate">{usr.name}</span>
+                              <span className="block text-[10px] text-slate-400 truncate">@{usr.username} | {usr.email}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-block text-[9px] font-bold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded-md">
+                                  {usr.role}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold shrink-0 ${
+                                  usr.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                }`}>
+                                  {usr.status}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => startEditUser(usr)}
+                                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all"
+                                title="Edit User Account"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(usr.id)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-all"
+                                title="Delete User Account"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <form onSubmit={handleAddUser} className="p-5 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4">
+                  <span className="block text-xs font-bold text-slate-800">Add Portal Employee User Login</span>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Employee Full Name</label>
+                      <input
+                        type="text" required placeholder="e.g. Rashedul Islam" value={newUserFullName} onChange={(e) => setNewUserFullName(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Username (Login ID)</label>
+                      <input
+                        type="text" required placeholder="e.g. rashed_csh" value={newUserUsername} onChange={(e) => setNewUserUsername(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Portal Email Address</label>
+                      <input
+                        type="email" required placeholder="rashed@madani.com" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">User Assignment Role</label>
+                      <select
+                        value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="Administrator">Administrator</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Sales Agent">Sales Agent</option>
+                        <option value="Inventory Officer">Inventory Officer</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-xs">
+                      Register Portal Account
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* 9. ROLES */}
+            {selectedSettingsTab === 'roles' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">User Roles Permission Matrix</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Define strict modular read, write and delete security guidelines per company role.</p>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Portal Role Class</th>
+                        <th className="p-3 text-center">POS/Sales</th>
+                        <th className="p-3 text-center">Purchase</th>
+                        <th className="p-3 text-center">Inventory</th>
+                        <th className="p-3 text-center">Banking</th>
+                        <th className="p-3 text-center">HR Payroll</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                      {rolesPermissions.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="p-3 font-bold text-slate-800">{row.role}</td>
+                          {/* Sales */}
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2 text-[10px]">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.sales.read} onChange={() => handleTogglePermission(idx, 'sales', 'read')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>R</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.sales.write} onChange={() => handleTogglePermission(idx, 'sales', 'write')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>W</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.sales.delete} onChange={() => handleTogglePermission(idx, 'sales', 'delete')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>D</span>
+                              </label>
+                            </div>
+                          </td>
+                          {/* Purchase */}
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2 text-[10px]">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.purchase.read} onChange={() => handleTogglePermission(idx, 'purchase', 'read')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>R</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.purchase.write} onChange={() => handleTogglePermission(idx, 'purchase', 'write')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>W</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.purchase.delete} onChange={() => handleTogglePermission(idx, 'purchase', 'delete')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>D</span>
+                              </label>
+                            </div>
+                          </td>
+                          {/* Inventory */}
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2 text-[10px]">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.inventory.read} onChange={() => handleTogglePermission(idx, 'inventory', 'read')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>R</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.inventory.write} onChange={() => handleTogglePermission(idx, 'inventory', 'write')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>W</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.inventory.delete} onChange={() => handleTogglePermission(idx, 'inventory', 'delete')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>D</span>
+                              </label>
+                            </div>
+                          </td>
+                          {/* Banking */}
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2 text-[10px]">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.banking.read} onChange={() => handleTogglePermission(idx, 'banking', 'read')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>R</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.banking.write} onChange={() => handleTogglePermission(idx, 'banking', 'write')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>W</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.banking.delete} onChange={() => handleTogglePermission(idx, 'banking', 'delete')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>D</span>
+                              </label>
+                            </div>
+                          </td>
+                          {/* HR Payroll */}
+                          <td className="p-3">
+                            <div className="flex items-center justify-center gap-2 text-[10px]">
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.hr.read} onChange={() => handleTogglePermission(idx, 'hr', 'read')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>R</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.hr.write} onChange={() => handleTogglePermission(idx, 'hr', 'write')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>W</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input type="checkbox" checked={row.hr.delete} onChange={() => handleTogglePermission(idx, 'hr', 'delete')} className="rounded text-indigo-600 focus:ring-0" />
+                                <span>D</span>
+                              </label>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-4 border border-indigo-50 rounded-xl bg-indigo-50/20 text-[11px] text-slate-500 font-medium leading-relaxed">
+                  Note: Changes to the Role Permission Matrix will apply instantly to all active cashier terminals and executive dashboards connected to the database.
+                </div>
+              </div>
+            )}
+
+            {/* 10. LOAN SETTING */}
+            {selectedSettingsTab === 'loan_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Liability & Loan Preferences</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Calibrate compounding modes, processing charges and debt margin caps.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Standard Liability Interest Cap (%)</label>
+                    <input
+                      type="number" value={loanDefaultInt} onChange={(e) => setLoanDefaultInt(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Maximum Allowed Amortization (Months)</label>
+                    <input
+                      type="number" value={loanMaxTenure} onChange={(e) => setLoanMaxTenure(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Early Repayment Penalty Surcharge (%)</label>
+                    <input
+                      type="number" value={loanEarlyRepayPenalty} onChange={(e) => setLoanEarlyRepayPenalty(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Minimum Account Margin Reserve (%)</label>
+                    <input
+                      type="number" value={loanMinMargin} onChange={(e) => setLoanMinMargin(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Loan setting defaults updated successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Loan Defaults
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 11. SYSTEM SETTINGS */}
+            {selectedSettingsTab === 'system_settings' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 font-display">Axiom Enterprise Core Settings</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Control company identity, multi-tab POS billing, and databases.</p>
+                  </div>
+                  {/* Internal Tab Selection Buttons */}
+                  <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg">
+                    {['profile', 'billing', 'inventory', 'backup'].map((tab) => (
+                      <button
+                        key={tab} type="button"
+                        onClick={() => setActiveSettingsTab(tab as any)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wide ${
+                          activeSettingsTab === tab ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {activeSettingsTab === 'profile' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Company Registered Name</label>
+                        <input
+                          type="text" required value={compName} onChange={(e) => setCompName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Corporate Phone Number</label>
+                        <input
+                          type="text" required value={phone} onChange={(e) => setPhone(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Registered Head Office Address</label>
+                      <textarea
+                        required value={compAddr} onChange={(e) => setCompAddr(e.target.value)} rows={2}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white focus:border-indigo-500 resize-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">TIN Code (12 Digit)</label>
+                        <input
+                          type="text" value={tin} onChange={(e) => setTin(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">BIN Registration Code</label>
+                        <input
+                          type="text" value={bin} onChange={(e) => setBin(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Trade License Reference</label>
+                        <input
+                          type="text" value={tradeLic} onChange={(e) => setTradeLic(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === 'billing' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Base Currency</label>
+                        <select
+                          value={curr} onChange={(e) => setCurr(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs cursor-pointer focus:outline-none"
+                        >
+                          <option value="৳">BDT (৳) — Bangladesh Taka</option>
+                          <option value="$">USD ($) — United States Dollar</option>
+                          <option value="€">EUR (€) — Euro Zone</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Default POS VAT (%)</label>
+                        <input
+                          type="number" required value={vat} onChange={(e) => setVat(Number(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Default POS Discount (%)</label>
+                        <input
+                          type="number" required value={discount} onChange={(e) => setDiscount(Number(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Receipt/Invoice Footer Message</label>
+                      <input
+                        type="text" required value={footer} onChange={(e) => setFooter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50">
+                        <div className="space-y-0.5">
+                          <span className="block text-xs font-bold text-slate-700">Auto Print Invoice Slip</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAutoPrint(!autoPrint)}
+                          className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${autoPrint ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                        >
+                          <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50">
+                        <div className="space-y-0.5">
+                          <span className="block text-xs font-bold text-slate-700">Enable SMS Receipts</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSmsNotif(!smsNotif)}
+                          className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${smsNotif ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                        >
+                          <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === 'inventory' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Default Warehouse</label>
+                        <input
+                          type="text" required value={warehouse} onChange={(e) => setWarehouse(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">System Metric Unit</label>
+                        <select
+                          value={defUnit} onChange={(e) => setDefUnit(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs cursor-pointer focus:outline-none"
+                        >
+                          <option value="Pcs">Pieces (Pcs)</option>
+                          <option value="Box">Boxes (Box)</option>
+                          <option value="Kg">Kilograms (Kg)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Low Stock Alarm Limit</label>
+                        <input
+                          type="number" required value={threshold} onChange={(e) => setThreshold(Number(e.target.value))}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Default Timezone</label>
+                        <select
+                          value={tz} onChange={(e) => setTz(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs cursor-pointer focus:outline-none"
+                        >
+                          <option value="Asia/Dhaka">Asia/Dhaka (GMT+6)</option>
+                          <option value="Asia/Kolkata">Asia/Kolkata (GMT+5:30)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeSettingsTab === 'backup' && (
+                  <div className="space-y-4 text-xs">
+                    <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/50 flex gap-3 leading-relaxed text-slate-600">
+                      <ShieldCheck className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-slate-800">Database Safety Regulations</p>
+                        <p className="mt-1 text-slate-500 text-[11px]">Download manual JSON state files to completely back up or restore entire double-entry records.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+                        <span className="block text-xs font-bold text-slate-800">Export System Database</span>
+                        <button
+                          type="button" onClick={handleExportJSON}
+                          className="flex items-center justify-center gap-1.5 w-full bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2 px-3 rounded-lg text-xs cursor-pointer shadow-xs"
+                        >
+                          <Download className="h-4 w-4 text-slate-500" />
+                          Download BDT Backup (.json)
+                        </button>
+                      </div>
+                      <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+                        <span className="block text-xs font-bold text-slate-800">Import System Backup</span>
+                        <label className="flex items-center justify-center gap-1.5 w-full bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold py-2 px-3 rounded-lg text-xs cursor-pointer shadow-xs">
+                          <Upload className="h-4 w-4 text-slate-500" />
+                          <span>Upload JSON</span>
+                          <input type="file" accept=".json" onChange={handleImportFileChange} className="hidden" />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-bold text-red-600">Wipe Database</span>
+                        <span className="block text-[10px] text-slate-400">Restore factory demo configurations.</span>
+                      </div>
+                      <button
+                        type="button" onClick={onResetData}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        Wipe Database
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit action panel for non-backup internal tabs */}
+                {activeSettingsTab !== 'backup' && (
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button
+                      type="button" onClick={handleSaveSettings}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                    >
+                      Save Core Preferences
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 12. MENU MANAGEMENT */}
+            {selectedSettingsTab === 'menu_management' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Sidebar Modules Management</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Show or hide visible modules in the principal dashboard sidebar dynamically.</p>
+                </div>
+
+                <div className="space-y-3">
+                  {Object.entries(sidebarMenusEnabled).map(([key, enabled]) => (
+                    <div key={key} className="flex items-center justify-between p-3.5 border border-slate-200/80 rounded-xl bg-slate-50/20">
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800 capitalize">{key} Navigation Panel</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5 font-medium">Control visibility of the {key} suite in the ERP menu tree.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = { ...sidebarMenusEnabled, [key]: !enabled };
+                          setSidebarMenusEnabled(updated as any);
+                        }}
+                        className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${enabled ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                      >
+                        <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Main sidebar module restrictions saved successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Menu Configuration
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 13. DELETE HISTORY */}
+            {selectedSettingsTab === 'delete_history' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">ERP Deleted History & Trash Can</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Audit history of deleted transactions and database rows. Restore elements immediately back to ledger tables.</p>
+                </div>
+
+                {deletedItems.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl">
+                    <Trash2 className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-400">The trash bin is completely empty</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <tr>
+                          <th className="p-3">Deletion Time</th>
+                          <th className="p-3">Module Suite</th>
+                          <th className="p-3">Document details</th>
+                          <th className="p-3">Operator</th>
+                          <th className="p-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                        {deletedItems.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50">
+                            <td className="p-3 font-mono text-[10px] text-slate-500 whitespace-nowrap">{item.date}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded text-[10px] font-bold uppercase">{item.module}</span>
+                            </td>
+                            <td className="p-3 text-slate-800 font-medium">{item.details}</td>
+                            <td className="p-3 text-slate-500">@{item.deletedBy}</td>
+                            <td className="p-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreItem(item.id, item.module)}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                Restore
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 14. SALES RETURN SETTING */}
+            {selectedSettingsTab === 'sales_return_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Sales Return Policy Controls</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Regulate valid return window constraints, restocking charge fees, and credit allocation.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Valid Customer Return Window</label>
+                    <select
+                      value={salesReturnWindow} onChange={(e) => setSalesReturnWindow(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="7 Days">7 Days Limit</option>
+                      <option value="15 Days">15 Days Limit (Standard)</option>
+                      <option value="30 Days">30 Days Limit</option>
+                      <option value="Unlimited">No Return Date Boundary</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Surcharge Restocking Handling Fee (%)</label>
+                    <input
+                      type="number" value={salesRestockingFee} onChange={(e) => setSalesRestockingFee(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Primary Default Return Resolution</label>
+                    <select
+                      value={salesReturnAction} onChange={(e) => setSalesReturnAction(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Credit Note">Generate Credit Note Voucher</option>
+                      <option value="Cash Refund">Immediate Cash Disbursement</option>
+                      <option value="Replacement">Direct Inventory Item Swap</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Supervisor Inspection Clearance Required</span>
+                      <span className="block text-[9px] text-slate-400">Lock restocking items until quality control verification passes.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSalesReturnInspection(!salesReturnInspection)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${salesReturnInspection ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Sales return guidelines updated successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Return Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 15. SALES ORDER SETTING */}
+            {selectedSettingsTab === 'sales_order_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Sales Orders (SO) Rules</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Configure processing states, serial numbering prefixes, and dispatch defaults.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sales Order Prefix Rule</label>
+                    <input
+                      type="text" value={salesOrderPrefix} onChange={(e) => setSalesOrderPrefix(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Freight Shipping Term</label>
+                    <select
+                      value={salesOrderTerms} onChange={(e) => setSalesOrderTerms(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Immediate Delivery">Immediate Delivery Dispatch</option>
+                      <option value="FOB Shipping Point">FOB Shipping Point (Origin)</option>
+                      <option value="FOB Destination">FOB Destination Point</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Auto-Release Sales Orders to Packing</span>
+                      <span className="block text-[9px] text-slate-400">Send directly to fulfillment center upon confirmation.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSalesOrderAutoRelease(!salesOrderAutoRelease)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${salesOrderAutoRelease ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Allow Partial Orders Fulfillment</span>
+                      <span className="block text-[9px] text-slate-400">Allow shipping in multiple split parcels.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSalesOrderPartial(!salesOrderPartial)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${salesOrderPartial ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Sales order specifications saved successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Sales Order Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 16. ACTIVITY LOG */}
+            {selectedSettingsTab === 'activity_log' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 font-display">ERP Live Operational Audit Log</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Track real-time employee login activity, document edits and configurations.</p>
+                  </div>
+                  {/* Search Audit Logs */}
+                  <div className="relative w-full md:w-64 shrink-0 text-xs">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <Search className="h-3.5 w-3.5 text-slate-400" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Filter by user or action..."
+                      value={activityLogSearch}
+                      onChange={(e) => setActivityLogSearch(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="p-3">Logged Date</th>
+                        <th className="p-3">User</th>
+                        <th className="p-3">Event Action</th>
+                        <th className="p-3">Module</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Origin IP</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                      {activityLogs
+                        .filter(
+                          (log) =>
+                            log.user.toLowerCase().includes(activityLogSearch.toLowerCase()) ||
+                            log.action.toLowerCase().includes(activityLogSearch.toLowerCase()) ||
+                            log.module.toLowerCase().includes(activityLogSearch.toLowerCase())
+                        )
+                        .map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/50">
+                            <td className="p-3 font-mono text-[10px] text-slate-500 whitespace-nowrap">{log.time}</td>
+                            <td className="p-3 text-slate-800">@{log.user}</td>
+                            <td className="p-3 text-slate-600 font-medium">{log.action}</td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase">{log.module}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] uppercase font-bold">{log.status}</span>
+                            </td>
+                            <td className="p-3 font-mono text-[10px] text-slate-400">{log.ip}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* 17. PURCHASE SETTING */}
+            {selectedSettingsTab === 'purchase_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">Procurement & Purchasing Workflows</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Control supervisory approval thresholds, units of measure, and automatic stock safety thresholds.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Supervisor PO Clearance Cap (৳)</label>
+                    <input
+                      type="number" value={purchaseStrictPOAmt} onChange={(e) => setPurchaseStrictPOAmt(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Standard Procurement Unit</label>
+                    <select
+                      value={purchaseDefaultUnit} onChange={(e) => setPurchaseDefaultUnit(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all cursor-pointer"
+                    >
+                      <option value="Box">Boxes (Box)</option>
+                      <option value="Pcs">Single Pieces (Pcs)</option>
+                      <option value="Kg">Kilograms (Kg)</option>
+                      <option value="Ltr">Liters (Ltr)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Auto Reorder Safety Stocks</span>
+                      <span className="block text-[9px] text-slate-400">Generate draft requisition POs when stock falls beneath alert limit.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseAutoReorder(!purchaseAutoReorder)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${purchaseAutoReorder ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">GRN Auto-disburse Cash Payment</span>
+                      <span className="block text-[9px] text-slate-400">Instantly record cash-out ledger rows upon goods arrival.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseGrnAutoDisburse(!purchaseGrnAutoDisburse)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${purchaseGrnAutoDisburse ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('Procurement preferences recorded!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Purchase Config
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 18. ENTRY SETTING */}
+            {selectedSettingsTab === 'entry_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">General Ledger Voucher sequences</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Calibrate automated general journal book postings, vouchers, and safety periods.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Voucher Sequence Code Prefix</label>
+                    <input
+                      type="text" value={entryVoucherPrefix} onChange={(e) => setEntryVoucherPrefix(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Lock Journal Adjustments older than (Days)</label>
+                    <input
+                      type="number" value={entryLockDays} onChange={(e) => setEntryLockDays(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Auto-Ledger Posting of Sales/Purchase</span>
+                      <span className="block text-[9px] text-slate-400">Skip draft stage and record directly into double-entry ledger.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEntryAutoPosting(!entryAutoPosting)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${entryAutoPosting ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 mt-1">
+                    <div className="space-y-0.5">
+                      <span className="block text-[11px] font-bold text-slate-700">Allow Manual Edit of Bank Reconciliations</span>
+                      <span className="block text-[9px] text-slate-400">Permit manual balance changes on cleared transaction statements.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEntryAllowManualLedger(!entryAllowManualLedger)}
+                      className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${entryAllowManualLedger ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                    >
+                      <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => alert('General ledger posting parameters updated successfully!')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Entry Settings
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Linked Bank Modal */}
+      {showBankModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Link Business Bank Account</h3>
+              <button onClick={() => setShowBankModal(false)} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={handleBankSubmit} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Bank Name *</label>
+                <input
+                  type="text" required placeholder="e.g. Mutual Trust Bank PLC" value={bName}
+                  onChange={(e) => setBName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Account Display Name *</label>
+                <input
+                  type="text" required placeholder="e.g. MTB General Current" value={bAccName}
+                  onChange={(e) => setBAccName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Account Number *</label>
+                <input
+                  type="text" required placeholder="e.g. 1102.1129.401" value={bAccNo}
+                  onChange={(e) => setBAccNo(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Account Type</label>
+                <select value={bType} onChange={(e) => setBType(e.target.value as BankAccount['type'])} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
+                  <option value="Current">Current Account</option>
+                  <option value="Savings">Savings Account</option>
+                  <option value="Mobile">Mobile Banking</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setShowBankModal(false)} className="px-4 py-2 border border-slate-200 text-slate-500 rounded-lg text-xs hover:bg-slate-50 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer">Link Account</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Loan Modal */}
+      {showLoanModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Record New Liability Loan</h3>
+              <button onClick={() => setShowLoanModal(false)} className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={handleLoanSubmit} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Borrowing Entity Name *</label>
+                <input
+                  type="text" required placeholder="e.g. DBBL Corporate Loan" value={lBorrower}
+                  onChange={(e) => setLBorrower(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Loan Capital Amount (৳) *</label>
+                <input
+                  type="number" required min="100" placeholder="500000" value={lAmt}
+                  onChange={(e) => setLAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Interest Rate (%)</label>
+                  <input
+                    type="number" min="0" max="100" placeholder="9" value={lInt}
+                    onChange={(e) => setLInt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Amortization Months</label>
+                  <input
+                    type="number" min="1" placeholder="12" value={lDur}
+                    onChange={(e) => setLDur(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-center"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setShowLoanModal(false)} className="px-4 py-2 border border-slate-200 text-slate-500 rounded-lg text-xs hover:bg-slate-50 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer">Sanction Loan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
