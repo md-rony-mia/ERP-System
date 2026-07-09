@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
+import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
+import * as Icons from 'lucide-react';
 import {
   Landmark,
   DollarSign,
@@ -98,6 +100,41 @@ export default function BankingAndLoanView({
 
   // --- SUB-MENU SELECTOR STATE ---
   const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>('system_settings');
+
+  // --- ENTERPRISE NAVIGATION BUILDER STATE MANAGEMENT ---
+  const [navItems, setNavItems] = useState<NavigationItem[]>(() => navEngine.getAllItems());
+  const [navGroups, setNavGroups] = useState<NavigationGroup[]>(() => navEngine.getAllGroups());
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+
+  const [itemForm, setItemForm] = useState({
+    id: '',
+    label: '',
+    groupId: 'inventory',
+    icon: 'Boxes',
+    tab: 'inventory',
+    subTab: '',
+    order: 10,
+    parent: '',
+    enabled: true,
+    translationsBn: '',
+    badgeKey: '',
+  });
+
+  const [groupForm, setGroupForm] = useState({
+    id: '',
+    label: '',
+    icon: 'Grid',
+    order: 10,
+    enabled: true,
+  });
+
+  const refreshNavEngine = () => {
+    setNavItems(navEngine.getAllItems());
+    setNavGroups(navEngine.getAllGroups());
+  };
 
   React.useEffect(() => {
     if (currentTab === 'settings' && activeSubTab) {
@@ -2799,43 +2836,709 @@ export default function BankingAndLoanView({
               </div>
             )}
 
-            {/* 12. MENU MANAGEMENT */}
-            {selectedSettingsTab === 'menu_management' && (
+            {/* 12. NAVIGATION BUILDER & MENU MANAGEMENT */}
+            {(selectedSettingsTab === 'menu_management' || selectedSettingsTab === 'navigation_builder') && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 font-display">Sidebar Modules Management</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Show or hide visible modules in the principal dashboard sidebar dynamically.</p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-2">
+                      <Icons.Menu className="h-5 w-5 text-indigo-600" />
+                      <span>Enterprise Navigation Builder</span>
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Configure modules, sub-menus, permissions, multi-language, and live counters without writing code.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      id="btn-reseed-defaults"
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to reset all sidebar navigation definitions to default ERP settings? This will clear custom menus.')) {
+                          navEngine.resetToDefault();
+                          refreshNavEngine();
+                          alert('Successfully restored factory default menu engine!');
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[10px] rounded-xl transition-all cursor-pointer border border-rose-100"
+                    >
+                      <Icons.Undo className="h-3.5 w-3.5" />
+                      <span>Factory Reset Engine</span>
+                    </button>
+                    <button
+                      id="btn-add-new-group-trigger"
+                      type="button"
+                      onClick={() => {
+                        setIsAddingGroup(true);
+                        setEditingGroupId(null);
+                        setGroupForm({
+                          id: `grp_${Date.now().toString().slice(-6)}`,
+                          label: 'New Module Suite',
+                          icon: 'Grid',
+                          order: (navGroups[navGroups.length - 1]?.order || 0) + 10,
+                          enabled: true,
+                        });
+                        setIsAddingItem(false);
+                        setEditingItemId(null);
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] rounded-xl transition-all cursor-pointer border border-emerald-100"
+                    >
+                      <Icons.Plus className="h-3.5 w-3.5" />
+                      <span>Create Module Suite</span>
+                    </button>
+                    <button
+                      id="btn-add-new-item-trigger"
+                      type="button"
+                      onClick={() => {
+                        setIsAddingItem(true);
+                        setEditingItemId(null);
+                        setItemForm({
+                          id: `item_${Date.now().toString().slice(-6)}`,
+                          label: 'New Menu Page',
+                          groupId: navGroups[0]?.id || 'inventory',
+                          icon: 'Boxes',
+                          tab: 'inventory',
+                          subTab: '',
+                          order: 10,
+                          parent: '',
+                          enabled: true,
+                          translationsBn: '',
+                          badgeKey: '',
+                        });
+                        setIsAddingGroup(false);
+                        setEditingGroupId(null);
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/10"
+                    >
+                      <Icons.Plus className="h-3.5 w-3.5" />
+                      <span>Create Menu Link</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {Object.entries(sidebarMenusEnabled).map(([key, enabled]) => (
-                    <div key={key} className="flex items-center justify-between p-3.5 border border-slate-200/80 rounded-xl bg-slate-50/20">
-                      <div>
-                        <span className="block text-xs font-bold text-slate-800 capitalize">{key} Navigation Panel</span>
-                        <span className="block text-[10px] text-slate-400 mt-0.5 font-medium">Control visibility of the {key} suite in the ERP menu tree.</span>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* LEFT COLUMN: THE SIDEBAR NAVIGATION PREVIEW & NODE MANAGER */}
+                  <div className="lg:col-span-7 space-y-4">
+                    <div className="border border-slate-200/80 rounded-2xl bg-white p-5 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Active ERP Menu Tree Layout</span>
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-full">
+                          {navGroups.length} Suites / {navItems.length} Links
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const updated = { ...sidebarMenusEnabled, [key]: !enabled };
-                          setSidebarMenusEnabled(updated as any);
-                        }}
-                        className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${enabled ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
-                      >
-                        <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
 
-                <div className="flex justify-end pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => alert('Main sidebar module restrictions saved successfully!')}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                  >
-                    Save Menu Configuration
-                  </button>
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+                        {navGroups.map((group, gIdx) => {
+                          const groupItems = navItems.filter(item => item.groupId === group.id);
+                          return (
+                            <div key={group.id} className="border border-slate-100 rounded-xl bg-slate-50/30 p-3 space-y-2">
+                              {/* Group Row */}
+                              <div className="flex items-center justify-between bg-white border border-slate-100 rounded-lg p-2.5 shadow-xs">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-1.5 rounded-md bg-slate-100 text-slate-600">
+                                    {/* Safe icon load */}
+                                    {React.createElement((Icons as any)[group.icon] || Icons.Grid, { className: "h-4 w-4" })}
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-bold text-slate-800">{group.label}</span>
+                                    <span className="block text-[9px] text-slate-400 font-medium capitalize">Module ID: {group.id} (Order: {group.order})</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {/* Reorder Group Controls */}
+                                  <button
+                                    title="Move Module Up"
+                                    type="button"
+                                    onClick={() => {
+                                      if (gIdx > 0) {
+                                        const prevGroup = navGroups[gIdx - 1];
+                                        const originalOrder = group.order;
+                                        navEngine.updateGroup(group.id, { order: prevGroup.order });
+                                        navEngine.updateGroup(prevGroup.id, { order: originalOrder });
+                                        refreshNavEngine();
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-800"
+                                  >
+                                    <Icons.ArrowUp className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    title="Move Module Down"
+                                    type="button"
+                                    onClick={() => {
+                                      if (gIdx < navGroups.length - 1) {
+                                        const nextGroup = navGroups[gIdx + 1];
+                                        const originalOrder = group.order;
+                                        navEngine.updateGroup(group.id, { order: nextGroup.order });
+                                        navEngine.updateGroup(nextGroup.id, { order: originalOrder });
+                                        refreshNavEngine();
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-800"
+                                  >
+                                    <Icons.ArrowDown className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    title="Edit Module"
+                                    type="button"
+                                    onClick={() => {
+                                      setIsAddingGroup(false);
+                                      setEditingGroupId(group.id);
+                                      setGroupForm({
+                                        id: group.id,
+                                        label: group.label,
+                                        icon: group.icon,
+                                        order: group.order,
+                                        enabled: group.enabled,
+                                      });
+                                      setIsAddingItem(false);
+                                      setEditingItemId(null);
+                                    }}
+                                    className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-indigo-600"
+                                  >
+                                    <Icons.Edit className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    title="Delete Module"
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Warning: Deleting the '${group.label}' suite will also delete all of its nested menu items (${groupItems.length} links). Proceed?`)) {
+                                        navEngine.deleteGroup(group.id);
+                                        refreshNavEngine();
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-rose-50 rounded text-rose-400 hover:text-rose-600"
+                                  >
+                                    <Icons.Trash2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Nested Menu Items inside group */}
+                              <div className="pl-6 space-y-1.5">
+                                {groupItems.length === 0 ? (
+                                  <div className="text-[10px] text-slate-400 italic py-1 pl-2">No menu links inside this suite.</div>
+                                ) : (
+                                  groupItems.map((item, iIdx) => {
+                                    return (
+                                      <div key={item.id} className="flex items-center justify-between bg-white border border-slate-100/80 rounded-lg p-2 pl-3 hover:shadow-xs transition-all">
+                                        <div className="flex items-center gap-2">
+                                          {React.createElement((Icons as any)[item.icon || 'Boxes'] || Icons.Boxes, { className: "h-3.5 w-3.5 text-slate-400" })}
+                                          <div>
+                                            <span className="text-[11px] font-bold text-slate-700">{item.label}</span>
+                                            {item.translations?.bn && (
+                                              <span className="text-[9px] text-slate-400 font-semibold ml-2">({item.translations.bn})</span>
+                                            )}
+                                            <span className="block text-[8px] text-slate-400">
+                                              ID: {item.id} | Route: {item.tab}/{item.subTab || 'default'} | Order: {item.order}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          {/* Reorder Item Controls */}
+                                          <button
+                                            title="Move Up"
+                                            type="button"
+                                            onClick={() => {
+                                              if (iIdx > 0) {
+                                                const prevItem = groupItems[iIdx - 1];
+                                                const originalOrder = item.order;
+                                                navEngine.updateItem(item.id, { order: prevItem.order });
+                                                navEngine.updateItem(prevItem.id, { order: originalOrder });
+                                                refreshNavEngine();
+                                              }
+                                            }}
+                                            className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700"
+                                          >
+                                            <Icons.ChevronUp className="h-3.5 w-3.5" />
+                                          </button>
+                                          <button
+                                            title="Move Down"
+                                            type="button"
+                                            onClick={() => {
+                                              if (iIdx < groupItems.length - 1) {
+                                                const nextItem = groupItems[iIdx + 1];
+                                                const originalOrder = item.order;
+                                                navEngine.updateItem(item.id, { order: nextItem.order });
+                                                navEngine.updateItem(nextItem.id, { order: originalOrder });
+                                                refreshNavEngine();
+                                              }
+                                            }}
+                                            className="p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700"
+                                          >
+                                            <Icons.ChevronDown className="h-3.5 w-3.5" />
+                                          </button>
+                                          {/* Clone Item */}
+                                          <button
+                                            title="Duplicate Link"
+                                            type="button"
+                                            onClick={() => {
+                                              const newId = `${item.id}_clone_${Math.floor(Math.random() * 100)}`;
+                                              const newLabel = `${item.label} (Copy)`;
+                                              const clone = navEngine.cloneItem(item.id, newId, newLabel);
+                                              if (clone) {
+                                                refreshNavEngine();
+                                                alert(`Successfully duplicated menu link: '${item.label}' -> '${newLabel}'!`);
+                                              }
+                                            }}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-emerald-600"
+                                          >
+                                            <Icons.Copy className="h-3 w-3" />
+                                          </button>
+                                          {/* Edit Item */}
+                                          <button
+                                            title="Edit Menu"
+                                            type="button"
+                                            onClick={() => {
+                                              setIsAddingItem(false);
+                                              setEditingItemId(item.id);
+                                              setItemForm({
+                                                id: item.id,
+                                                label: item.label,
+                                                groupId: item.groupId,
+                                                icon: item.icon || 'Boxes',
+                                                tab: item.tab,
+                                                subTab: item.subTab,
+                                                order: item.order,
+                                                parent: item.parent || '',
+                                                enabled: item.enabled,
+                                                translationsBn: item.translations?.bn || '',
+                                                badgeKey: item.badgeKey || '',
+                                              });
+                                              setIsAddingGroup(false);
+                                              setEditingGroupId(null);
+                                            }}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-indigo-600"
+                                          >
+                                            <Icons.Edit className="h-3 w-3" />
+                                          </button>
+                                          {/* Archive/Restore */}
+                                          <button
+                                            title={item.archived ? "Restore Link" : "Archive Link"}
+                                            type="button"
+                                            onClick={() => {
+                                              navEngine.updateItem(item.id, { archived: !item.archived });
+                                              refreshNavEngine();
+                                            }}
+                                            className={`p-1 rounded ${item.archived ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                          >
+                                            <Icons.Archive className="h-3 w-3" />
+                                          </button>
+                                          {/* Delete Item */}
+                                          <button
+                                            title="Delete Link"
+                                            type="button"
+                                            onClick={() => {
+                                              if (confirm(`Are you sure you want to delete the menu link: '${item.label}'?`)) {
+                                                navEngine.deleteItem(item.id);
+                                                refreshNavEngine();
+                                              }
+                                            }}
+                                            className="p-1 hover:bg-rose-50 rounded text-rose-400 hover:text-rose-600"
+                                          >
+                                            <Icons.Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: ACTION FORMS */}
+                  <div className="lg:col-span-5 space-y-4">
+                    {/* ADD/EDIT GROUP FORM */}
+                    {(isAddingGroup || editingGroupId) && (
+                      <div className="border border-slate-200/80 rounded-2xl bg-white p-5 shadow-xs space-y-4 animate-in slide-in-from-right duration-250">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-display">
+                            {editingGroupId ? `Modify Suite: ${groupForm.id}` : 'Create New Module Suite'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingGroup(false);
+                              setEditingGroupId(null);
+                            }}
+                            className="text-slate-400 hover:text-slate-700"
+                          >
+                            <Icons.X className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Suite unique ID</label>
+                            <input
+                              id="group-id-input"
+                              type="text"
+                              disabled={!!editingGroupId}
+                              value={groupForm.id}
+                              onChange={(e) => setGroupForm({ ...groupForm, id: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1 disabled:bg-slate-100 disabled:text-slate-400 font-display"
+                              placeholder="e.g. manufacturing"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Module Label (English)</label>
+                            <input
+                              id="group-label-input"
+                              type="text"
+                              value={groupForm.label}
+                              onChange={(e) => setGroupForm({ ...groupForm, label: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              placeholder="e.g. Manufacturing"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Select Lucide Icon</label>
+                            <select
+                              id="group-icon-input"
+                              value={groupForm.icon}
+                              onChange={(e) => setGroupForm({ ...groupForm, icon: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                            >
+                              <option value="Grid">Grid</option>
+                              <option value="Boxes">Boxes</option>
+                              <option value="Wrench">Wrench</option>
+                              <option value="ShoppingCart">ShoppingCart</option>
+                              <option value="Store">Store</option>
+                              <option value="Users">Users</option>
+                              <option value="Briefcase">Briefcase</option>
+                              <option value="Calendar">Calendar</option>
+                              <option value="MapPin">MapPin</option>
+                              <option value="Sparkles">Sparkles</option>
+                              <option value="Shield">Shield</option>
+                              <option value="Cpu">Cpu</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Sort Order</label>
+                            <input
+                              id="group-order-input"
+                              type="number"
+                              value={groupForm.order}
+                              onChange={(e) => setGroupForm({ ...groupForm, order: Number(e.target.value) })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 border border-slate-100 rounded-lg bg-slate-50/50">
+                            <div>
+                              <span className="block text-xs font-bold text-slate-800">Module Status</span>
+                              <span className="block text-[9px] text-slate-400 mt-0.5">Control active visibility inside the client navigation.</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setGroupForm({ ...groupForm, enabled: !groupForm.enabled })}
+                              className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${groupForm.enabled ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                            >
+                              <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                            </button>
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              id="group-submit-btn"
+                              type="button"
+                              onClick={() => {
+                                if (!groupForm.id || !groupForm.label) {
+                                  alert('Module ID and Label fields are required.');
+                                  return;
+                                }
+                                if (editingGroupId) {
+                                  navEngine.updateGroup(editingGroupId, groupForm);
+                                } else {
+                                  navEngine.createGroup(groupForm);
+                                }
+                                refreshNavEngine();
+                                setIsAddingGroup(false);
+                                setEditingGroupId(null);
+                              }}
+                              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-xl text-xs shadow-md shadow-indigo-600/15"
+                            >
+                              Save Suite changes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingGroup(false);
+                                setEditingGroupId(null);
+                              }}
+                              className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ADD/EDIT ITEM FORM */}
+                    {(isAddingItem || editingItemId) && (
+                      <div className="border border-slate-200/80 rounded-2xl bg-white p-5 shadow-xs space-y-4 animate-in slide-in-from-right duration-250">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider font-display">
+                            {editingItemId ? `Modify Link: ${itemForm.id}` : 'Create New Menu Link'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddingItem(false);
+                              setEditingItemId(null);
+                            }}
+                            className="text-slate-400 hover:text-slate-700"
+                          >
+                            <Icons.X className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-3.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Link Unique ID</label>
+                            <input
+                              id="item-id-input"
+                              type="text"
+                              disabled={!!editingItemId}
+                              value={itemForm.id}
+                              onChange={(e) => setItemForm({ ...itemForm, id: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1 disabled:bg-slate-100 disabled:text-slate-400"
+                              placeholder="e.g. active_bills"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Display Name (English)</label>
+                            <input
+                              id="item-label-input"
+                              type="text"
+                              value={itemForm.label}
+                              onChange={(e) => setItemForm({ ...itemForm, label: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              placeholder="e.g. Active Bills"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Display Name (Bengali / বাংলা)</label>
+                            <input
+                              id="item-label-bn-input"
+                              type="text"
+                              value={itemForm.translationsBn}
+                              onChange={(e) => setItemForm({ ...itemForm, translationsBn: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              placeholder="উদা: পণ্যসমূহ"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Parent Module Suite</label>
+                            <select
+                              id="item-group-input"
+                              value={itemForm.groupId}
+                              onChange={(e) => setItemForm({ ...itemForm, groupId: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                            >
+                              {navGroups.map((g) => (
+                                <option key={g.id} value={g.id}>{g.label}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase">Target View Tab</label>
+                              <select
+                                id="item-tab-input"
+                                value={itemForm.tab}
+                                onChange={(e) => setItemForm({ ...itemForm, tab: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              >
+                                <option value="dashboard">dashboard</option>
+                                <option value="inventory">inventory</option>
+                                <option value="warehouse">warehouse</option>
+                                <option value="purchase">purchase</option>
+                                <option value="sales">sales</option>
+                                <option value="accounting">accounting</option>
+                                <option value="banking">banking</option>
+                                <option value="loan">loan</option>
+                                <option value="employee">employee</option>
+                                <option value="salary">salary</option>
+                                <option value="reports">reports</option>
+                                <option value="settings">settings</option>
+                                <option value="crm">crm</option>
+                                <option value="projects">projects</option>
+                                <option value="manufacturing">manufacturing</option>
+                                <option value="service">service</option>
+                                <option value="documents">documents</option>
+                                <option value="workflow">workflow</option>
+                                <option value="ai">ai</option>
+                                <option value="integration">integration</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase">Sub-Tab code</label>
+                              <input
+                                id="item-subtab-input"
+                                type="text"
+                                value={itemForm.subTab}
+                                onChange={(e) => setItemForm({ ...itemForm, subTab: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                                placeholder="e.g. products, pos, etc."
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase">Lucide Icon name</label>
+                              <select
+                                id="item-icon-input"
+                                value={itemForm.icon}
+                                onChange={(e) => setItemForm({ ...itemForm, icon: e.target.value })}
+                                className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              >
+                                <option value="Boxes">Boxes</option>
+                                <option value="LayoutDashboard">LayoutDashboard</option>
+                                <option value="ShoppingCart">ShoppingCart</option>
+                                <option value="Store">Store</option>
+                                <option value="BookOpen">BookOpen</option>
+                                <option value="Users">Users</option>
+                                <option value="Briefcase">Briefcase</option>
+                                <option value="Calendar">Calendar</option>
+                                <option value="Wrench">Wrench</option>
+                                <option value="FileText">FileText</option>
+                                <option value="Activity">Activity</option>
+                                <option value="Settings">Settings</option>
+                                <option value="Barcode">Barcode</option>
+                                <option value="QrCode">QrCode</option>
+                                <option value="Percent">Percent</option>
+                                <option value="ShieldAlert">ShieldAlert</option>
+                                <option value="Sparkles">Sparkles</option>
+                                <option value="MessageSquare">MessageSquare</option>
+                                <option value="Workflow">Workflow</option>
+                                <option value="Lock">Lock</option>
+                                <option value="Archive">Archive</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase">Menu Order</label>
+                              <input
+                                id="item-order-input"
+                                type="number"
+                                value={itemForm.order}
+                                onChange={(e) => setItemForm({ ...itemForm, order: Number(e.target.value) })}
+                                className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Live Badge counter source</label>
+                            <select
+                              id="item-badge-input"
+                              value={itemForm.badgeKey}
+                              onChange={(e) => setItemForm({ ...itemForm, badgeKey: e.target.value })}
+                              className="w-full bg-slate-50 border border-slate-200/80 p-2.5 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-600 mt-1"
+                            >
+                              <option value="">No Badge Counter</option>
+                              <option value="low_stock">Low Stock Count</option>
+                              <option value="new_orders">New Sales Invoices</option>
+                              <option value="pending_approvals">Pending Workflow Approvals</option>
+                              <option value="unread_notifications">Unread notifications</option>
+                              <option value="draft_documents">Draft legal archives</option>
+                              <option value="queue_status">System queue idle state</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center justify-between p-2 border border-slate-100 rounded-lg bg-slate-50/50">
+                            <div>
+                              <span className="block text-xs font-bold text-slate-800">Menu Link Status</span>
+                              <span className="block text-[9px] text-slate-400 mt-0.5">Control live state in the sidebar menus.</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setItemForm({ ...itemForm, enabled: !itemForm.enabled })}
+                              className={`h-5 w-9 rounded-full p-0.5 transition-all flex items-center ${itemForm.enabled ? 'bg-indigo-600 justify-end' : 'bg-slate-200 justify-start'}`}
+                            >
+                              <div className="h-4 w-4 rounded-full bg-white shadow-xs"></div>
+                            </button>
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              id="item-submit-btn"
+                              type="button"
+                              onClick={() => {
+                                if (!itemForm.id || !itemForm.label) {
+                                  alert('Menu Link ID and Label fields are required.');
+                                  return;
+                                }
+                                const translations = itemForm.translationsBn ? { bn: itemForm.translationsBn } : undefined;
+                                const itemData = {
+                                  id: itemForm.id,
+                                  label: itemForm.label,
+                                  groupId: itemForm.groupId,
+                                  icon: itemForm.icon,
+                                  tab: itemForm.tab,
+                                  subTab: itemForm.subTab,
+                                  order: itemForm.order,
+                                  parent: itemForm.parent || undefined,
+                                  enabled: itemForm.enabled,
+                                  badgeKey: itemForm.badgeKey || undefined,
+                                  translations,
+                                };
+
+                                if (editingItemId) {
+                                  navEngine.updateItem(editingItemId, itemData);
+                                } else {
+                                  navEngine.createItem(itemData);
+                                }
+                                refreshNavEngine();
+                                setIsAddingItem(false);
+                                setEditingItemId(null);
+                              }}
+                              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-xl text-xs shadow-md shadow-indigo-600/15"
+                            >
+                              Save Menu Link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingItem(false);
+                                setEditingItemId(null);
+                              }}
+                              className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BLANK EMPTY FORM SCREEN STATE */}
+                    {!isAddingGroup && !editingGroupId && !isAddingItem && !editingItemId && (
+                      <div className="border border-slate-200/80 rounded-2xl bg-slate-50/40 p-12 text-center shadow-xs border-dashed flex flex-col items-center justify-center min-h-[350px]">
+                        <div className="h-12 w-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+                          <Icons.Sliders className="h-6 w-6" />
+                        </div>
+                        <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Enterprise Customization Studio</h5>
+                        <p className="text-[11px] text-slate-400 max-w-xs mt-1.5 leading-relaxed">
+                          Click any node's edit icon to modify existing routes, clone entries to build nested layers, or tap "Create Module Suite" to extend the ERP dynamically.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

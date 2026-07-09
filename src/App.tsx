@@ -149,6 +149,14 @@ export default function App() {
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [loanAccounts, setLoanAccounts] = useState<LoanAccount[]>([]);
 
+  useEffect(() => {
+    localStorage.setItem('axiom_products_count', String(products.length));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_invoices_count', String(invoices.length));
+  }, [invoices]);
+
   const [loading, setLoading] = useState(true);
 
   // Firestore initial load & seed effect
