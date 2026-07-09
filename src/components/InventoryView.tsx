@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, formatBoxQty } from '../types';
 import {
   Search,
@@ -19,7 +19,23 @@ import {
   TrendingUp,
   Boxes,
   Compass,
+  Settings,
+  Eye,
+  Sliders,
+  FileSpreadsheet,
+  FileUp,
+  Printer,
+  ChevronDown,
+  Download,
+  Upload
 } from 'lucide-react';
+import {
+  CustomField,
+  DEFAULT_FIELDS,
+  ManageCustomFieldsModal,
+  ProductEnterpriseTabs,
+  BulkEditBar,
+} from './ProductEnterpriseEngine';
 
 interface InventoryViewProps {
   products: Product[];
@@ -42,6 +58,79 @@ export default function InventoryView({
   const currentTab = ['products', 'categories', 'units', 'warehouses', 'stock', 'stock_transfer', 'barcodes', 'offer_info'].includes(activeSubTab)
     ? activeSubTab
     : 'products';
+
+  // --- ENTERPRISE PRODUCT MASTER STATES & HELPERS ---
+  const [customFields, setCustomFields] = useState<CustomField[]>(() => {
+    const saved = localStorage.getItem('nexova_custom_fields');
+    return saved ? JSON.parse(saved) : DEFAULT_FIELDS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nexova_custom_fields', JSON.stringify(customFields));
+  }, [customFields]);
+
+  const [showCustomFieldsModal, setShowCustomFieldsModal] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [extraFields, setExtraFields] = useState<Record<string, any>>({});
+  const [editingExtraFields, setEditingExtraFields] = useState<Record<string, any>>({});
+
+  const [columnChooserOpen, setColumnChooserOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    sku_name: true,
+    category: true,
+    price: true,
+    cost: true,
+    stock: true,
+    warehouse: true,
+    brand: false,
+    productCode: false,
+    barcode: false,
+    actions: true,
+  });
+
+  // Log changes helper
+  const logFieldChanges = (oldProd: Product, newProd: Product, reason: string) => {
+    try {
+      const currentRole = 'Administrator';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const timeStr = new Date().toLocaleTimeString();
+      const logs: any[] = JSON.parse(localStorage.getItem('nexova_product_audit_logs') || '[]');
+
+      const keysToTrack = Object.keys({ ...oldProd, ...newProd }).filter(k => k !== 'id');
+      keysToTrack.forEach(k => {
+        const oldVal = (oldProd as any)[k];
+        const newVal = (newProd as any)[k];
+        if (oldVal !== newVal) {
+          const fieldDef = customFields.find(f => f.internalName === k);
+          const dName = fieldDef ? fieldDef.displayName : k.toUpperCase();
+
+          const entry = {
+            id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            productId: oldProd.id,
+            productName: oldProd.name,
+            productSku: oldProd.sku,
+            fieldChanged: k,
+            displayName: dName,
+            oldValue: oldVal !== undefined ? String(oldVal) : '',
+            newValue: newVal !== undefined ? String(newVal) : '',
+            user: 'Administrator',
+            role: currentRole,
+            date: dateStr,
+            time: timeStr,
+            ip: '192.168.1.1',
+            browser: 'Chrome ERP Client',
+            reason: reason || 'Specifications updated',
+            approvalStatus: 'Auto-Approved'
+          };
+          logs.unshift(entry);
+        }
+      });
+
+      localStorage.setItem('nexova_product_audit_logs', JSON.stringify(logs));
+    } catch (err) {
+      console.error('Audit logging failure:', err);
+    }
+  };
 
   // --- PERSISTENT SUB-DATA STATE IN INVENTORY ---
   const [categories, setCategories] = useState<string[]>([
@@ -171,6 +260,200 @@ export default function InventoryView({
   const [editingOfferCriteria, setEditingOfferCriteria] = useState('');
   const [editingOfferReward, setEditingOfferReward] = useState('');
 
+  // --- ENTERPRISE UTILITY ACTIONS ---
+  const handleExportCSV = () => {
+    // Collect columns that are visible
+    const cols = Object.keys(visibleColumns).filter(k => visibleColumns[k]);
+    // Create headers
+    const headers = cols.map(c => {
+      if (c === 'sku_name') return 'SKU,Product Name';
+      const f = customFields.find(fDef => fDef.internalName === c);
+      return f ? f.displayName : c.toUpperCase();
+    }).join(',');
+    
+    // Create rows
+    const rows = filteredProducts.map(p => {
+      return cols.map(c => {
+        if (c === 'sku_name') {
+          return `"${p.sku}","${p.name.replace(/"/g, '""')}"`;
+        }
+        const val = (p as any)[c] ?? '';
+        return `"${String(val).replace(/"/g, '""')}"`;
+      }).join(',');
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `nexova_product_catalog_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        if (!text) return;
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          alert('CSV contains no data entries.');
+          return;
+        }
+        
+        const parseCSVLine = (line: string) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current);
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current);
+          return result;
+        };
+
+        const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+        const importedProducts: Partial<Product>[] = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          const cells = parseCSVLine(lines[i]).map(c => c.trim());
+          const item: Record<string, any> = {
+            id: `prod_imported_${Date.now()}_${i}`,
+            alertQty: 5,
+            pcsPerBox: 1,
+            warehouse: 'Main Warehouse',
+            unit: 'Bags',
+            category: 'Construction Materials'
+          };
+          
+          headers.forEach((header, colIdx) => {
+            const val = cells[colIdx] ?? '';
+            if (header === 'sku' || header === 'code') item.sku = val;
+            else if (header === 'product name' || header === 'name') item.name = val;
+            else if (header === 'category') item.category = val;
+            else if (header === 'selling price' || header === 'price') item.price = parseFloat(val) || 0;
+            else if (header === 'cost price' || header === 'cost') item.cost = parseFloat(val) || 0;
+            else if (header === 'stock' || header === 'initial stock') item.stock = parseInt(val) || 0;
+            else if (header === 'warehouse') item.warehouse = val;
+            else {
+              const cField = customFields.find(f => f.displayName.toLowerCase() === header || f.internalName.toLowerCase() === header);
+              if (cField) {
+                item[cField.internalName] = val;
+              } else {
+                item[header] = val;
+              }
+            }
+          });
+          
+          if (item.name && item.sku) {
+            importedProducts.push(item as Product);
+          }
+        }
+        
+        if (importedProducts.length === 0) {
+          alert('No valid products found to import. Verify that columns "sku" and "name" exist.');
+          return;
+        }
+        
+        importedProducts.forEach(p => onAddProduct(p as Product));
+        alert(`Successfully imported ${importedProducts.length} products into the ERP catalog!`);
+      } catch (err) {
+        alert('Failed parsing CSV file. Please make sure the structure is correct.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handlePrintPDFCatalog = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Pop-up blocked! Please allow pop-ups to print the product catalog.');
+      return;
+    }
+    
+    const tableHeaderMarkup = `
+      <thead>
+        <tr style="background-color: #f1f5f9; text-align: left; font-size: 11px; text-transform: uppercase;">
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">SKU</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Product Name</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Category</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">Selling Price</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">Cost Price</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">Stock</th>
+          <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Warehouse</th>
+        </tr>
+      </thead>
+    `;
+    
+    const tableRowsMarkup = filteredProducts.map(p => `
+      <tr style="font-size: 12px; border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px; font-family: monospace; font-weight: bold; color: #4f46e5;">${p.sku}</td>
+        <td style="padding: 10px; font-weight: 600;">${p.name}</td>
+        <td style="padding: 10px; color: #64748b;">${p.category}</td>
+        <td style="padding: 10px; text-align: right; font-weight: bold;">৳${p.price.toLocaleString()}</td>
+        <td style="padding: 10px; text-align: right; color: #64748b;">৳${p.cost.toLocaleString()}</td>
+        <td style="padding: 10px; text-align: center; font-weight: bold; color: ${p.stock <= p.alertQty ? '#b91c1c' : '#1e1b4b'}">${p.stock} ${p.unit}</td>
+        <td style="padding: 10px; color: #64748b;">${p.warehouse}</td>
+      </tr>
+    `).join('');
+    
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Nexova ERP - Master Product Catalog</title>
+          <style>
+            body { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; padding: 40px; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4f46e5; padding-bottom: 20px; margin-bottom: 30px; }
+            .title { font-size: 24px; font-weight: bold; text-transform: uppercase; letter-spacing: -0.5px; }
+            .subtitle { font-size: 11px; color: #64748b; margin-top: 5px; }
+            .meta { text-align: right; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border-bottom: 1px solid #e2e8f0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">Nexova ERP Solution</div>
+              <div class="subtitle">Enterprise Master Product Catalog</div>
+            </div>
+            <div class="meta">
+              <div><strong>Generated:</strong> ${new Date().toLocaleDateString()}</div>
+              <div><strong>Total Items:</strong> ${filteredProducts.length} Products</div>
+            </div>
+          </div>
+          <table style="width:100%; border-collapse: collapse;">
+            ${tableHeaderMarkup}
+            <tbody>
+              ${tableRowsMarkup}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   // --- EDIT & DELETE HANDLERS ---
   const handleDeleteCategory = (catName: string) => {
     if (confirm(`Are you sure you want to delete category "${catName}"? This will reset the category for associated products.`)) {
@@ -292,6 +575,7 @@ export default function InventoryView({
       stock: parseInt(stock),
       alertQty: parseInt(alertQty) || 5,
       pcsPerBox: parseInt(pcsPerBox) || 1,
+      ...extraFields,
     });
 
     setName('');
@@ -301,6 +585,7 @@ export default function InventoryView({
     setStock('');
     setAlertQty('');
     setPcsPerBox('1');
+    setExtraFields({});
     setShowAddModal(false);
   };
 
@@ -308,25 +593,29 @@ export default function InventoryView({
     e.preventDefault();
     if (!editingProdId || !editingProdName || !editingProdSku) return;
 
+    const oldProduct = products.find(p => p.id === editingProdId);
+    const newProduct = {
+      id: editingProdId,
+      name: editingProdName,
+      sku: editingProdSku,
+      category: editingProdCategory,
+      unit: editingProdUnit,
+      warehouse: editingProdWarehouse,
+      price: parseFloat(editingProdPrice) || 0,
+      cost: parseFloat(editingProdCost) || 0,
+      stock: parseInt(editingProdStock) || 0,
+      alertQty: parseInt(editingProdAlertQty) || 0,
+      pcsPerBox: parseInt(editingProdPcsPerBox) || 1,
+      ...editingExtraFields,
+    };
+
+    if (oldProduct) {
+      logFieldChanges(oldProduct, newProduct, 'Product master information update');
+    }
+
     if (onUpdateProducts) {
       onUpdateProducts(
-        products.map((p) =>
-          p.id === editingProdId
-            ? {
-                ...p,
-                name: editingProdName,
-                sku: editingProdSku,
-                category: editingProdCategory,
-                unit: editingProdUnit,
-                warehouse: editingProdWarehouse,
-                price: parseFloat(editingProdPrice) || 0,
-                cost: parseFloat(editingProdCost) || 0,
-                stock: parseInt(editingProdStock) || 0,
-                alertQty: parseInt(editingProdAlertQty) || 0,
-                pcsPerBox: parseInt(editingProdPcsPerBox) || 1,
-              }
-            : p
-        )
+        products.map((p) => p.id === editingProdId ? newProduct : p)
       );
     }
     setEditingProdId(null);
@@ -436,7 +725,16 @@ export default function InventoryView({
 
   // --- FILTERS LOGIC ---
   const filteredProducts = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchSearch =
+      p.name.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query) ||
+      ((p as any).brand && String((p as any).brand).toLowerCase().includes(query)) ||
+      ((p as any).productCode && String((p as any).productCode).toLowerCase().includes(query)) ||
+      customFields.some(fDef => {
+        const val = (p as any)[fDef.internalName];
+        return val && String(val).toLowerCase().includes(query);
+      });
     const matchCat = categoryFilter === 'All' || p.category === categoryFilter;
     let matchStock = true;
     if (stockFilter === 'Low') {
@@ -458,15 +756,25 @@ export default function InventoryView({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-800 font-display">Products Directory</h2>
-              <p className="text-xs text-slate-400 mt-1">Manage global inventory catalog, prices, custom categories, and stock alert levels.</p>
+              <p className="text-xs text-slate-400 mt-1">Manage global inventory catalog, enterprise properties, custom categories, and stock alert levels.</p>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md shadow-indigo-600/10 cursor-pointer transition-all self-start sm:self-center"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add New Product</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowCustomFieldsModal(true)}
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 transition-all cursor-pointer"
+                title="Manage dynamic specification forms and attributes for products"
+              >
+                <Settings className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Manage Custom Fields</span>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md shadow-indigo-600/10 cursor-pointer transition-all self-start sm:self-center"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add New Product</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -476,20 +784,20 @@ export default function InventoryView({
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search by product name or SKU..."
+                    placeholder="Search by name, SKU, brand, code, or custom attributes..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-slate-50/50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-indigo-600 transition-colors"
                   />
                 </div>
                 
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-600">
                     <Filter className="h-3.5 w-3.5 text-slate-400" />
                     <select
                       value={categoryFilter}
                       onChange={(e) => setCategoryFilter(e.target.value)}
-                      className="bg-transparent border-none focus:outline-none font-medium cursor-pointer"
+                      className="bg-transparent border-none focus:outline-none font-medium cursor-pointer text-xs"
                     >
                       <option value="All">All Categories</option>
                       {categories.map((cat) => (
@@ -503,112 +811,255 @@ export default function InventoryView({
                     <select
                       value={stockFilter}
                       onChange={(e) => setStockFilter(e.target.value)}
-                      className="bg-transparent border-none focus:outline-none font-medium cursor-pointer"
+                      className="bg-transparent border-none focus:outline-none font-medium cursor-pointer text-xs"
                     >
                       <option value="All">All Stocks</option>
                       <option value="Low">Low Stock Only</option>
                       <option value="Out">Out of Stock</option>
                     </select>
                   </div>
+
+                  {/* Column Chooser popover button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setColumnChooserOpen(!columnChooserOpen)}
+                      className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer"
+                      title="Choose which columns are visible in catalog table"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Columns</span>
+                    </button>
+                    {columnChooserOpen && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-30 space-y-2 text-slate-700 animate-in fade-in duration-100">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b pb-1.5 mb-1.5">Visible Columns</div>
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                          {[
+                            { key: 'sku_name', label: 'SKU / Name' },
+                            { key: 'category', label: 'Category' },
+                            { key: 'price', label: 'Selling Price' },
+                            { key: 'cost', label: 'Cost Price' },
+                            { key: 'stock', label: 'Stock level' },
+                            { key: 'warehouse', label: 'Warehouse' },
+                          ].map(col => (
+                            <label key={col.key} className="flex items-center gap-2 text-xs font-medium cursor-pointer hover:text-indigo-600">
+                              <input
+                                type="checkbox"
+                                checked={visibleColumns[col.key]}
+                                onChange={(e) => setVisibleColumns({ ...visibleColumns, [col.key]: e.target.checked })}
+                                className="rounded text-indigo-600"
+                              />
+                              <span>{col.label}</span>
+                            </label>
+                          ))}
+                          {customFields.map(f => (
+                            <label key={f.internalName} className="flex items-center gap-2 text-xs font-medium cursor-pointer hover:text-indigo-600">
+                              <input
+                                type="checkbox"
+                                checked={!!visibleColumns[f.internalName]}
+                                onChange={(e) => setVisibleColumns({ ...visibleColumns, [f.internalName]: e.target.checked })}
+                                className="rounded text-indigo-600"
+                              />
+                              <span className="truncate">{f.displayName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Print / Export catalog actions */}
+                  <button
+                    onClick={handleExportCSV}
+                    className="p-1.5 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer"
+                    title="Export visible catalog rows to standard CSV"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  <label className="p-1.5 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer block relative">
+                    <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+                    <Upload className="h-4 w-4" />
+                  </label>
+                  <button
+                    onClick={handlePrintPDFCatalog}
+                    className="p-1.5 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer"
+                    title="Generate and print master PDF catalog sheet"
+                  >
+                    <Printer className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
+
+              {/* Bulk operations bar */}
+              <BulkEditBar
+                selectedProductIds={selectedProductIds}
+                products={products}
+                onUpdateProducts={onUpdateProducts || (() => {})}
+                categories={categories}
+                warehouses={warehouses}
+                onClearSelection={() => setSelectedProductIds([])}
+              />
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/40">
-                      <th className="py-3 px-4">SKU / Name</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4 text-right">Selling Price</th>
-                      <th className="py-3 px-4 text-right">Cost Price</th>
-                      <th className="py-3 px-4 text-center">Stock</th>
-                      <th className="py-3 px-4">Warehouse</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-center w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProductIds(filteredProducts.map(p => p.id));
+                            } else {
+                              setSelectedProductIds([]);
+                            }
+                          }}
+                          className="rounded text-indigo-600 cursor-pointer"
+                        />
+                      </th>
+                      {visibleColumns.sku_name && <th className="py-3 px-4">SKU / Name</th>}
+                      {visibleColumns.category && <th className="py-3 px-4">Category</th>}
+                      {visibleColumns.price && <th className="py-3 px-4 text-right">Selling Price</th>}
+                      {visibleColumns.cost && <th className="py-3 px-4 text-right">Cost Price</th>}
+                      {visibleColumns.stock && <th className="py-3 px-4 text-center">Stock</th>}
+                      {visibleColumns.warehouse && <th className="py-3 px-4">Warehouse</th>}
+                      
+                      {/* Dynamic visible custom column headers */}
+                      {Object.keys(visibleColumns).map((key) => {
+                        if (['sku_name', 'category', 'price', 'cost', 'stock', 'warehouse', 'actions'].includes(key)) return null;
+                        if (!visibleColumns[key]) return null;
+                        const fDef = customFields.find(f => f.internalName === key);
+                        return (
+                          <th key={key} className="py-3 px-4 font-semibold uppercase tracking-wider text-slate-400">{fDef ? fDef.displayName : key}</th>
+                        );
+                      })}
+                      
+                      {visibleColumns.actions !== false && <th className="py-3 px-4 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.map((p) => {
                       const isLow = p.stock <= p.alertQty;
                       return (
-                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-4 px-4">
-                            <div className="flex flex-col">
-                              <span className="font-mono text-[10px] text-indigo-600 font-bold">{p.sku}</span>
-                              <span className="font-bold text-slate-800 mt-0.5">{p.name}</span>
-                              {p.pcsPerBox && p.pcsPerBox > 1 && (
-                                <span className="text-[10px] font-semibold text-amber-600 mt-0.5 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded w-max">
-                                  1 Box = {p.pcsPerBox} pcs
-                                </span>
-                              )}
-                            </div>
+                         <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors ${selectedProductIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
+                          <td className="py-4 px-4 text-center w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedProductIds.includes(p.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProductIds([...selectedProductIds, p.id]);
+                                } else {
+                                  setSelectedProductIds(selectedProductIds.filter(id => id !== p.id));
+                                }
+                              }}
+                              className="rounded text-indigo-600 cursor-pointer"
+                            />
                           </td>
-                          <td className="py-4 px-4 text-slate-500 font-medium">{p.category}</td>
-                          <td className="py-4 px-4 text-right font-bold text-slate-800">৳{p.price.toLocaleString()}</td>
-                          <td className="py-4 px-4 text-right text-slate-500 font-semibold">৳{p.cost.toLocaleString()}</td>
-                          <td className="py-4 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <div className="flex flex-col items-center">
-                                <span
-                                  className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                    p.stock === 0
-                                      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                      : isLow
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                      : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                  }`}
-                                >
-                                  {p.stock} {p.unit}
-                                </span>
-                                {p.pcsPerBox && p.pcsPerBox > 1 && p.stock > 0 && (
-                                  <span className="text-[9px] font-semibold text-indigo-600 mt-1 block">
-                                    {formatBoxQty(p.stock, p.pcsPerBox)}
+                          {visibleColumns.sku_name && (
+                            <td className="py-4 px-4">
+                              <div className="flex flex-col">
+                                <span className="font-mono text-[10px] text-indigo-600 font-bold">{p.sku}</span>
+                                <span className="font-bold text-slate-800 mt-0.5">{p.name}</span>
+                                {p.pcsPerBox && p.pcsPerBox > 1 && (
+                                  <span className="text-[10px] font-semibold text-amber-600 mt-0.5 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded w-max">
+                                    1 Box = {p.pcsPerBox} pcs
                                   </span>
                                 )}
                               </div>
-                              {isLow && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" title="Low stock alert" />}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-slate-500 font-medium">{p.warehouse}</td>
-                          <td className="py-4 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingProdId(p.id);
-                                  setEditingProdName(p.name);
-                                  setEditingProdSku(p.sku);
-                                  setEditingProdCategory(p.category);
-                                  setEditingProdUnit(p.unit);
-                                  setEditingProdWarehouse(p.warehouse);
-                                  setEditingProdPrice(p.price.toString());
-                                  setEditingProdCost(p.cost.toString());
-                                  setEditingProdStock(p.stock.toString());
-                                  setEditingProdAlertQty(p.alertQty.toString());
-                                  setEditingProdPcsPerBox((p.pcsPerBox || 1).toString());
-                                }}
-                                className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded transition-colors cursor-pointer"
-                                title="Edit Product Info"
-                              >
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm('Delete this product from catalog?')) {
-                                    onDeleteProduct(p.id);
-                                  }
-                                }}
-                                className="p-1.5 hover:bg-rose-50 text-rose-600 rounded transition-colors cursor-pointer"
-                                title="Delete Product"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
+                            </td>
+                          )}
+                          {visibleColumns.category && <td className="py-4 px-4 text-slate-500 font-medium">{p.category}</td>}
+                          {visibleColumns.price && <td className="py-4 px-4 text-right font-bold text-slate-800">৳{p.price.toLocaleString()}</td>}
+                          {visibleColumns.cost && <td className="py-4 px-4 text-right text-slate-500 font-semibold">৳{p.cost.toLocaleString()}</td>}
+                          {visibleColumns.stock && (
+                            <td className="py-4 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                                      p.stock === 0
+                                        ? 'bg-rose-50 text-rose-700 border border-rose-100'
+                                        : isLow
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                    }`}
+                                  >
+                                    {p.stock} {p.unit}
+                                  </span>
+                                  {p.pcsPerBox && p.pcsPerBox > 1 && p.stock > 0 && (
+                                    <span className="text-[9px] font-semibold text-indigo-600 mt-1 block">
+                                      {formatBoxQty(p.stock, p.pcsPerBox)}
+                                    </span>
+                                  )}
+                                </div>
+                                {isLow && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" title="Low stock alert" />}
+                              </div>
+                            </td>
+                          )}
+                          {visibleColumns.warehouse && <td className="py-4 px-4 text-slate-500 font-medium">{p.warehouse}</td>}
+                          
+                          {/* Dynamic column cell values */}
+                          {Object.keys(visibleColumns).map((key) => {
+                            if (['sku_name', 'category', 'price', 'cost', 'stock', 'warehouse', 'actions'].includes(key)) return null;
+                            if (!visibleColumns[key]) return null;
+                            const cellValue = (p as any)[key] !== undefined ? String((p as any)[key]) : '';
+                            return (
+                              <td key={key} className="py-4 px-4 text-slate-600 font-semibold font-mono text-[10px] truncate max-w-[120px]" title={cellValue}>{cellValue || '—'}</td>
+                            );
+                          })}
+                          
+                          {visibleColumns.actions !== false && (
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingProdId(p.id);
+                                    setEditingProdName(p.name);
+                                    setEditingProdSku(p.sku);
+                                    setEditingProdCategory(p.category);
+                                    setEditingProdUnit(p.unit);
+                                    setEditingProdWarehouse(p.warehouse);
+                                    setEditingProdPrice(p.price.toString());
+                                    setEditingProdCost(p.cost.toString());
+                                    setEditingProdStock(p.stock.toString());
+                                    setEditingProdAlertQty(p.alertQty.toString());
+                                    setEditingProdPcsPerBox((p.pcsPerBox || 1).toString());
+                                    
+                                    // Load extra properties
+                                    const extra: Record<string, any> = {};
+                                    customFields.forEach(f => {
+                                      if ((p as any)[f.internalName] !== undefined) {
+                                        extra[f.internalName] = (p as any)[f.internalName];
+                                      }
+                                    });
+                                    setEditingExtraFields(extra);
+                                  }}
+                                  className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded transition-colors cursor-pointer"
+                                  title="Edit Product Info"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Delete this product from catalog?')) {
+                                      onDeleteProduct(p.id);
+                                    }
+                                  }}
+                                  className="p-1.5 hover:bg-rose-50 text-rose-600 rounded transition-colors cursor-pointer"
+                                  title="Delete Product"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
                     {filteredProducts.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center text-slate-400 font-semibold">
+                        <td colSpan={10} className="py-10 text-center text-slate-400 font-semibold">
                           No matching catalog items found.
                         </td>
                       </tr>
@@ -1285,12 +1736,12 @@ export default function InventoryView({
       {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Add New Product</h3>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+              <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Add New Product Master</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer">✕</button>
             </div>
-            <form onSubmit={handleProductSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleProductSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Product Name *</label>
@@ -1363,7 +1814,7 @@ export default function InventoryView({
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Warehouse</label>
                   <select
                     value={pWarehouse} onChange={(e) => setPWarehouse(e.target.value)}
@@ -1374,8 +1825,19 @@ export default function InventoryView({
                     ))}
                   </select>
                 </div>
+
+                {/* Enterprise Specifications Tab section */}
+                <div className="col-span-2 mt-4 space-y-2">
+                  <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest border-b border-indigo-100 pb-1.5">Enterprise Specifications & Custom Fields</h4>
+                  <ProductEnterpriseTabs
+                    productData={extraFields}
+                    setProductData={setExtraFields}
+                    customFields={customFields}
+                    currentUserRole="Administrator"
+                  />
+                </div>
               </div>
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
                 <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 border border-slate-200 text-slate-500 font-semibold rounded-lg text-xs hover:bg-slate-50 cursor-pointer">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs cursor-pointer shadow-md shadow-indigo-600/10">Save Product</button>
               </div>
@@ -1807,12 +2269,12 @@ export default function InventoryView({
       {/* Edit Product Modal */}
       {editingProdId !== null && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Edit Product Catalog</h3>
               <button onClick={() => setEditingProdId(null)} className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer">✕</button>
             </div>
-            <form onSubmit={handleEditProductSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleEditProductSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Product Name *</label>
@@ -1885,7 +2347,7 @@ export default function InventoryView({
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Warehouse</label>
                   <select
                     value={editingProdWarehouse} onChange={(e) => setEditingProdWarehouse(e.target.value)}
@@ -1896,14 +2358,55 @@ export default function InventoryView({
                     ))}
                   </select>
                 </div>
+
+                {/* Enterprise Specifications Tab section */}
+                <div className="col-span-2 mt-4 space-y-2">
+                  <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest border-b border-indigo-100 pb-1.5">Enterprise Specifications & Custom Fields</h4>
+                  <ProductEnterpriseTabs
+                    productData={editingExtraFields}
+                    setProductData={setEditingExtraFields}
+                    customFields={customFields}
+                    currentUserRole="Administrator"
+                  />
+                </div>
               </div>
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2 shrink-0">
                 <button type="button" onClick={() => setEditingProdId(null)} className="px-4 py-2 border border-slate-200 text-slate-500 font-semibold rounded-lg text-xs hover:bg-slate-50 cursor-pointer">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs cursor-pointer shadow-md shadow-indigo-600/10">Update Product</button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {/* Manage Custom Fields Modal */}
+      {showCustomFieldsModal && (
+        <ManageCustomFieldsModal
+          onClose={() => setShowCustomFieldsModal(false)}
+          customFields={customFields}
+          setCustomFields={(newFields) => {
+            if (typeof newFields === 'function') {
+              const resolved = (newFields as Function)(customFields);
+              setCustomFields(resolved);
+              const updatedCols = { ...visibleColumns };
+              resolved.forEach((f: any) => {
+                if (updatedCols[f.internalName] === undefined) {
+                  updatedCols[f.internalName] = true;
+                }
+              });
+              setVisibleColumns(updatedCols);
+            } else {
+              setCustomFields(newFields);
+              const updatedCols = { ...visibleColumns };
+              newFields.forEach((f: any) => {
+                if (updatedCols[f.internalName] === undefined) {
+                  updatedCols[f.internalName] = true;
+                }
+              });
+              setVisibleColumns(updatedCols);
+            }
+          }}
+        />
       )}
 
     </div>
