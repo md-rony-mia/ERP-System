@@ -153,10 +153,129 @@ export default function InventoryView({
     { name: 'Yard B', location: 'Narayanganj', manager: 'Farhana Yasmin', capacity: '3000 Tons' },
   ]);
 
-  const [transfers, setTransfers] = useState([
-    { id: 'tr1', date: '2026-07-02', refNo: 'TR-2601', productName: 'Standard Premium cement', qty: 25, unit: 'Bags', from: 'Main Warehouse', to: 'Yard A', status: 'Completed' },
-    { id: 'tr2', date: '2026-07-05', refNo: 'TR-2602', productName: 'Deformed Steel Bar 60G (16mm)', qty: 2, unit: 'Tons', from: 'Yard B', to: 'Main Warehouse', status: 'Completed' },
-  ]);
+  const [transfers, setTransfers] = useState<any[]>(() => {
+    const saved = localStorage.getItem('axiom_transfers');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'tr1',
+        date: '2026-07-02',
+        refNo: 'TR-2601',
+        productId: 'p1',
+        productName: 'Standard Premium cement',
+        qty: 25,
+        unit: 'Bags',
+        from: 'Main Warehouse',
+        to: 'Yard A',
+        status: 'Completed',
+        batchNo: 'B-CEM-902',
+        carrierName: 'Axiom Cargo Logistics',
+        vehicleNo: 'Dhaka Metro-U-11-2092',
+        driverPhone: '01827391029',
+        sealNo: 'S-99120',
+        approvedBy: 'Rashedul Islam',
+        receivedDate: '2026-07-03'
+      },
+      {
+        id: 'tr2',
+        date: '2026-07-05',
+        refNo: 'TR-2602',
+        productId: 'p3',
+        productName: 'Deformed Steel Bar 60G (16mm)',
+        qty: 2,
+        unit: 'Tons',
+        from: 'Yard B',
+        to: 'Main Warehouse',
+        status: 'Shipped',
+        batchNo: 'B-ST-16-X',
+        carrierName: 'Bengal Freight Lines',
+        vehicleNo: 'Ctg Metro-TA-04-1182',
+        driverPhone: '01715293810',
+        sealNo: 'S-10293',
+        approvedBy: 'Farhana Yasmin',
+        receivedDate: ''
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('axiom_transfers', JSON.stringify(transfers));
+  }, [transfers]);
+
+  // --- BATCH & LOTS STATE ---
+  const [batches, setBatches] = useState<any[]>(() => {
+    const saved = localStorage.getItem('axiom_batches');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'b1', productId: 'p1', productName: 'Standard Premium cement', batchNo: 'B-CEM-902', qty: 70, cost: 400, mfgDate: '2026-01-10', expiryDate: '2026-12-10', warehouse: 'Main Warehouse' },
+      { id: 'b2', productId: 'p1', productName: 'Standard Premium cement', batchNo: 'B-CEM-903', qty: 50, cost: 424, mfgDate: '2026-02-15', expiryDate: '2027-02-15', warehouse: 'Main Warehouse' },
+      { id: 'b3', productId: 'p2', productName: 'Deformed Steel Bar 60G (12mm)', batchNo: 'B-ST-12-A', qty: 10, cost: 77500, mfgDate: '2026-03-01', expiryDate: '2031-03-01', warehouse: 'Main Warehouse' },
+      { id: 'b4', productId: 'p2', productName: 'Deformed Steel Bar 60G (12mm)', batchNo: 'B-ST-12-B', qty: 5, cost: 79000, mfgDate: '2026-04-10', expiryDate: '2031-04-10', warehouse: 'Main Warehouse' },
+      { id: 'b5', productId: 'p3', productName: 'Deformed Steel Bar 60G (16mm)', batchNo: 'B-ST-16-X', qty: 2, cost: 79000, mfgDate: '2026-02-20', expiryDate: '2031-02-20', warehouse: 'Yard B' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('axiom_batches', JSON.stringify(batches));
+  }, [batches]);
+
+  // --- SERIAL NUMBERS STATE ---
+  const [serials, setSerials] = useState<any[]>(() => {
+    const saved = localStorage.getItem('axiom_serials');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 's1', productId: 'p2', serialNo: 'SN-STL12-00918', warehouse: 'Main Warehouse', status: 'Available' },
+      { id: 's2', productId: 'p2', serialNo: 'SN-STL12-00919', warehouse: 'Main Warehouse', status: 'Available' },
+      { id: 's3', productId: 'p2', serialNo: 'SN-STL12-00920', warehouse: 'Main Warehouse', status: 'Sold' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('axiom_serials', JSON.stringify(serials));
+  }, [serials]);
+
+  // --- SCANNER STATE ---
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'search' | 'adjust' | 'transfer'>('search');
+
+  // --- VALUATION METHOD STATE ---
+  const [valuationMethod, setValuationMethod] = useState<'WAC' | 'FIFO'>(() => {
+    const saved = localStorage.getItem('axiom_valuation_method');
+    return (saved as 'WAC' | 'FIFO') || 'WAC';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('axiom_valuation_method', valuationMethod);
+  }, [valuationMethod]);
+
+  // --- LOT MODAL STATE ---
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [selectedProductForBatches, setSelectedProductForBatches] = useState<any>(null);
+
+  // New batch form
+  const [newBatchNo, setNewBatchNo] = useState('');
+  const [newBatchQty, setNewBatchQty] = useState('');
+  const [newBatchCost, setNewBatchCost] = useState('');
+  const [newBatchMfg, setNewBatchMfg] = useState('');
+  const [newBatchExp, setNewBatchExp] = useState('');
+  const [newBatchWh, setNewBatchWh] = useState('Main Warehouse');
+
+  // Advanced Transfer form state
+  const [transferStatus, setTransferStatus] = useState<'Draft' | 'Requested' | 'Approved' | 'Shipped' | 'Completed'>('Draft');
+  const [carrierName, setCarrierName] = useState('');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [driverPhone, setDriverPhone] = useState('');
+  const [sealNo, setSealNo] = useState('');
+  const [transferBatchNo, setTransferBatchNo] = useState('');
+
+  // Selected transfer for printing gate pass
+  const [selectedTransferForGatePass, setSelectedTransferForGatePass] = useState<any>(null);
 
   const [offers, setOffers] = useState([
     { id: 'of1', name: 'Monsoon Special 5% Steel Discount', type: 'Discount Code', productName: 'Deformed Steel Bar 60G (12mm)', criteria: 'Sales > 5 Tons', reward: '5% Off invoice value', status: 'Active' },
@@ -665,31 +784,92 @@ export default function InventoryView({
     if (!prod) return;
 
     const qtyVal = parseInt(transferQty);
-    if (qtyVal > prod.stock) {
-      alert(`Insufficient stock! Product only has ${prod.stock} ${prod.unit} in stock.`);
+    if (qtyVal <= 0) {
+      alert('Quantity must be greater than zero.');
       return;
     }
 
-    // Deduct stock from source (which we handle by reducing it)
-    onUpdateStock(prod.id, prod.stock - qtyVal);
+    // Verify stock availability
+    if (qtyVal > prod.stock) {
+      alert(`Insufficient stock! Product only has ${prod.stock} ${prod.unit} in total.`);
+      return;
+    }
 
-    // Record transfer log
+    // Reference number
+    const refNo = `TR-260${3 + transfers.length}`;
+
+    // Record transfer log with advanced Odoo fields
     const newTr = {
       id: `tr_dynamic_${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      refNo: `TR-260${3 + transfers.length}`,
+      refNo: refNo,
+      productId: prod.id,
       productName: prod.name,
       qty: qtyVal,
       unit: prod.unit,
       from: transferFrom,
       to: transferTo,
-      status: 'Completed',
+      status: transferStatus, // Draft | Requested | Approved | Shipped | Completed
+      batchNo: transferBatchNo || 'N/A',
+      carrierName: carrierName || 'Axiom Fleet Services',
+      vehicleNo: vehicleNo || 'Dhaka Metro-HA-11-5520',
+      driverPhone: driverPhone || '01700000000',
+      sealNo: sealNo || 'S-TEMP',
+      approvedBy: 'Rashedul Islam',
+      receivedDate: transferStatus === 'Completed' ? new Date().toISOString().split('T')[0] : ''
     };
+
+    // Double-entry stock ledger movement if completed immediately
+    if (transferStatus === 'Completed') {
+      // 1. Update global product stock
+      // If moving away from product's primary warehouse, deduct stock.
+      // If moving to product's primary warehouse, increase stock.
+      // Otherwise, keep stock same but record location ledger change.
+      if (prod.warehouse === transferFrom && prod.warehouse !== transferTo) {
+        onUpdateStock(prod.id, Math.max(0, prod.stock - qtyVal));
+      } else if (prod.warehouse === transferTo && prod.warehouse !== transferFrom) {
+        onUpdateStock(prod.id, prod.stock + qtyVal);
+      }
+
+      // 2. Adjust Batches ledger (Double-entry)
+      let sourceBatch = batches.find(b => b.productId === prod.id && b.warehouse === transferFrom && (transferBatchNo ? b.batchNo === transferBatchNo : true));
+      if (sourceBatch) {
+        // Deduct from source batch
+        sourceBatch.qty = Math.max(0, sourceBatch.qty - qtyVal);
+        
+        // Find or create destination batch
+        let destBatch = batches.find(b => b.productId === prod.id && b.warehouse === transferTo && b.batchNo === sourceBatch.batchNo);
+        if (destBatch) {
+          destBatch.qty += qtyVal;
+        } else {
+          batches.push({
+            id: `b_dynamic_${Date.now()}`,
+            productId: prod.id,
+            productName: prod.name,
+            batchNo: sourceBatch.batchNo,
+            qty: qtyVal,
+            cost: sourceBatch.cost,
+            mfgDate: sourceBatch.mfgDate,
+            expiryDate: sourceBatch.expiryDate,
+            warehouse: transferTo
+          });
+        }
+        setBatches([...batches]);
+      }
+    }
+
     setTransfers([newTr, ...transfers]);
 
     setTransferQty('');
+    setCarrierName('');
+    setVehicleNo('');
+    setDriverPhone('');
+    setSealNo('');
+    setTransferBatchNo('');
+    setTransferStatus('Draft');
     setShowTransferModal(false);
-    alert(`Successfully transferred ${qtyVal} ${prod.unit} of "${prod.name}" from ${transferFrom} to ${transferTo}`);
+
+    alert(`Transfer ${refNo} has been successfully created in "${transferStatus}" status!`);
   };
 
   const handleOfferSubmit = (e: React.FormEvent) => {
@@ -759,6 +939,17 @@ export default function InventoryView({
               <p className="text-xs text-slate-400 mt-1">Manage global inventory catalog, enterprise properties, custom categories, and stock alert levels.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  setScannerMode('search');
+                  setShowScannerModal(true);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs px-3.5 py-2.5 rounded-lg border border-indigo-100 transition-all cursor-pointer"
+                title="Use device camera to scan product QR / Barcode"
+              >
+                <QrCode className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Camera Scanner</span>
+              </button>
               <button
                 onClick={() => setShowCustomFieldsModal(true)}
                 className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 transition-all cursor-pointer"
@@ -1012,6 +1203,17 @@ export default function InventoryView({
                           {visibleColumns.actions !== false && (
                             <td className="py-4 px-4 text-right">
                               <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedProductForBatches(p);
+                                    setNewBatchWh(p.warehouse);
+                                    setShowBatchModal(true);
+                                  }}
+                                  className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded transition-colors cursor-pointer animate-pulse-subtle"
+                                  title="Manage Lots, Batches & Expiry Dates"
+                                >
+                                  <Layers className="h-3.5 w-3.5" />
+                                </button>
                                 <button
                                   onClick={() => {
                                     setEditingProdId(p.id);
@@ -1363,109 +1565,244 @@ export default function InventoryView({
       )}
 
       {/* =========================================
-          TAB 5: STOCK METRICS & VALUATION
+          TAB 5: STOCK METRICS & VALUATION (FIFO & WAC)
           ========================================= */}
-      {currentTab === 'stock' && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800 font-display">Stock Ledger Valuation</h2>
-            <p className="text-xs text-slate-400 mt-1">Deep analysis of asset costs, revenue yields, margin targets, and inventory health indexes.</p>
-          </div>
+      {currentTab === 'stock' && (() => {
+        const calculateFIFOValuation = (prodId: string, currentStock: number, defaultCost: number) => {
+          const prodBatches = batches.filter(b => b.productId === prodId);
+          if (prodBatches.length === 0) {
+            return currentStock * defaultCost;
+          }
+          // Sort batches by mfgDate descending (newest first for remaining ending inventory)
+          const sortedBatches = [...prodBatches].sort((a, b) => new Date(b.mfgDate).getTime() - new Date(a.mfgDate).getTime());
+          
+          let remainingToValue = currentStock;
+          let totalValuation = 0;
+          
+          for (const batch of sortedBatches) {
+            if (remainingToValue <= 0) break;
+            const takeQty = Math.min(remainingToValue, batch.qty);
+            totalValuation += takeQty * batch.cost;
+            remainingToValue -= takeQty;
+          }
+          
+          if (remainingToValue > 0) {
+            totalValuation += remainingToValue * defaultCost;
+          }
+          return totalValuation;
+        };
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                <DollarSign className="h-6 w-6" />
-              </div>
+        const getProductValuation = (p: any, method: 'WAC' | 'FIFO') => {
+          if (method === 'WAC') {
+            return p.stock * p.cost;
+          } else {
+            return calculateFIFOValuation(p.id, p.stock, p.cost);
+          }
+        };
+
+        const totalWACValuation = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
+        const totalFIFOValuation = products.reduce((sum, p) => sum + calculateFIFOValuation(p.id, p.stock, p.cost), 0);
+        const activeValuationValue = valuationMethod === 'WAC' ? totalWACValuation : totalFIFOValuation;
+        const totalRevenueYield = products.reduce((sum, p) => sum + (p.stock * p.price), 0);
+        const activeMarkup = totalRevenueYield - activeValuationValue;
+        const valuationVariance = totalFIFOValuation - totalWACValuation;
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Cost Valuation</span>
-                <span className="text-xl font-bold text-slate-800 block mt-0.5">
-                  ৳{products.reduce((sum, p) => sum + p.stock * p.cost, 0).toLocaleString()}
+                <h2 className="text-xl font-bold text-slate-800 font-display">Double-Entry Stock Valuation</h2>
+                <p className="text-xs text-slate-400 mt-1">Real-time valuation based on active lot acquisitions, FIFO layers, and Weighted Average Cost (WAC).</p>
+              </div>
+              
+              {/* Method Switcher */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-xl border border-slate-200/60 self-start">
+                <button
+                  type="button"
+                  onClick={() => setValuationMethod('WAC')}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${valuationMethod === 'WAC' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Weighted Avg (WAC)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValuationMethod('FIFO')}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${valuationMethod === 'FIFO' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  First-In First-Out (FIFO)
+                </button>
+              </div>
+            </div>
+
+            {/* Metric widgets */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 h-16 w-16 bg-indigo-50/50 rounded-bl-full flex items-center justify-end pr-4 pt-4 text-indigo-500/20">
+                  <DollarSign className="h-8 w-8" />
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Active Stock Valuation</span>
+                <span className="text-xl font-bold text-slate-800 block mt-1.5">
+                  ৳{activeValuationValue.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400 block mt-1">
+                  Using <strong className="text-indigo-600 font-bold">{valuationMethod} Method</strong>
+                </span>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-50/50 rounded-bl-full flex items-center justify-end pr-4 pt-4 text-emerald-500/20">
+                  <TrendingUp className="h-8 w-8" />
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Estimated Selling Yield</span>
+                <span className="text-xl font-bold text-slate-800 block mt-1.5">
+                  ৳{totalRevenueYield.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-600 block mt-1">
+                  Markup: ৳{activeMarkup.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 h-16 w-16 bg-amber-50/50 rounded-bl-full flex items-center justify-end pr-4 pt-4 text-amber-500/20">
+                  <Layers className="h-8 w-8" />
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Valuation Divergence</span>
+                <span className={`text-xl font-bold block mt-1.5 ${valuationVariance !== 0 ? 'text-amber-600' : 'text-slate-500'}`}>
+                  {valuationVariance >= 0 ? '+' : ''}৳{valuationVariance.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400 block mt-1">
+                  FIFO (৳{totalFIFOValuation.toLocaleString()}) vs WAC (৳{totalWACValuation.toLocaleString()})
+                </span>
+              </div>
+
+              <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-md relative overflow-hidden">
+                <div className="absolute top-0 right-0 h-16 w-16 bg-indigo-500/40 rounded-bl-full flex items-center justify-end pr-4 pt-4 text-indigo-200/20">
+                  <Percent className="h-8 w-8" />
+                </div>
+                <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">Gross Margin Yield</span>
+                <span className="text-xl font-bold block mt-1.5">
+                  {totalRevenueYield > 0 ? ((activeMarkup / totalRevenueYield) * 100).toFixed(1) : '0.0'}%
+                </span>
+                <span className="text-[10px] font-semibold text-indigo-100 block mt-1">
+                  Target: 15% Min markup
                 </span>
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <TrendingUp className="h-6 w-6" />
+            {/* Visual Bento Comparison Chart */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">SKU Cost Comparison (FIFO vs WAC)</h3>
+                <span className="text-[10px] text-slate-400 font-medium">Higher FIFO indicates rising acquisition costs</span>
               </div>
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Est. Revenue Yield</span>
-                <span className="text-xl font-bold text-slate-800 block mt-0.5">
-                  ৳{products.reduce((sum, p) => sum + p.stock * p.price, 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-indigo-600 text-white p-6 rounded-2xl shadow-md flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-indigo-500 text-white flex items-center justify-center shrink-0">
-                <Percent className="h-5 w-5" />
-              </div>
-              <div>
-                <span className="text-[10px] text-indigo-200 font-bold uppercase tracking-wider block">Est. Potential Markup</span>
-                <span className="text-xl font-bold block mt-0.5">
-                  ৳{(products.reduce((sum, p) => sum + p.stock * p.price, 0) - products.reduce((sum, p) => sum + p.stock * p.cost, 0)).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/40">
-              <h3 className="font-bold text-xs uppercase text-slate-500 tracking-wider">Asset Catalog Health Matrix</h3>
-              <span className="bg-indigo-50 text-indigo-700 font-bold text-[10px] px-2.5 py-0.5 rounded-full border border-indigo-100">Updated Real-Time</span>
-            </div>
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/40">
-                  <th className="py-3 px-6">Product / SKU</th>
-                  <th className="py-3 px-6 text-right">Available Stock</th>
-                  <th className="py-3 px-6 text-right">Total Cost Value</th>
-                  <th className="py-3 px-6 text-right">Total Selling Value</th>
-                  <th className="py-3 px-6 text-right">Target Markup</th>
-                  <th className="py-3 px-6 text-center">Status Index</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+              
+              <div className="space-y-4">
                 {products.map((p) => {
-                  const costVal = p.stock * p.cost;
-                  const saleVal = p.stock * p.price;
-                  const markup = saleVal - costVal;
-                  const isLow = p.stock <= p.alertQty;
+                  const pWac = p.stock * p.cost;
+                  const pFifo = calculateFIFOValuation(p.id, p.stock, p.cost);
+                  const maxVal = Math.max(pWac, pFifo, 1000);
+                  const wacPct = (pWac / maxVal) * 100;
+                  const fifoPct = (pFifo / maxVal) * 100;
 
                   return (
-                    <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
-                      <td className="py-4 px-6">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-800">{p.name}</span>
-                          <span className="font-mono text-[10px] text-slate-400 mt-0.5">{p.sku}</span>
+                    <div key={p.id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                      <div>
+                        <span className="font-bold text-xs text-slate-800 block truncate">{p.name}</span>
+                        <span className="font-mono text-[9px] text-slate-400 uppercase tracking-tight">{p.sku} • Stock: {p.stock}</span>
+                      </div>
+                      <div className="md:col-span-2 space-y-1.5">
+                        {/* WAC Bar */}
+                        <div className="space-y-0.5">
+                          <div className="flex justify-between text-[9px]">
+                            <span className="text-slate-400 font-medium">Weighted Avg (WAC)</span>
+                            <span className="text-slate-600 font-bold">৳{pWac.toLocaleString()}</span>
+                          </div>
+                          <div className="w-full bg-slate-200/60 h-2 rounded-full overflow-hidden">
+                            <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${wacPct}%` }} />
+                          </div>
                         </div>
-                      </td>
-                      <td className="py-4 px-6 text-right font-bold text-slate-700">
-                        {p.stock} {p.unit}
-                      </td>
-                      <td className="py-4 px-6 text-right font-semibold text-slate-500">৳{costVal.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-right font-bold text-slate-800">৳{saleVal.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-right font-bold text-emerald-600">৳{markup.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-center">
-                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                          p.stock === 0 
-                            ? 'bg-rose-50 text-rose-700 border border-rose-100' 
-                            : isLow 
-                            ? 'bg-amber-50 text-amber-700 border border-amber-100' 
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        }`}>
-                          {p.stock === 0 ? 'Out of Stock' : isLow ? 'Low Threshold' : 'Optimal'}
+                        {/* FIFO Bar */}
+                        <div className="space-y-0.5">
+                          <div className="flex justify-between text-[9px]">
+                            <span className="text-slate-400 font-medium">First-In First-Out (FIFO)</span>
+                            <span className="text-emerald-600 font-bold">৳{pFifo.toLocaleString()}</span>
+                          </div>
+                          <div className="w-full bg-slate-200/60 h-2 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${fifoPct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right border-t md:border-t-0 md:border-l border-slate-200/60 pt-2 md:pt-0 pl-0 md:pl-4">
+                        <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">Method Variance</span>
+                        <span className={`text-xs font-extrabold block mt-0.5 ${pFifo - pWac > 0 ? 'text-emerald-600' : pFifo - pWac < 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                          {pFifo - pWac > 0 ? '+' : ''}৳{(pFifo - pWac).toLocaleString()}
                         </span>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
+            {/* Valuation Ledger with FIFO Layers */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/40">
+                <h3 className="font-bold text-xs uppercase text-slate-500 tracking-wider">Asset Catalog Valuation Ledger</h3>
+                <span className="bg-emerald-50 text-emerald-700 font-bold text-[10px] px-2.5 py-0.5 rounded-full border border-emerald-100">Double-Entry Audit</span>
+              </div>
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/40">
+                    <th className="py-3 px-6">Product & SKU</th>
+                    <th className="py-3 px-6 text-right">Available Stock</th>
+                    <th className="py-3 px-6 text-right">WAC Unit Cost</th>
+                    <th className="py-3 px-6">Active FIFO Batch Layers</th>
+                    <th className="py-3 px-6 text-right">Total Valuation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {products.map((p) => {
+                    const activeVal = getProductValuation(p, valuationMethod);
+                    const prodBatches = batches.filter(b => b.productId === p.id && b.qty > 0);
+
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{p.name}</span>
+                            <span className="font-mono text-[10px] text-slate-400 mt-0.5">{p.sku}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-right font-bold text-slate-700">
+                          {p.stock} {p.unit}
+                        </td>
+                        <td className="py-4 px-6 text-right font-semibold text-slate-500">৳{p.cost.toLocaleString()}</td>
+                        <td className="py-4 px-6">
+                          {prodBatches.length === 0 ? (
+                            <span className="text-slate-400 italic text-[10px]">No active lot/batch linked. Standard cost applies.</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5 max-w-sm">
+                              {prodBatches.map(b => (
+                                <span key={b.id} className="inline-flex flex-col bg-slate-100 border border-slate-200/60 rounded px-2 py-0.5 font-mono text-[9px] text-slate-600">
+                                  <span className="font-bold text-slate-800">{b.batchNo} ({b.qty} {p.unit})</span>
+                                  <span className="text-[8px] text-slate-400 mt-0.5">Acq Cost: ৳{b.cost.toLocaleString()}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-right font-bold text-indigo-600">
+                          ৳{activeVal.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* =========================================
           TAB 6: STOCK TRANSFER
