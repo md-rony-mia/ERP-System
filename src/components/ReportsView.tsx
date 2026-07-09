@@ -534,7 +534,7 @@ export default function ReportsView({
       <div className="space-y-4">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500">
           <h4 className="font-bold text-slate-800 uppercase tracking-wider mb-1">Double-Entry Ledger Balancing</h4>
-          A Trial Balance lists all ledger account heads of Axiom ERP. Debits represent Assets and Expenses, while Credits represent Liabilities, Equity, and Revenue.
+          A Trial Balance lists all ledger account heads of Nexova ERP Solution. Debits represent Assets and Expenses, while Credits represent Liabilities, Equity, and Revenue.
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
@@ -878,7 +878,7 @@ export default function ReportsView({
         <div className="p-6 bg-white border border-slate-200 rounded-xl">
           <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Overall Operational Margin Assessment</h4>
           <p className="text-xs text-slate-500 leading-relaxed">
-            The overall net margins of Axiom ERP are currently hovering at <span className="font-bold text-emerald-600">{((estimatedProfit / (totalRevenue || 1)) * 100).toFixed(1)}%</span>. This is a robust indicator of health representing stable client cash-collecting pathways.
+            The overall net margins of Nexova ERP Solution are currently hovering at <span className="font-bold text-emerald-600">{((estimatedProfit / (totalRevenue || 1)) * 100).toFixed(1)}%</span>. This is a robust indicator of health representing stable client cash-collecting pathways.
           </p>
         </div>
       </div>

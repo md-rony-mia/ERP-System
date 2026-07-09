@@ -372,7 +372,7 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
       {/* Footer */}
       <div className="p-4 border-t border-emerald-950/50 bg-emerald-950/30 text-center flex flex-col items-center">
         <span className="text-[10px] text-emerald-600/80 font-bold tracking-wider">Version 1.2.105</span>
-        <span className="text-[9px] text-emerald-700 font-semibold mt-1">Database: BinBook_Apexion_Madani</span>
+        <span className="text-[9px] text-emerald-700 font-semibold mt-1">Database: Nexova_ERP_Db</span>
       </div>
     </aside>
   );

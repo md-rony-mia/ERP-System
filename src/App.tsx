@@ -11,6 +11,7 @@ import BankingAndLoanView from './components/BankingAndLoanView';
 import ReportsView from './components/ReportsView';
 import GridReportView from './components/GridReportView';
 import RdlReportView from './components/RdlReportView';
+import Login from './components/Login';
 
 import {
   seedCollectionIfEmpty,
@@ -52,6 +53,28 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [currentSubTab, setCurrentSubTab] = useState('');
   const [isVisualEditMode, setIsVisualEditMode] = useState(false);
+
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    const saved = localStorage.getItem('axiom_current_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const handleLoginSuccess = (user: any) => {
+    setCurrentUser(user);
+    localStorage.setItem('axiom_current_user', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('axiom_current_user');
+  };
 
   const DEFAULT_SETTINGS: AppSettings = {
     companyName: 'M/S Madani Traders',
@@ -138,7 +161,15 @@ export default function App() {
         if (appSettingsDoc) {
           // Remove the id field added by fetchCollectionFromFirestore to match AppSettings type
           const { id, ...sanitizedSettings } = appSettingsDoc;
-          setSettings(sanitizedSettings as AppSettings);
+          const mergedSettings = {
+            ...DEFAULT_SETTINGS,
+            ...sanitizedSettings,
+            // Ensure usersList is loaded if missing
+            usersList: (sanitizedSettings.usersList && sanitizedSettings.usersList.length > 0)
+              ? sanitizedSettings.usersList
+              : DEFAULT_SETTINGS.usersList
+          };
+          setSettings(mergedSettings as AppSettings);
         } else {
           await saveSettingsToFirestore(DEFAULT_SETTINGS);
           setSettings(DEFAULT_SETTINGS);
@@ -659,6 +690,10 @@ export default function App() {
     );
   }
 
+  if (!currentUser) {
+    return <Login settings={settings} onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="flex h-screen bg-slate-50 text-slate-700 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
@@ -674,6 +709,8 @@ export default function App() {
           settings={settings}
           isVisualEditMode={isVisualEditMode}
           onToggleVisualEditMode={() => setIsVisualEditMode(!isVisualEditMode)}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic content render views */}

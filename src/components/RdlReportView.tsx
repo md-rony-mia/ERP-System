@@ -186,7 +186,7 @@ export default function RdlReportView({
 
   // States
   const [templates, setTemplates] = useState<RdlTemplate[]>(() => {
-    const saved = localStorage.getItem('axiom_rdl_templates');
+    const saved = localStorage.getItem('nexova_rdl_templates');
     return saved ? JSON.parse(saved) : initialTemplates;
   });
 
@@ -341,7 +341,7 @@ export default function RdlReportView({
     });
 
     setTemplates(updatedTemplates);
-    localStorage.setItem('axiom_rdl_templates', JSON.stringify(updatedTemplates));
+    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
     setSelectedElementId(newEl.id);
   };
 
@@ -356,7 +356,7 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('axiom_rdl_templates', JSON.stringify(updatedTemplates));
+    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
     if (selectedElementId === id) setSelectedElementId(null);
   };
 
@@ -370,7 +370,7 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('axiom_rdl_templates', JSON.stringify(updatedTemplates));
+    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
   };
 
   const handleUpdateLayoutConfig = (key: keyof RdlTemplate, value: any) => {
@@ -381,7 +381,7 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('axiom_rdl_templates', JSON.stringify(updatedTemplates));
+    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
   };
 
   const handleSaveAsNewTemplate = (name: string) => {
@@ -393,7 +393,7 @@ export default function RdlReportView({
     };
     const updated = [...templates, newT];
     setTemplates(updated);
-    localStorage.setItem('axiom_rdl_templates', JSON.stringify(updated));
+    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updated));
     setActiveTemplateId(newT.id);
     alert(`RDL template "${newT.name}" successfully designed and stored!`);
   };
@@ -419,7 +419,7 @@ export default function RdlReportView({
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-800 font-display">Axiom RDL Report Designer</h2>
+            <h2 className="text-sm font-bold text-slate-800 font-display">Nexova RDL Report Designer</h2>
             <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">SSRS / Crystal Reports XML Schema Visualizer</p>
           </div>
         </div>
@@ -953,7 +953,7 @@ export default function RdlReportView({
 
               {/* Physical page footer simulation */}
               <div className="absolute bottom-10 left-10 right-10 flex items-center justify-between text-[9px] text-slate-400 font-mono border-t border-slate-100 pt-3">
-                <span>RDL System Report Definition Schema (BinBook Axiom)</span>
+                <span>RDL System Report Definition Schema (Nexova ERP Solution)</span>
                 <span>Page 1 of 1</span>
               </div>
             </div>

@@ -51,17 +51,17 @@ export default function DashboardView({
 
   // Layout states customizable by user in Visual Edit Mode
   const [layoutOrder, setLayoutOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('axiom_dashboard_order');
+    const saved = localStorage.getItem('nexova_dashboard_order');
     return saved ? JSON.parse(saved) : ['welcome', 'kpis', 'analytics', 'shortcuts_recent', 'alerts_outstanding'];
   });
 
   const [hiddenSections, setHiddenSections] = useState<string[]>(() => {
-    const saved = localStorage.getItem('axiom_dashboard_hidden');
+    const saved = localStorage.getItem('nexova_dashboard_hidden');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [cardThemes, setCardThemes] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('axiom_dashboard_themes');
+    const saved = localStorage.getItem('nexova_dashboard_themes');
     return saved ? JSON.parse(saved) : {
       welcome: 'bg-[#0d1c38] text-white',
       today_revenue: 'bg-white border-slate-200/80 text-slate-800',
@@ -75,7 +75,7 @@ export default function DashboardView({
   });
 
   const [customTitles, setCustomTitles] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('axiom_dashboard_titles');
+    const saved = localStorage.getItem('nexova_dashboard_titles');
     return saved ? JSON.parse(saved) : {
       welcome: "Here's your store at a glance today.",
       today_revenue: "Today's Revenue",
@@ -92,22 +92,22 @@ export default function DashboardView({
   // Save utility helpers
   const saveLayoutOrder = (newOrder: string[]) => {
     setLayoutOrder(newOrder);
-    localStorage.setItem('axiom_dashboard_order', JSON.stringify(newOrder));
+    localStorage.setItem('nexova_dashboard_order', JSON.stringify(newOrder));
   };
 
   const saveHiddenSections = (newHidden: string[]) => {
     setHiddenSections(newHidden);
-    localStorage.setItem('axiom_dashboard_hidden', JSON.stringify(newHidden));
+    localStorage.setItem('nexova_dashboard_hidden', JSON.stringify(newHidden));
   };
 
   const saveCardThemes = (newThemes: Record<string, string>) => {
     setCardThemes(newThemes);
-    localStorage.setItem('axiom_dashboard_themes', JSON.stringify(newThemes));
+    localStorage.setItem('nexova_dashboard_themes', JSON.stringify(newThemes));
   };
 
   const saveCustomTitles = (newTitles: Record<string, string>) => {
     setCustomTitles(newTitles);
-    localStorage.setItem('axiom_dashboard_titles', JSON.stringify(newTitles));
+    localStorage.setItem('nexova_dashboard_titles', JSON.stringify(newTitles));
   };
 
   // Re-ordering logic
@@ -147,10 +147,10 @@ export default function DashboardView({
 
   // Reset all layout settings
   const resetLayoutToDefaults = () => {
-    localStorage.removeItem('axiom_dashboard_order');
-    localStorage.removeItem('axiom_dashboard_hidden');
-    localStorage.removeItem('axiom_dashboard_themes');
-    localStorage.removeItem('axiom_dashboard_titles');
+    localStorage.removeItem('nexova_dashboard_order');
+    localStorage.removeItem('nexova_dashboard_hidden');
+    localStorage.removeItem('nexova_dashboard_themes');
+    localStorage.removeItem('nexova_dashboard_titles');
     setLayoutOrder(['welcome', 'kpis', 'analytics', 'shortcuts_recent', 'alerts_outstanding']);
     setHiddenSections([]);
     setCardThemes({

@@ -1,5 +1,5 @@
 {
-  "name": "Apexion ERP",
+  "name": "Nexova ERP Solution",
   "description": "A high-fidelity, comprehensive enterprise resource planning (ERP) dashboard featuring inventory, point of sale, sales tracking, banking, accounting, loan, and employee management.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

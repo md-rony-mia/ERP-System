@@ -2627,7 +2627,7 @@ export default function SalesView({
                       <div className="text-right">
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">SHIPMENT DISPATCH FROM</span>
                         <p className="font-bold text-slate-800">{settings?.defaultWarehouse || 'Main Warehouse Terminal'}</p>
-                        <p className="text-slate-400 mt-0.5">Axiom Certified Logistics Hub</p>
+                        <p className="text-slate-400 mt-0.5">Nexova Certified Logistics Hub</p>
                       </div>
                     </div>
 
@@ -2764,7 +2764,7 @@ export default function SalesView({
                     {/* Footer notes */}
                     <div className="pt-4 text-center text-slate-400 border-t border-dotted border-slate-200">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{settings?.receiptFooterMessage || 'Thank you for choosing M/S Madani Traders'}</p>
-                      <p className="text-[9px] mt-1 font-mono tracking-wider">Axiom Cloud ERP Suite Powered Generated Voucher</p>
+                      <p className="text-[9px] mt-1 font-mono tracking-wider">Nexova Cloud ERP Suite Powered Generated Voucher</p>
                     </div>
                   </div>
                 ) : (

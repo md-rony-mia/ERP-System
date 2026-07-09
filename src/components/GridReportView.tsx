@@ -246,7 +246,7 @@ export default function GridReportView({
 
   // System States
   const [savedLayouts, setSavedLayouts] = useState<SavedGridLayout[]>(() => {
-    const saved = localStorage.getItem('axiom_custom_grids');
+    const saved = localStorage.getItem('nexova_custom_grids');
     return saved ? JSON.parse(saved) : defaultLayouts;
   });
 
@@ -331,7 +331,7 @@ export default function GridReportView({
 
     const updated = [...savedLayouts, newLayout];
     setSavedLayouts(updated);
-    localStorage.setItem('axiom_custom_grids', JSON.stringify(updated));
+    localStorage.setItem('nexova_custom_grids', JSON.stringify(updated));
     setActiveLayoutId(newLayout.id);
     setNewLayoutName('');
     alert(`Grid layout "${newLayout.name}" successfully designed and stored!`);
@@ -342,7 +342,7 @@ export default function GridReportView({
     if (window.confirm('Delete this custom Designed Grid Report?')) {
       const updated = savedLayouts.filter((l) => l.id !== id);
       setSavedLayouts(updated);
-      localStorage.setItem('axiom_custom_grids', JSON.stringify(updated));
+      localStorage.setItem('nexova_custom_grids', JSON.stringify(updated));
       if (activeLayoutId === id) {
         setActiveLayoutId('');
       }
@@ -708,7 +708,7 @@ export default function GridReportView({
                 <Grid className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-slate-800 font-display">Axiom Grid Report Engine</h2>
+                <h2 className="text-sm font-bold text-slate-800 font-display">Nexova Grid Report Engine</h2>
                 <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Custom Analytical Tabular Designer</p>
               </div>
             </div>

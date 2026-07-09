@@ -80,7 +80,7 @@ export default function EmployeeView({
       name,
       designation,
       department,
-      email: email || `${name.toLowerCase().replace(/\s+/g, '.')}@axiom.com`,
+      email: email || `${name.toLowerCase().replace(/\s+/g, '.')}@nexovaerp.com`,
       phone,
       joiningDate: new Date().toISOString().split('T')[0],
       salary: parseFloat(salary),
@@ -540,7 +540,7 @@ export default function EmployeeView({
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Company Email</label>
                 <input
-                  type="email" placeholder="arif@axiom.com (Optional)" value={email}
+                  type="email" placeholder="arif@nexovaerp.com (Optional)" value={email}
                   onChange={(e) => setEmail(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
                 />
               </div>

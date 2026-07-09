@@ -1156,7 +1156,7 @@ export default function InventoryView({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {generatedBarcodes.map((p, idx) => (
                     <div key={idx} className="border border-slate-200 rounded-xl p-4 text-center space-y-2.5 bg-slate-50/50 shadow-xs relative group hover:border-indigo-500/50 transition-colors">
-                      <div className="text-[8px] font-bold tracking-widest text-slate-400 uppercase font-display">AXIOM ERP</div>
+                      <div className="text-[8px] font-bold tracking-widest text-slate-400 uppercase font-display">NEXOVA ERP</div>
                       <div className="text-[10px] font-bold text-slate-800 truncate" title={p.name}>{p.name}</div>
                       <div className="flex justify-between text-[9px] px-2 font-semibold">
                         <span className="text-indigo-600">{p.sku}</span>
