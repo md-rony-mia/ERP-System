@@ -29,7 +29,20 @@ import {
   Briefcase,
   AlertCircle,
   CheckCircle,
-  Info
+  Info,
+  Cpu,
+  Globe,
+  Mail,
+  Phone,
+  Barcode,
+  QrCode,
+  Image as ImageIcon,
+  File as FileIcon,
+  Check,
+  Search,
+  Sparkles,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { Product } from '../types';
 
@@ -308,7 +321,7 @@ export const INITIAL_PERMISSIONS: RolePermission[] = [
 ];
 
 // ==========================================
-// COMPONENT 1: MANAGE CUSTOM FIELDS MODAL
+// COMPONENT 1: MANAGE CUSTOM FIELDS MODAL / NO-CODE CUSTOM FIELD BUILDER
 // ==========================================
 
 interface ManageCustomFieldsModalProps {
@@ -317,8 +330,15 @@ interface ManageCustomFieldsModalProps {
   setCustomFields: React.Dispatch<React.SetStateAction<CustomField[]>>;
 }
 
+interface SchemaVersion {
+  version: number;
+  timestamp: string;
+  description: string;
+  fields: CustomField[];
+}
+
 export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields }: ManageCustomFieldsModalProps) {
-  const [activeTab, setActiveTab] = useState<'fields' | 'layout' | 'permissions' | 'audit'>('fields');
+  const [activeTab, setActiveTab] = useState<'fields' | 'preview' | 'permissions' | 'audit' | 'versions'>('fields');
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
 
   // Field edit/create states
@@ -335,17 +355,53 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
   const [searchable, setSearchable] = useState(true);
   const [filterable, setFilterable] = useState(true);
   const [sortable, setSortable] = useState(true);
+  const [exportable, setExportable] = useState(true);
+  const [importable, setImportable] = useState(true);
   const [defaultValue, setDefaultValue] = useState('');
   const [optionsStr, setOptionsStr] = useState('');
   const [tabAssignment, setTabAssignment] = useState('custom');
-  const [sectionAssignment, setSectionAssignment] = useState('sec_custom_dyn');
+  const [sectionAssignment, setSectionAssignment] = useState('sec_custom_fields');
   const [columnWidth, setColumnWidth] = useState<'Full' | 'Half' | 'Third' | 'Quarter'>('Half');
+  
+  // Advanced validations & dependencies
+  const [regexValidation, setRegexValidation] = useState('');
+  const [minLength, setMinLength] = useState<number | ''>('');
+  const [maxLength, setMaxLength] = useState<number | ''>('');
+  const [minValue, setMinValue] = useState<number | ''>('');
+  const [maxValue, setMaxValue] = useState<number | ''>('');
+  const [formulaExpression, setFormulaExpression] = useState('');
+  const [conditionalVisibleField, setConditionalVisibleField] = useState('');
+  const [conditionalVisibleValue, setConditionalVisibleValue] = useState('');
 
   // Search in Fields list
   const [fieldSearch, setFieldSearch] = useState('');
 
+  // Schema drafts state (Unpublished draft)
+  const [draftFields, setDraftFields] = useState<CustomField[]>(() => [...customFields]);
+
+  // Version History state
+  const [schemaVersions, setSchemaVersions] = useState<SchemaVersion[]>(() => {
+    const saved = localStorage.getItem('nexova_custom_fields_versions');
+    if (saved) return JSON.parse(saved);
+    const initialVersions: SchemaVersion[] = [
+      {
+        version: 1,
+        timestamp: new Date(Date.now() - 3600000 * 24 * 3).toISOString(),
+        description: 'Initial SAP Standard ERP Core Field Configuration',
+        fields: [...customFields]
+      }
+    ];
+    localStorage.setItem('nexova_custom_fields_versions', JSON.stringify(initialVersions));
+    return initialVersions;
+  });
+
+  const [currentVersionNum, setCurrentVersionNum] = useState<number>(() => {
+    const saved = localStorage.getItem('nexova_custom_fields_version_num');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+
   // Undo/Redo tracking
-  const [history, setHistory] = useState<CustomField[][]>([customFields]);
+  const [history, setHistory] = useState<CustomField[][]>([[...customFields]]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
   // Load permissions matrix
@@ -354,16 +410,47 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
     return saved ? JSON.parse(saved) : INITIAL_PERMISSIONS;
   });
 
+  // Load audit logs
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    const saved = localStorage.getItem('nexova_product_audit_logs');
+    if (saved) return JSON.parse(saved);
+    const mockLogs: AuditLogEntry[] = [
+      {
+        id: `audit_init_1`,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString(),
+        user: 'M. Rahman',
+        role: 'Administrator',
+        productId: 'ALL',
+        productName: 'ERP Master Schema',
+        productSku: 'SYSTEM',
+        fieldChanged: 'SCHEMA_PUBLISH',
+        displayName: 'SCHEMA_PUBLISH',
+        oldValue: 'None',
+        newValue: 'v1.0.0 Active',
+        reason: 'Bootstrap initial enterprise metadata engine',
+        ip: '127.0.0.1',
+        browser: 'System WebKit',
+        approvalStatus: 'Auto-Approved'
+      }
+    ];
+    localStorage.setItem('nexova_product_audit_logs', JSON.stringify(mockLogs));
+    return mockLogs;
+  });
+
+  // Sandbox simulation values
+  const [sandboxData, setSandboxData] = useState<Record<string, any>>({
+    price: 1500,
+    cost: 1100,
+  });
+  const [sandboxErrors, setSandboxErrors] = useState<Record<string, string>>({});
+
+  const hasUnpublishedChanges = JSON.stringify(draftFields) !== JSON.stringify(customFields);
+
   const savePermissions = (newPerms: RolePermission[]) => {
     setPermissions(newPerms);
     localStorage.setItem('nexova_field_permissions', JSON.stringify(newPerms));
   };
-
-  // Load audit logs
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
-    const saved = localStorage.getItem('nexova_product_audit_logs');
-    return saved ? JSON.parse(saved) : [];
-  });
 
   const pushHistory = (newFields: CustomField[]) => {
     const nextHist = history.slice(0, historyIndex + 1);
@@ -374,85 +461,103 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
   const handleUndo = () => {
     if (historyIndex > 0) {
       setHistoryIndex(historyIndex - 1);
-      setCustomFields(history[historyIndex - 1]);
+      setDraftFields(history[historyIndex - 1]);
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
       setHistoryIndex(historyIndex + 1);
-      setCustomFields(history[historyIndex + 1]);
+      setDraftFields(history[historyIndex + 1]);
     }
   };
 
+  // Drag and Drop State & Handlers
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    setDraggedIndex(idx);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === idx) return;
+
+    const updated = [...draftFields];
+    const [draggedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(idx, 0, draggedItem);
+
+    const reordered = updated.map((f, i) => ({ ...f, displayOrder: i + 1 }));
+    setDraftFields(reordered);
+    pushHistory(reordered);
+    setDraggedIndex(null);
+  };
+
+  // Create or update dynamic field
   const handleSaveField = (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || !internalName) return;
 
     const formattedInternal = internalName.trim().replace(/\s+/g, '_').toLowerCase();
+    const finalKey = formattedInternal.startsWith('cust_') ? formattedInternal : `cust_${formattedInternal}`;
     const options = optionsStr ? optionsStr.split(',').map(o => o.trim()) : undefined;
 
     let updated: CustomField[];
 
+    const fieldPayload: Omit<CustomField, 'id' | 'displayOrder'> = {
+      displayName: displayName.trim(),
+      internalName: finalKey,
+      type,
+      placeholder: placeholder.trim() || undefined,
+      helpText: helpText.trim() || undefined,
+      tooltip: tooltip.trim() || undefined,
+      required,
+      unique,
+      readOnly,
+      hidden,
+      searchable,
+      filterable,
+      sortable,
+      exportable,
+      importable,
+      defaultValue: defaultValue.trim() || undefined,
+      options,
+      tabAssignment,
+      sectionAssignment,
+      columnWidth,
+      regexValidation: regexValidation.trim() || undefined,
+      minLength: minLength !== '' ? minLength : undefined,
+      maxLength: maxLength !== '' ? maxLength : undefined,
+      minValue: minValue !== '' ? minValue : undefined,
+      maxValue: maxValue !== '' ? maxValue : undefined,
+      formulaExpression: formulaExpression.trim() || undefined,
+      conditionalVisibleField: conditionalVisibleField || undefined,
+      conditionalVisibleValue: conditionalVisibleValue.trim() || undefined,
+      isActive: true,
+      isArchived: false,
+    };
+
     if (editingFieldId) {
-      // Edit existing field
-      updated = customFields.map((f) =>
+      updated = draftFields.map((f) =>
         f.id === editingFieldId
-          ? {
-              ...f,
-              displayName,
-              internalName: formattedInternal,
-              type,
-              placeholder,
-              helpText,
-              tooltip,
-              required,
-              unique,
-              readOnly,
-              hidden,
-              searchable,
-              filterable,
-              sortable,
-              defaultValue,
-              options,
-              tabAssignment,
-              sectionAssignment,
-              columnWidth,
-            }
+          ? { ...f, ...fieldPayload, internalName: f.internalName } // slug immutable during edit
           : f
       );
-      alert('Field specifications updated successfully!');
     } else {
-      // Create new field
       const newField: CustomField = {
         id: `f_cust_${Date.now()}`,
-        displayName,
-        internalName: `cust_${formattedInternal}`,
-        type,
-        placeholder,
-        helpText,
-        tooltip,
-        required,
-        unique,
-        readOnly,
-        hidden,
-        searchable,
-        filterable,
-        sortable,
-        defaultValue,
-        options,
-        tabAssignment,
-        sectionAssignment,
-        columnWidth,
-        displayOrder: customFields.length + 1,
-        isActive: true,
-        isArchived: false,
+        ...fieldPayload,
+        displayOrder: draftFields.length + 1,
       };
-      updated = [...customFields, newField];
-      alert('New Dynamic Metadata Field successfully injected into schema!');
+      updated = [...draftFields, newField];
     }
 
-    setCustomFields(updated);
+    setDraftFields(updated);
     pushHistory(updated);
     resetForm();
   };
@@ -472,11 +577,21 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
     setSearchable(true);
     setFilterable(true);
     setSortable(true);
+    setExportable(true);
+    setImportable(true);
     setDefaultValue('');
     setOptionsStr('');
     setTabAssignment('custom');
-    setSectionAssignment('sec_custom_dyn');
+    setSectionAssignment('sec_custom_fields');
     setColumnWidth('Half');
+    setRegexValidation('');
+    setMinLength('');
+    setMaxLength('');
+    setMinValue('');
+    setMaxValue('');
+    setFormulaExpression('');
+    setConditionalVisibleField('');
+    setConditionalVisibleValue('');
   };
 
   const handleEditField = (f: CustomField) => {
@@ -491,33 +606,42 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
     setUnique(!!f.unique);
     setReadOnly(!!f.readOnly);
     setHidden(!!f.hidden);
-    setSearchable(!!f.searchable);
-    setFilterable(!!f.filterable);
-    setSortable(!!f.sortable);
+    setSearchable(f.searchable !== false);
+    setFilterable(f.filterable !== false);
+    setSortable(f.sortable !== false);
+    setExportable(f.exportable !== false);
+    setImportable(f.importable !== false);
     setDefaultValue(f.defaultValue || '');
     setOptionsStr(f.options ? f.options.join(', ') : '');
     setTabAssignment(f.tabAssignment);
     setSectionAssignment(f.sectionAssignment);
     setColumnWidth(f.columnWidth);
+    setRegexValidation(f.regexValidation || '');
+    setMinLength(f.minLength !== undefined ? f.minLength : '');
+    setMaxLength(f.maxLength !== undefined ? f.maxLength : '');
+    setMinValue(f.minValue !== undefined ? f.minValue : '');
+    setMaxValue(f.maxValue !== undefined ? f.maxValue : '');
+    setFormulaExpression(f.formulaExpression || '');
+    setConditionalVisibleField(f.conditionalVisibleField || '');
+    setConditionalVisibleValue(f.conditionalVisibleValue || '');
   };
 
   const handleDeleteField = (id: string) => {
-    if (confirm('Are you absolutely sure you want to permanently delete this field? All data saved in products for this field will remain untouched but unreachable.')) {
-      const updated = customFields.filter(f => f.id !== id);
-      setCustomFields(updated);
-      pushHistory(updated);
-    }
+    const updated = draftFields.filter(f => f.id !== id);
+    setDraftFields(updated);
+    pushHistory(updated);
+    if (editingFieldId === id) resetForm();
   };
 
   const handleToggleArchiveField = (id: string) => {
-    const updated = customFields.map(f => f.id === id ? { ...f, isArchived: !f.isArchived } : f);
-    setCustomFields(updated);
+    const updated = draftFields.map(f => f.id === id ? { ...f, isArchived: !f.isArchived } : f);
+    setDraftFields(updated);
     pushHistory(updated);
   };
 
   const handleToggleActiveField = (id: string) => {
-    const updated = customFields.map(f => f.id === id ? { ...f, isActive: !f.isActive } : f);
-    setCustomFields(updated);
+    const updated = draftFields.map(f => f.id === id ? { ...f, isActive: !f.isActive } : f);
+    setDraftFields(updated);
     pushHistory(updated);
   };
 
@@ -527,34 +651,180 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
       id: `f_cust_cloned_${Date.now()}`,
       displayName: `${f.displayName} (Copy)`,
       internalName: `${f.internalName}_copy`,
-      displayOrder: customFields.length + 1,
+      displayOrder: draftFields.length + 1,
     };
-    const updated = [...customFields, cloned];
-    setCustomFields(updated);
+    const updated = [...draftFields, cloned];
+    setDraftFields(updated);
     pushHistory(updated);
   };
 
-  const handleMoveOrder = (idx: number, direction: 'up' | 'down') => {
-    const newFields = [...customFields];
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= newFields.length) return;
+  // Publish Draft Schema to Metadata DB
+  const handlePublishSchema = () => {
+    const changeReason = prompt('Provide a brief release note summary of this published metadata schema revision:', 'Injected dynamic attributes, updated formula logic mappings') || 'Published custom field schema changes';
+    
+    // Save to local storage for backward-compatibility customFields hooks
+    localStorage.setItem('nexova_custom_fields', JSON.stringify(draftFields));
+    setCustomFields(draftFields);
 
-    // Swap
-    const temp = newFields[idx];
-    newFields[idx] = newFields[targetIdx];
-    newFields[targetIdx] = temp;
+    // Sync into Metadata database
+    try {
+      const metaSchema = {
+        formId: 'form_products',
+        moduleKey: 'products',
+        fields: draftFields.filter(f => !f.isArchived).map(cf => ({
+          id: cf.id,
+          uuid: cf.id,
+          fieldKey: cf.internalName,
+          fieldName: cf.internalName,
+          displayName: cf.displayName,
+          description: cf.helpText || '',
+          placeholder: cf.placeholder || '',
+          tooltip: cf.tooltip || '',
+          helpText: cf.helpText || '',
+          fieldType: cf.type as any,
+          defaultValue: cf.defaultValue || '',
+          required: !!cf.required,
+          unique: !!cf.unique,
+          readonly: !!cf.readOnly || !cf.isActive,
+          hidden: !!cf.hidden || !cf.isActive,
+          visible: !cf.hidden && !!cf.isActive,
+          searchable: cf.searchable !== false,
+          filterable: cf.filterable !== false,
+          sortable: cf.sortable !== false,
+          exportable: cf.exportable !== false,
+          importable: cf.importable !== false,
+          printable: cf.printable !== false,
+          encrypted: false,
+          mask: '',
+          minLength: cf.minLength || 0,
+          maxLength: cf.maxLength || 0,
+          minimum: cf.minValue || 0,
+          maximum: cf.maxValue || 0,
+          regex: cf.regexValidation || '',
+          tab: cf.tabAssignment || 'custom',
+          section: cf.sectionAssignment || 'sec_custom_fields',
+          group: 'default',
+          order: cf.displayOrder || 1,
+          icon: cf.icon || '',
+          color: cf.color || '',
+          width: cf.columnWidth || 'Half',
+          responsiveWidth: '100%',
+          formula: cf.formulaExpression || '',
+          validationRules: [],
+          workflow: [],
+          permission: [],
+          dependencies: cf.conditionalVisibleField ? [
+            {
+              id: `dep_${cf.id}_vis`,
+              sourceFieldKey: cf.internalName,
+              targetFieldKey: cf.conditionalVisibleField,
+              conditionType: 'equals' as const,
+              conditionValue: cf.conditionalVisibleValue || '',
+              action: 'show' as const
+            }
+          ] : [],
+          options: cf.options ? cf.options.map(o => ({ label: o, value: o })) : [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: 'ADMIN',
+          updatedBy: 'ADMIN',
+          version: currentVersionNum + 1,
+        })),
+        layout: {
+          tabs: [...DEFAULT_TABS],
+          sections: [...DEFAULT_SECTIONS],
+          groups: [],
+        }
+      };
+      
+      localStorage.setItem('meta_form_products', JSON.stringify(metaSchema));
+    } catch (e) {
+      console.error('Metadata db sync failed', e);
+    }
 
-    // Re-index display orders
-    const finalFields = newFields.map((f, i) => ({ ...f, displayOrder: i + 1 }));
-    setCustomFields(finalFields);
-    pushHistory(finalFields);
+    // Save version history entry
+    const nextVersion = currentVersionNum + 1;
+    const versionSnapshot: SchemaVersion = {
+      version: nextVersion,
+      timestamp: new Date().toISOString(),
+      description: changeReason,
+      fields: [...draftFields]
+    };
+    const updatedVersions = [versionSnapshot, ...schemaVersions];
+    setSchemaVersions(updatedVersions);
+    setCurrentVersionNum(nextVersion);
+    localStorage.setItem('nexova_custom_fields_versions', JSON.stringify(updatedVersions));
+    localStorage.setItem('nexova_custom_fields_version_num', nextVersion.toString());
+
+    // Register audit log
+    const dateStr = new Date().toISOString().split('T')[0];
+    const timeStr = new Date().toLocaleTimeString();
+    const nextAudit: AuditLogEntry = {
+      id: `audit_pub_${Date.now()}`,
+      date: dateStr,
+      time: timeStr,
+      user: 'M. Rahman',
+      role: 'Administrator',
+      productId: 'ALL',
+      productName: 'ERP Master Schema',
+      productSku: 'SYSTEM',
+      fieldChanged: 'SCHEMA_PUBLISH',
+      displayName: 'SCHEMA_PUBLISH',
+      oldValue: `v${currentVersionNum}.0.0`,
+      newValue: `v${nextVersion}.0.0 Active`,
+      reason: changeReason,
+      ip: '127.0.0.1',
+      browser: 'System WebKit',
+      approvalStatus: 'Auto-Approved'
+    };
+    const updatedAudit = [nextAudit, ...auditLogs];
+    setAuditLogs(updatedAudit);
+    localStorage.setItem('nexova_product_audit_logs', JSON.stringify(updatedAudit));
+
+    alert(`Successfully published custom field schema version v${nextVersion}.0.0 to the core ERP!`);
+  };
+
+  // Rollback to specific version snapshot
+  const handleRollback = (ver: SchemaVersion) => {
+    if (!confirm(`Are you absolutely sure you want to revert the entire ERP custom field configurations to v${ver.version}.0.0? Current unpublished draft edits will be overwritten.`)) return;
+
+    setDraftFields(ver.fields);
+    setCustomFields(ver.fields);
+    localStorage.setItem('nexova_custom_fields', JSON.stringify(ver.fields));
+
+    // Register audit log
+    const dateStr = new Date().toISOString().split('T')[0];
+    const timeStr = new Date().toLocaleTimeString();
+    const nextAudit: AuditLogEntry = {
+      id: `audit_roll_${Date.now()}`,
+      date: dateStr,
+      time: timeStr,
+      user: 'M. Rahman',
+      role: 'Administrator',
+      productId: 'ALL',
+      productName: 'ERP Master Schema',
+      productSku: 'SYSTEM',
+      fieldChanged: 'SCHEMA_ROLLBACK',
+      displayName: 'SCHEMA_ROLLBACK',
+      oldValue: `v${currentVersionNum}.0.0`,
+      newValue: `v${ver.version}.0.0 Active`,
+      reason: `Rollback triggered to schema version v${ver.version}.0.0`,
+      ip: '127.0.0.1',
+      browser: 'System WebKit',
+      approvalStatus: 'Auto-Approved'
+    };
+    const updatedAudit = [nextAudit, ...auditLogs];
+    setAuditLogs(updatedAudit);
+    localStorage.setItem('nexova_product_audit_logs', JSON.stringify(updatedAudit));
+
+    alert(`Successfully rolled back and published schema version v${ver.version}.0.0!`);
   };
 
   const handleExportFields = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customFields, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(draftFields, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `nexova_metadata_schema_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `nexova_metadata_schema_v${currentVersionNum}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -568,9 +838,9 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
         try {
           const parsed = JSON.parse(event.target?.result as string);
           if (Array.isArray(parsed)) {
-            setCustomFields(parsed);
+            setDraftFields(parsed);
             pushHistory(parsed);
-            alert('Custom field schema imported successfully!');
+            alert('Custom field schema imported into workspace. Review changes and click Publish!');
           }
         } catch (err) {
           alert('Failed to parse JSON file!');
@@ -579,19 +849,95 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
     }
   };
 
+  // Evaluate Sandbox Field dependency visibility
+  const isSandboxFieldVisible = (f: CustomField) => {
+    if (!f.conditionalVisibleField) return true;
+    const condVal = sandboxData[f.conditionalVisibleField];
+    return String(condVal) === String(f.conditionalVisibleValue);
+  };
+
+  // Evaluate Formulas in the Live Preview sandbox
+  const evaluateSandboxFormulas = (fieldName: string, value: any, currentData: Record<string, any>) => {
+    const updatedData = { ...currentData, [fieldName]: value };
+
+    // Find any formula fields that depend on inputs
+    draftFields.forEach(f => {
+      if (f.type === 'Formula' && f.formulaExpression) {
+        try {
+          const expression = f.formulaExpression;
+          const keys = Object.keys(updatedData);
+          const values = keys.map(k => {
+            const val = updatedData[k];
+            return typeof val === 'number' ? val : (parseFloat(val) || 0);
+          });
+          const runner = new Function(...keys, `return (${expression});`);
+          const result = runner(...values);
+          updatedData[f.internalName] = isNaN(result) ? 0 : result;
+        } catch (e) {
+          updatedData[f.internalName] = 0;
+        }
+      }
+    });
+
+    return updatedData;
+  };
+
+  const handleSandboxFieldChange = (f: CustomField, val: any) => {
+    let finalVal = val;
+    let err = '';
+
+    // Advanced Live Validation Simulators
+    if (f.required && (val === '' || val === undefined)) {
+      err = `${f.displayName} is a strictly required field.`;
+    } else if (f.regexValidation && val !== '') {
+      const rx = new RegExp(f.regexValidation);
+      if (!rx.test(String(val))) {
+        err = `Invalid format. Must match standard pattern: ${f.regexValidation}`;
+      }
+    } else if (f.type === 'Number' || f.type === 'Decimal' || f.type === 'Currency') {
+      const num = Number(val);
+      if (f.minValue !== undefined && num < f.minValue) {
+        err = `Value cannot be less than the minimum required limit of ${f.minValue}`;
+      } else if (f.maxValue !== undefined && num > f.maxValue) {
+        err = `Value cannot exceed the maximum required ceiling limit of ${f.maxValue}`;
+      }
+    } else if (f.type === 'Text') {
+      const len = String(val).length;
+      if (f.minLength !== undefined && len < f.minLength) {
+        err = `Text must be at least ${f.minLength} characters long.`;
+      } else if (f.maxLength !== undefined && len > f.maxLength) {
+        err = `Text cannot exceed ${f.maxLength} characters limit.`;
+      }
+    }
+
+    setSandboxErrors(prev => ({ ...prev, [f.internalName]: err }));
+    const computedData = evaluateSandboxFormulas(f.internalName, finalVal, sandboxData);
+    setSandboxData(computedData);
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full h-[92vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-100 text-indigo-700 p-2 rounded-xl">
-              <Settings className="h-5 w-5" />
+              <Cpu className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Nexova Enterprise Master Metadata Config</h3>
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">SAP & Oracle Grade No-Code Custom Field Engine</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-800 font-display uppercase tracking-wide">Nexova Dynamic Schema Configurator</h3>
+                <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded font-mono border border-indigo-100">
+                  SCHEMA V{currentVersionNum}.0.0
+                </span>
+                {hasUnpublishedChanges && (
+                  <span className="bg-amber-50 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded animate-pulse border border-amber-200">
+                    ⚠️ UNPUBLISHED DRAFT EDITS PENDING
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">SAP & Oracle-Grade No-Code ERP Metadata Custom Field Engine</p>
             </div>
           </div>
           
@@ -599,7 +945,7 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
             <button
               onClick={handleUndo}
               disabled={historyIndex === 0}
-              className={`p-1.5 rounded-lg border border-slate-200 transition-colors ${historyIndex === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-700 cursor-pointer'}`}
+              className={`p-1.5 rounded-lg border border-slate-200 transition-colors ${historyIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-700 cursor-pointer'}`}
               title="Undo Action"
             >
               <Undo2 className="h-4 w-4" />
@@ -607,122 +953,163 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
             <button
               onClick={handleRedo}
               disabled={historyIndex >= history.length - 1}
-              className={`p-1.5 rounded-lg border border-slate-200 transition-colors ${historyIndex >= history.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-700 cursor-pointer'}`}
+              className={`p-1.5 rounded-lg border border-slate-200 transition-colors ${historyIndex >= history.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-700 cursor-pointer'}`}
               title="Redo Action"
             >
               <Redo2 className="h-4 w-4" />
             </button>
+
+            {hasUnpublishedChanges && (
+              <button
+                onClick={handlePublishSchema}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-md cursor-pointer transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Publish Dynamic Schema</span>
+              </button>
+            )}
+
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer ml-2">✕</button>
           </div>
         </div>
 
         {/* Sub Navigation Tabs */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 px-4">
+        <div className="flex border-b border-slate-100 bg-slate-50/50 px-4 shrink-0">
           <button
             onClick={() => setActiveTab('fields')}
             className={`px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${activeTab === 'fields' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
             <Database className="h-4 w-4" />
-            <span>Manage Dynamic Fields</span>
+            <span>Form Builder Layout</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('preview')}
+            className={`px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${activeTab === 'preview' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            <Eye className="h-4 w-4" />
+            <span>Live Sandbox Playground</span>
           </button>
           <button
             onClick={() => setActiveTab('permissions')}
             className={`px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${activeTab === 'permissions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
             <Shield className="h-4 w-4" />
-            <span>Field Permissions Control</span>
+            <span>Field Access Rules</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('versions')}
+            className={`px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${activeTab === 'versions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+          >
+            <History className="h-4 w-4" />
+            <span>Schema Versions & Rollbacks</span>
           </button>
           <button
             onClick={() => setActiveTab('audit')}
             className={`px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${activeTab === 'audit' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
-            <History className="h-4 w-4" />
-            <span>ERP Field Change Audit Logs</span>
+            <Layers className="h-4 w-4" />
+            <span>Enterprise Audit Trail Logs</span>
           </button>
         </div>
 
         {/* Tab Contents */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-hidden p-6 bg-slate-50/20">
           
-          {/* TAB 1: MANAGE FIELDS */}
+          {/* TAB 1: FORM BUILDER LAYOUT */}
           {activeTab === 'fields' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch overflow-hidden">
               
               {/* Left Column: Form Builder Panel */}
-              <form onSubmit={handleSaveField} className="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2 flex items-center gap-1.5">
+              <form onSubmit={handleSaveField} className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col h-full overflow-y-auto space-y-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2 flex items-center gap-1.5 shrink-0">
                   <Plus className="h-4 w-4 text-indigo-600" />
-                  <span>{editingFieldId ? 'Edit Field Definitions' : 'Define New Field'}</span>
+                  <span>{editingFieldId ? 'Edit Metadata Field Specification' : 'Add New Custom Metadata Field'}</span>
                 </h4>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Field Label Name *</label>
-                  <input
-                    type="text" required placeholder="e.g. Chemical Compound Strength" value={displayName}
-                    onChange={(e) => {
-                      setDisplayName(e.target.value);
-                      if (!editingFieldId) {
-                        setInternalName(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_'));
-                      }
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Internal Database Slug *</label>
-                  <input
-                    type="text" required disabled={!!editingFieldId} placeholder="e.g. chemical_compound_strength" value={internalName}
-                    onChange={(e) => setInternalName(e.target.value)}
-                    className="w-full bg-white disabled:bg-slate-100 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 font-mono"
-                  />
-                  {!editingFieldId && <p className="text-[9px] text-slate-400 mt-1">Will be prefixed with <code>cust_</code> automatically.</p>}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 shrink-0">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Field Data Type</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Field Label Name *</label>
+                    <input
+                      type="text" required placeholder="e.g. Brinell Hardness Value" value={displayName}
+                      onChange={(e) => {
+                        setDisplayName(e.target.value);
+                        if (!editingFieldId) {
+                          setInternalName(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '_'));
+                        }
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Database Slug (Slug/Key) *</label>
+                    <input
+                      type="text" required disabled={!!editingFieldId} placeholder="e.g. brinell_hardness_value" value={internalName}
+                      onChange={(e) => setInternalName(e.target.value)}
+                      className="w-full bg-white disabled:bg-slate-100 border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 font-mono text-indigo-700"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 shrink-0">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Field Type</label>
                     <select
                       value={type} onChange={(e) => setType(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer font-bold text-slate-700"
                     >
-                      {['Text', 'Textarea', 'Rich Text', 'Number', 'Decimal', 'Currency', 'Percentage', 'Date', 'Time', 'DateTime', 'Dropdown', 'Multi Select', 'Checkbox', 'Radio', 'Toggle', 'Color Picker', 'Email', 'Phone', 'URL', 'Barcode', 'QR Code', 'Image Upload', 'Multiple Images', 'File Upload', 'PDF Upload', 'Video Upload', 'Lookup', 'Formula', 'JSON', 'User', 'Employee', 'Warehouse', 'Supplier', 'Customer', 'Product Relation'].map((t) => (
+                      {['Text', 'Number', 'Decimal', 'Currency', 'Date', 'DateTime', 'Checkbox', 'Toggle', 'Dropdown', 'Multi-select', 'Radio', 'Email', 'Phone', 'URL', 'Barcode', 'QR Code', 'Image', 'Gallery', 'File', 'PDF', 'Formula', 'Lookup', 'Relations'].map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Layout Column Width</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Grid Width Size</label>
                     <select
                       value={columnWidth} onChange={(e) => setColumnWidth(e.target.value as any)}
-                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
                     >
-                      <option value="Full">Full Row (100%)</option>
-                      <option value="Half">Half Row (50%)</option>
-                      <option value="Third">Third Row (33%)</option>
-                      <option value="Quarter">Quarter Row (25%)</option>
+                      <option value="Full">Full width (100% block row)</option>
+                      <option value="Half">Half width (50%)</option>
+                      <option value="Third">Third width (33%)</option>
+                      <option value="Quarter">Quarter width (25%)</option>
                     </select>
                   </div>
                 </div>
 
-                {(type === 'Dropdown' || type === 'Multi Select' || type === 'Radio') && (
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Options (Comma separated) *</label>
+                {/* Dropdown Options or Relational values configured */}
+                {(type === 'Dropdown' || type === 'Multi-select' || type === 'Radio') && (
+                  <div className="shrink-0 animate-in slide-in-from-top-1 duration-100">
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select Choices / Options (Comma separated list) *</label>
                     <input
-                      type="text" required placeholder="Option 1, Option 2, Option 3" value={optionsStr}
+                      type="text" required placeholder="Standard Grade, Premium Fit, Low Temp, Industrial" value={optionsStr}
                       onChange={(e) => setOptionsStr(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
                     />
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Formula Config */}
+                {type === 'Formula' && (
+                  <div className="shrink-0 animate-in slide-in-from-top-1 duration-100">
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Formula Equation Expression (JavaScript formula evaluation) *</label>
+                    <input
+                      type="text" required placeholder="e.g. price - cost" value={formulaExpression}
+                      onChange={(e) => setFormulaExpression(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 font-mono"
+                    />
+                    <p className="text-[9px] text-slate-400 mt-1">Evaluates based on other product attributes. e.g. <code>price * 1.15</code></p>
+                  </div>
+                )}
+
+                {/* Positions panel assignment */}
+                <div className="grid grid-cols-2 gap-3 shrink-0">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assign Tab Panel</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assign Tab Segment</label>
                     <select
                       value={tabAssignment} onChange={(e) => setTabAssignment(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
                     >
                       {DEFAULT_TABS.map((t) => (
                         <option key={t.id} value={t.id}>{t.title}</option>
@@ -731,73 +1118,165 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assign Section Group</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assign Form Section</label>
                     <select
                       value={sectionAssignment} onChange={(e) => setSectionAssignment(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer"
                     >
-                      {DEFAULT_SECTIONS.filter(s => s.tabId === tabAssignment).map((s) => (
-                        <option key={s.id} value={s.id}>{s.title}</option>
-                      ))}
-                      {DEFAULT_SECTIONS.filter(s => s.tabId !== tabAssignment).map((s) => (
-                        <option key={s.id} value={s.id}>{s.title} ({s.tabId})</option>
+                      {DEFAULT_SECTIONS.map((s) => (
+                        <option key={s.id} value={s.id}>{s.title} ({DEFAULT_TABS.find(t => t.id === s.tabId)?.title || s.tabId})</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Validation Placeholder</label>
-                  <input
-                    type="text" placeholder="e.g. Enter compound pH level" value={placeholder}
-                    onChange={(e) => setPlaceholder(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
-                  />
+                {/* Helper UI Labels */}
+                <div className="grid grid-cols-2 gap-3 shrink-0">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Help Text Guide</label>
+                    <input
+                      type="text" placeholder="Helper description shown below input" value={helpText}
+                      onChange={(e) => setHelpText(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Input Placeholder</label>
+                    <input
+                      type="text" placeholder="e.g. Enter pH compounds..." value={placeholder}
+                      onChange={(e) => setPlaceholder(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-600"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Operator Description Help Text</label>
-                  <input
-                    type="text" placeholder="Displays directly beneath input box" value={helpText}
-                    onChange={(e) => setHelpText(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
-                  />
+                {/* Constraints validations panel */}
+                <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-3 shrink-0">
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">Validations & Regex Constraints</span>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-400 uppercase">Regex Pattern Match</label>
+                      <input
+                        type="text" placeholder="^[a-zA-Z0-9]+$" value={regexValidation}
+                        onChange={(e) => setRegexValidation(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] font-mono focus:outline-none"
+                      />
+                    </div>
+                    {type === 'Text' ? (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-400 uppercase">Min Length</label>
+                          <input
+                            type="number" placeholder="2" value={minLength}
+                            onChange={(e) => setMinLength(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-400 uppercase">Max Length</label>
+                          <input
+                            type="number" placeholder="50" value={maxLength}
+                            onChange={(e) => setMaxLength(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (type === 'Number' || type === 'Decimal' || type === 'Currency') ? (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-400 uppercase">Min Value</label>
+                          <input
+                            type="number" placeholder="0" value={minValue}
+                            onChange={(e) => setMinValue(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-bold text-slate-400 uppercase">Max Value</label>
+                          <input
+                            type="number" placeholder="10000" value={maxValue}
+                            onChange={(e) => setMaxValue(e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-[10px] text-slate-400 italic">No min/max for {type}</div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                {/* Conditional Visibility Group */}
+                <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-3 shrink-0">
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">SAP Dynamic Visible Dependencies</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-400 uppercase">Visible Only If Field</label>
+                      <select
+                        value={conditionalVisibleField} onChange={(e) => setConditionalVisibleField(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                      >
+                        <option value="">-- Always Visible --</option>
+                        {draftFields.filter(f => f.id !== editingFieldId).map(f => (
+                          <option key={f.id} value={f.internalName}>{f.displayName} ({f.internalName})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-bold text-slate-400 uppercase">Equals Target Value</label>
+                      <input
+                        type="text" placeholder="e.g. Yes" value={conditionalVisibleValue}
+                        onChange={(e) => setConditionalVisibleValue(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded p-1 text-[10px] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attribute Toggles Grid */}
+                <div className="grid grid-cols-3 gap-2 py-2 border-t border-slate-200 shrink-0">
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
                     <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} className="rounded text-indigo-600" />
-                    <span>Required Field</span>
+                    <span>Required</span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
                     <input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} className="rounded text-indigo-600" />
-                    <span>Enforce Unique</span>
+                    <span>Unique Slug</span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
                     <input type="checkbox" checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} className="rounded text-indigo-600" />
                     <span>Read Only</span>
                   </label>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
                     <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} className="rounded text-indigo-600" />
-                    <span>Hide From UI</span>
+                    <span>Hidden Form</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" checked={searchable} onChange={(e) => setSearchable(e.target.checked)} className="rounded text-indigo-600" />
+                    <span>Searchable</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" checked={filterable} onChange={(e) => setFilterable(e.target.checked)} className="rounded text-indigo-600" />
+                    <span>Filterable</span>
                   </label>
                 </div>
 
-                <div className="pt-4 flex justify-end gap-2 border-t border-slate-200">
+                <div className="pt-4 flex justify-end gap-2 border-t border-slate-200 mt-auto shrink-0">
                   {editingFieldId && (
-                    <button type="button" onClick={resetForm} className="px-3.5 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100 cursor-pointer">
+                    <button type="button" onClick={resetForm} className="px-3 py-1.5 border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-100 cursor-pointer">
                       Cancel
                     </button>
                   )}
                   <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-md cursor-pointer flex-1">
-                    {editingFieldId ? 'Apply Definition Updates' : 'Inject Dynamic Field'}
+                    {editingFieldId ? 'Apply Schema Attributes' : 'Inject Dynamic Field Draft'}
                   </button>
                 </div>
               </form>
 
-              {/* Right Column: Custom Fields Directory Grid */}
-              <div className="lg:col-span-8 space-y-4">
-                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              {/* Right Column: Custom Fields Directory Grid with drag & drop */}
+              <div className="lg:col-span-7 flex flex-col h-full overflow-hidden space-y-4">
+                
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between shrink-0">
                   <div className="relative flex-1 w-full">
                     <input
                       type="text"
@@ -825,61 +1304,75 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                   </div>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                  <div className="max-h-[50vh] overflow-y-auto">
-                    <table className="w-full text-left text-xs">
+                <div className="border border-slate-200 rounded-xl flex-1 overflow-hidden bg-white shadow-xs flex flex-col">
+                  <div className="overflow-y-auto flex-1">
+                    <table className="w-full text-left text-xs table-fixed">
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase bg-slate-50">
-                          <th className="py-2.5 px-4 text-center w-12">Order</th>
-                          <th className="py-2.5 px-4">Field Definition Name</th>
-                          <th className="py-2.5 px-4">Database Key Slug</th>
+                        <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase bg-slate-50/50 sticky top-0 backdrop-blur-xs z-10">
+                          <th className="py-2.5 px-4 text-center w-12">Drag</th>
+                          <th className="py-2.5 px-4 w-1/3">Field Definition Name</th>
+                          <th className="py-2.5 px-4">Slug (Slug/Key)</th>
                           <th className="py-2.5 px-4 text-center">Type</th>
-                          <th className="py-2.5 px-4 text-center">Assign Panel</th>
                           <th className="py-2.5 px-4 text-center">Constraints</th>
-                          <th className="py-2.5 px-4 text-right">Actions</th>
+                          <th className="py-2.5 px-4 text-right w-36">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {customFields
+                        {draftFields
                           .filter(f => !fieldSearch || f.displayName.toLowerCase().includes(fieldSearch.toLowerCase()) || f.internalName.toLowerCase().includes(fieldSearch.toLowerCase()))
                           .map((f, idx) => {
                             const isSystem = !f.id.startsWith('f_cust_');
                             return (
-                              <tr key={f.id} className={`hover:bg-slate-50/50 transition-colors ${f.isArchived ? 'bg-slate-50/80 text-slate-400' : ''}`}>
-                                <td className="py-2.5 px-4 text-center">
+                              <tr
+                                key={f.id}
+                                draggable={true}
+                                onDragStart={(e) => handleDragStart(e, idx)}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, idx)}
+                                className={`hover:bg-slate-50/70 transition-colors cursor-move ${draggedIndex === idx ? 'bg-indigo-50/50' : ''} ${f.isArchived ? 'bg-slate-50 text-slate-400' : ''} ${!f.isActive ? 'bg-rose-50/10' : ''}`}
+                              >
+                                <td className="py-3 px-4 text-center">
                                   <div className="flex flex-col items-center">
-                                    <button type="button" onClick={() => handleMoveOrder(idx, 'up')} disabled={idx === 0} className="text-slate-300 hover:text-indigo-600 disabled:opacity-30"><ArrowUp className="h-3 w-3" /></button>
-                                    <span className="font-mono text-[10px] font-bold text-slate-400 my-0.5">{f.displayOrder}</span>
-                                    <button type="button" onClick={() => handleMoveOrder(idx, 'down')} disabled={idx === customFields.length - 1} className="text-slate-300 hover:text-indigo-600 disabled:opacity-30"><ArrowDown className="h-3 w-3" /></button>
+                                    <Move className="h-3.5 w-3.5 text-slate-300" />
+                                    <span className="text-[9px] font-mono font-bold text-slate-400 mt-0.5">{f.displayOrder}</span>
                                   </div>
                                 </td>
-                                <td className="py-2.5 px-4 font-semibold">
-                                  <div className="flex flex-col">
+                                <td className="py-3 px-4 font-semibold">
+                                  <div className="flex flex-col truncate">
                                     <span className={f.isArchived ? 'line-through text-slate-400' : 'text-slate-800'}>{f.displayName}</span>
-                                    {isSystem && <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 bg-slate-100 px-1 py-0.2 rounded w-max">ERP Standard</span>}
-                                    {!isSystem && <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5 bg-indigo-50 px-1 py-0.2 rounded w-max">DYNAMIC</span>}
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      {isSystem ? (
+                                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-1 py-0.2 rounded w-max">ERP Core</span>
+                                      ) : (
+                                        <span className="text-[8px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-1 py-0.2 rounded w-max">METADATA</span>
+                                      )}
+                                      {!f.isActive && (
+                                        <span className="text-[8px] font-bold text-rose-500 uppercase tracking-widest bg-rose-50 px-1 py-0.2 rounded w-max">DISABLED</span>
+                                      )}
+                                      {f.isArchived && (
+                                        <span className="text-[8px] font-bold text-amber-500 bg-amber-50 px-1 py-0.2 rounded uppercase">ARCHIVED</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </td>
-                                <td className="py-2.5 px-4 font-mono text-[10px] font-bold text-indigo-700">{f.internalName}</td>
-                                <td className="py-2.5 px-4 text-center font-mono text-[10px] text-slate-500 font-semibold">{f.type}</td>
-                                <td className="py-2.5 px-4 text-center font-semibold text-slate-600">
-                                  {DEFAULT_TABS.find(t => t.id === f.tabAssignment)?.title || f.tabAssignment}
-                                </td>
-                                <td className="py-2.5 px-4 text-center">
-                                  <div className="flex flex-wrap gap-1 justify-center max-w-[120px] mx-auto">
-                                    {f.required && <span className="text-[8px] font-bold bg-rose-50 text-rose-600 px-1 py-0.5 rounded">REQ</span>}
-                                    {f.unique && <span className="text-[8px] font-bold bg-amber-50 text-amber-700 px-1 py-0.5 rounded">UNIQ</span>}
-                                    {f.readOnly && <span className="text-[8px] font-bold bg-slate-100 text-slate-600 px-1 py-0.5 rounded">R/O</span>}
-                                    {f.hidden && <span className="text-[8px] font-bold bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded">HIDDEN</span>}
+                                <td className="py-3 px-4 font-mono text-[10px] font-bold text-indigo-600 truncate">{f.internalName}</td>
+                                <td className="py-3 px-4 text-center font-mono text-[10px] text-slate-500 font-semibold">{f.type}</td>
+                                <td className="py-3 px-4 text-center">
+                                  <div className="flex flex-wrap gap-0.5 justify-center">
+                                    {f.required && <span className="text-[7.5px] font-bold bg-rose-50 text-rose-600 px-1 py-0.2 rounded">REQ</span>}
+                                    {f.unique && <span className="text-[7.5px] font-bold bg-amber-50 text-amber-700 px-1 py-0.2 rounded">UNQ</span>}
+                                    {f.readOnly && <span className="text-[7.5px] font-bold bg-slate-100 text-slate-600 px-1 py-0.2 rounded">R/O</span>}
+                                    {f.hidden && <span className="text-[7.5px] font-bold bg-indigo-50 text-indigo-600 px-1 py-0.2 rounded">HID</span>}
+                                    {f.formulaExpression && <span className="text-[7.5px] font-bold bg-emerald-50 text-emerald-700 px-1 py-0.2 rounded">EQ</span>}
                                   </div>
                                 </td>
-                                <td className="py-2.5 px-4 text-right">
-                                  <div className="flex items-center justify-end gap-1.5">
+                                <td className="py-3 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1">
                                     <button
                                       type="button"
                                       onClick={() => handleEditField(f)}
                                       className="p-1 hover:bg-indigo-50 text-indigo-600 rounded cursor-pointer"
-                                      title="Edit Definitions"
+                                      title="Edit Attributes"
                                     >
                                       <Edit2 className="h-3.5 w-3.5" />
                                     </button>
@@ -889,9 +1382,17 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                                           type="button"
                                           onClick={() => handleDuplicateField(f)}
                                           className="p-1 hover:bg-slate-100 text-slate-500 rounded cursor-pointer"
-                                          title="Duplicate Metadata Field"
+                                          title="Duplicate Field Config"
                                         >
                                           <Copy className="h-3.5 w-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleActiveField(f.id)}
+                                          className={`p-1 rounded cursor-pointer ${f.isActive ? 'hover:bg-amber-50 text-amber-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
+                                          title={f.isActive ? 'Disable Field' : 'Enable Field'}
+                                        >
+                                          {f.isActive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                         </button>
                                         <button
                                           type="button"
@@ -925,14 +1426,246 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
             </div>
           )}
 
-          {/* TAB 2: FIELD PERMISSIONS */}
+          {/* TAB 2: LIVE PREVIEW PLAYGROUND */}
+          {activeTab === 'preview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch overflow-hidden">
+              
+              {/* Left Column: Sandbox Forms Canvas */}
+              <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full overflow-y-auto space-y-6">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                    <span>Real-Time Metadata Generated Forms Sandbox</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-1">Simulate interactive form values. Formulas evaluate and dependencies trigger immediately.</p>
+                </div>
+
+                <div className="grid grid-cols-12 gap-4">
+                  {draftFields
+                    .filter(f => !f.isArchived && f.isActive && !f.hidden && isSandboxFieldVisible(f))
+                    .map((f) => {
+                      const value = sandboxData[f.internalName] !== undefined ? sandboxData[f.internalName] : (f.defaultValue || '');
+                      const error = sandboxErrors[f.internalName];
+
+                      let spanClass = 'col-span-12';
+                      if (f.columnWidth === 'Half') spanClass = 'col-span-12 sm:col-span-6';
+                      if (f.columnWidth === 'Third') spanClass = 'col-span-12 sm:col-span-4';
+                      if (f.columnWidth === 'Quarter') spanClass = 'col-span-12 sm:col-span-3';
+
+                      return (
+                        <div key={f.id} className={`${spanClass} space-y-1.5 animate-in fade-in zoom-in-95 duration-100`}>
+                          <label className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <span>{f.displayName}</span>
+                            {f.required && <span className="text-rose-500 font-bold">*</span>}
+                            {f.tooltip && (
+                              <div className="relative group">
+                                <HelpCircle className="h-3.5 w-3.5 text-slate-400 hover:text-indigo-600 cursor-pointer" />
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 bg-slate-800 text-white text-[9px] px-2 py-0.5 rounded shadow z-50 whitespace-nowrap">
+                                  {f.tooltip}
+                                </div>
+                              </div>
+                            )}
+                          </label>
+
+                          <div className="relative">
+                            {/* Standard text inputs */}
+                            {(f.type === 'Text' || f.type === 'Rich Text' || f.type === 'Email' || f.type === 'Phone' || f.type === 'URL') && (
+                              <input
+                                type={f.type === 'Email' ? 'email' : f.type === 'Phone' ? 'tel' : f.type === 'URL' ? 'url' : 'text'}
+                                placeholder={f.placeholder || `Enter ${f.displayName.toLowerCase()}`}
+                                disabled={f.readOnly}
+                                value={value}
+                                onChange={(e) => handleSandboxFieldChange(f, e.target.value)}
+                                className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 ${error ? 'border-rose-400 bg-rose-50/10' : ''}`}
+                              />
+                            )}
+
+                            {/* Textarea */}
+                            {f.type === 'Textarea' && (
+                              <textarea
+                                placeholder={f.placeholder}
+                                disabled={f.readOnly}
+                                value={value}
+                                onChange={(e) => handleSandboxFieldChange(f, e.target.value)}
+                                rows={3}
+                                className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 ${error ? 'border-rose-400 bg-rose-50/10' : ''}`}
+                              />
+                            )}
+
+                            {/* Number, Currency, Decimal, Percentage */}
+                            {(f.type === 'Number' || f.type === 'Decimal' || f.type === 'Currency' || f.type === 'Percentage') && (
+                              <div className="relative flex items-center">
+                                {f.type === 'Currency' && <span className="absolute left-3 text-slate-400 text-xs font-bold">৳</span>}
+                                <input
+                                  type="number"
+                                  placeholder={f.placeholder || '0'}
+                                  disabled={f.readOnly}
+                                  value={value}
+                                  onChange={(e) => handleSandboxFieldChange(f, e.target.value === '' ? '' : Number(e.target.value))}
+                                  className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 ${f.type === 'Currency' ? 'pl-7' : ''} ${error ? 'border-rose-400 bg-rose-50/10' : ''}`}
+                                />
+                                {f.type === 'Percentage' && <span className="absolute right-3 text-slate-400 text-xs font-bold">%</span>}
+                              </div>
+                            )}
+
+                            {/* Dropdowns */}
+                            {f.type === 'Dropdown' && (
+                              <select
+                                disabled={f.readOnly}
+                                value={value}
+                                onChange={(e) => handleSandboxFieldChange(f, e.target.value)}
+                                className={`w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 cursor-pointer ${error ? 'border-rose-400 bg-rose-50/10' : ''}`}
+                              >
+                                <option value="">Select Option</option>
+                                {f.options?.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            )}
+
+                            {/* Checkbox */}
+                            {f.type === 'Checkbox' && (
+                              <div className="flex items-center h-10">
+                                <input
+                                  type="checkbox"
+                                  disabled={f.readOnly}
+                                  checked={!!value}
+                                  onChange={(e) => handleSandboxFieldChange(f, e.target.checked)}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <span className="ml-2 text-xs text-slate-600 font-semibold">{value ? 'Checked' : 'Unchecked'}</span>
+                              </div>
+                            )}
+
+                            {/* Toggle / Boolean */}
+                            {(f.type === 'Toggle' || f.type === 'Boolean') && (
+                              <div className="flex items-center h-10">
+                                <button
+                                  type="button"
+                                  disabled={f.readOnly}
+                                  onClick={() => handleSandboxFieldChange(f, !value)}
+                                  className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${value ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                                >
+                                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${value ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                                <span className="ml-3 text-xs text-slate-600 font-semibold">{value ? 'Active' : 'Inactive'}</span>
+                              </div>
+                            )}
+
+                            {/* Formula Field (Automatic computation) */}
+                            {f.type === 'Formula' && (
+                              <div className="flex items-center bg-indigo-50/30 border border-indigo-100 rounded-lg px-3 py-2.5">
+                                <Cpu className="w-4 h-4 text-indigo-600 mr-2 animate-pulse" />
+                                <span className="text-xs font-mono font-bold text-indigo-700">{value !== undefined ? value : '0.00'}</span>
+                                <span className="ml-auto text-[8px] text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded font-mono font-bold">CALCULATED</span>
+                              </div>
+                            )}
+
+                            {/* Date, DateTime */}
+                            {(f.type === 'Date' || f.type === 'DateTime') && (
+                              <input
+                                type={f.type === 'Date' ? 'date' : 'datetime-local'}
+                                disabled={f.readOnly}
+                                value={value}
+                                onChange={(e) => handleSandboxFieldChange(f, e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
+                              />
+                            )}
+
+                            {/* Multi-select checkboxes */}
+                            {(f.type === 'Multi-select' || f.type === 'Radio') && (
+                              <div className="flex flex-wrap gap-2 py-1.5 border border-slate-100 rounded-lg p-2.5 bg-slate-50/50">
+                                {f.options?.map(opt => {
+                                  const isSel = f.type === 'Radio' ? value === opt : String(value).split(',').filter(Boolean).includes(opt);
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      disabled={f.readOnly}
+                                      onClick={() => {
+                                        if (f.type === 'Radio') {
+                                          handleSandboxFieldChange(f, opt);
+                                        } else {
+                                          const arr = String(value).split(',').filter(Boolean);
+                                          const next = arr.includes(opt) ? arr.filter(v => v !== opt) : [...arr, opt];
+                                          handleSandboxFieldChange(f, next.join(','));
+                                        }
+                                      }}
+                                      className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer font-semibold ${isSel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}
+                                    >
+                                      {opt}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                          </div>
+
+                          {f.helpText && <p className="text-[9px] text-slate-400 font-medium">{f.helpText}</p>}
+                          {error && <p className="text-[9px] text-rose-500 font-bold flex items-center gap-1">⚠️ {error}</p>}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Right Column: Dynamic Controller Values Simulators */}
+              <div className="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col h-full overflow-y-auto space-y-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-200 pb-2">
+                  Sandbox Variable Driver
+                </h4>
+                <p className="text-[10px] text-slate-400">Change values below to simulate variables inside formula equations.</p>
+
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase">Selling Price (`price` variable)</label>
+                    <input
+                      type="number"
+                      value={sandboxData.price}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const computed = evaluateSandboxFormulas('price', val, sandboxData);
+                        setSandboxData(computed);
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-500 uppercase">Cost Price (`cost` variable)</label>
+                    <input
+                      type="number"
+                      value={sandboxData.cost}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        const computed = evaluateSandboxFormulas('cost', val, sandboxData);
+                        setSandboxData(computed);
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-3">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase mb-2">Live computed states payload:</span>
+                    <pre className="bg-slate-950 text-emerald-400 font-mono text-[9px] p-3 rounded-lg overflow-x-auto border border-slate-800 leading-relaxed max-h-[250px]">
+                      {JSON.stringify(sandboxData, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 3: FIELD PERMISSIONS MATRIX */}
           {activeTab === 'permissions' && (
-            <div className="space-y-6">
+            <div className="space-y-4 h-full overflow-y-auto">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 flex items-start gap-2.5">
                 <Shield className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold text-slate-800 uppercase tracking-wider mb-1">Role-Based Granular Field Permissions Matrix</h4>
-                  Configure field access restrictions per employee security profile. For example, Sales Agents can edit <strong>Selling Price</strong> only, Accounts can edit <strong>Cost Price</strong> only, and Warehouse Staff can edit <strong>Stock quantity</strong> only.
+                  Configure field access restrictions per employee security profile. Changes saved locally and applied on form renders.
                 </div>
               </div>
 
@@ -947,7 +1680,6 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {/* Primary backward compatible core fields */}
                     {[
                       { key: 'name', label: 'Product Name' },
                       { key: 'sku', label: 'SKU / Code' },
@@ -961,7 +1693,7 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                         <td className="py-3 px-6 font-bold text-slate-800 flex items-center gap-1.5">
                           <Lock className="h-3 w-3 text-amber-500" />
                           <span>{core.label}</span>
-                          <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded uppercase">Core Field</span>
+                          <span className="text-[8px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.2 rounded uppercase">Core ERP</span>
                         </td>
                         {permissions.map((p) => {
                           const currentVal = p.fieldPermissions[core.key] || p.fieldPermissions['*'] || 'Edit';
@@ -985,7 +1717,7 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                                   });
                                   savePermissions(updatedPerms);
                                 }}
-                                className={`text-[11px] font-bold px-2 py-1 rounded border ${
+                                className={`text-[11px] font-bold px-2 py-1 rounded border cursor-pointer ${
                                   currentVal === 'Edit'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                     : currentVal === 'View'
@@ -1003,8 +1735,7 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                       </tr>
                     ))}
 
-                    {/* Custom fields and other custom attributes */}
-                    {customFields.map((f) => (
+                    {draftFields.map((f) => (
                       <tr key={f.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="py-3 px-6 font-bold text-slate-800">
                           <div className="flex flex-col">
@@ -1034,7 +1765,7 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                                   });
                                   savePermissions(updatedPerms);
                                 }}
-                                className={`text-[11px] font-bold px-2 py-1 rounded border ${
+                                className={`text-[11px] font-bold px-2 py-1 rounded border cursor-pointer ${
                                   currentVal === 'Edit'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                     : currentVal === 'View'
@@ -1057,22 +1788,85 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
             </div>
           )}
 
-          {/* TAB 3: AUDIT LOGS */}
+          {/* TAB 4: SCHEMA VERSIONS & ROLLBACK */}
+          {activeTab === 'versions' && (
+            <div className="space-y-4 h-full overflow-y-auto">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 flex items-start gap-2.5">
+                <History className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-slate-800 uppercase tracking-wider mb-1">Durable Schema Versioning Control & Snapshot Rollback</h4>
+                  Keep an immutable history log of all published enterprise custom field metadata designs. Click <strong>Rollback</strong> next to any previous iteration to instantly restore the whole database fields structure!
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase bg-slate-50">
+                      <th className="py-3 px-6 w-32">Version ID</th>
+                      <th className="py-3 px-6">Release Date & Timestamp</th>
+                      <th className="py-3 px-6">Description Release Notes</th>
+                      <th className="py-3 px-6 text-center w-36">Total Fields Defined</th>
+                      <th className="py-3 px-6 text-right w-44">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-sans">
+                    {schemaVersions.map((v) => {
+                      const isActive = v.version === currentVersionNum;
+                      return (
+                        <tr key={v.version} className={`hover:bg-slate-50/50 transition-colors ${isActive ? 'bg-indigo-50/20 font-semibold' : ''}`}>
+                          <td className="py-3.5 px-6 font-mono text-[10px] font-bold text-indigo-700">
+                            v{v.version}.0.0
+                          </td>
+                          <td className="py-3.5 px-6 font-mono text-slate-500 text-[10px]">
+                            {new Date(v.timestamp).toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-6 text-slate-700 font-sans">
+                            {v.description}
+                          </td>
+                          <td className="py-3.5 px-6 text-center font-bold text-slate-600">
+                            {v.fields.length} Fields
+                          </td>
+                          <td className="py-3.5 px-6 text-right">
+                            {isActive ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold">
+                                <Check className="w-3 h-3" />
+                                <span>Active Schema</span>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleRollback(v)}
+                                className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-indigo-600 text-[10px] font-bold rounded-lg cursor-pointer transition-colors shadow-xs"
+                              >
+                                Rollback to V{v.version}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: AUDIT LOGS */}
           {activeTab === 'audit' && (
-            <div className="space-y-6">
+            <div className="space-y-4 h-full overflow-y-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">ERP Operational Audit Trail</h4>
-                  <p className="text-[10px] text-slate-400">Chronological history of all product modifications, price overrides, and stock variances.</p>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Chronicled Master Schema Audit Log</h4>
+                  <p className="text-[10px] text-slate-400">Verifiable operational changes tracking all published dynamic metadata schemas.</p>
                 </div>
                 <button
                   onClick={() => {
-                    if (confirm('Clear audit history logs?')) {
+                    if (confirm('Permanently purge audit logging history?')) {
                       setAuditLogs([]);
                       localStorage.setItem('nexova_product_audit_logs', '[]');
                     }
                   }}
-                  className="px-3.5 py-1.5 hover:bg-rose-50 border border-slate-200 text-rose-600 rounded-lg text-xs font-bold cursor-pointer"
+                  className="px-3 py-1.5 hover:bg-rose-50 border border-slate-200 text-rose-600 rounded-lg text-xs font-bold cursor-pointer"
                 >
                   Clear History Log
                 </button>
@@ -1083,58 +1877,45 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase bg-slate-50">
-                        <th className="py-2.5 px-4">Timestamp</th>
-                        <th className="py-2.5 px-4">Operator</th>
-                        <th className="py-2.5 px-4">Role Profile</th>
-                        <th className="py-2.5 px-4">Target Product</th>
-                        <th className="py-2.5 px-4">Modified Attribute</th>
+                        <th className="py-2.5 px-4 w-40">Timestamp</th>
+                        <th className="py-2.5 px-4 w-32">Operator</th>
+                        <th className="py-2.5 px-4 w-32">Role Profile</th>
+                        <th className="py-2.5 px-4 w-40">Attribute Module</th>
+                        <th className="py-2.5 px-4 w-40">Action Type</th>
                         <th className="py-2.5 px-4 text-center">Previous Value</th>
                         <th className="py-2.5 px-4 text-center">New Value State</th>
-                        <th className="py-2.5 px-4">Change Reason / Override Justification</th>
+                        <th className="py-2.5 px-4">Release Note Summary / Logs</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans">
                       {auditLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-2.5 px-4">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-700">{log.date}</span>
-                              <span className="text-[9px] text-slate-400 font-mono mt-0.5">{log.time}</span>
-                            </div>
+                          <td className="py-2.5 px-4 font-mono text-[10px] text-slate-500">
+                            {log.date} {log.time}
+                          </td>
+                          <td className="py-2.5 px-4 font-semibold text-slate-800">
+                            {log.user}
                           </td>
                           <td className="py-2.5 px-4">
-                            <span className="font-semibold text-slate-800">{log.user}</span>
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase">{log.role}</span>
                           </td>
-                          <td className="py-2.5 px-4">
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase">{log.role}</span>
+                          <td className="py-2.5 px-4 font-bold text-slate-800">
+                            {log.productName}
                           </td>
-                          <td className="py-2.5 px-4">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-800">{log.productName}</span>
-                              <span className="font-mono text-[9px] text-indigo-600 font-bold mt-0.5">{log.productSku}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-4 font-semibold text-slate-700">
-                            {log.displayName || log.fieldChanged}
+                          <td className="py-2.5 px-4 font-mono font-bold text-[10px] text-indigo-600">
+                            {log.fieldChanged}
                           </td>
                           <td className="py-2.5 px-4 text-center">
-                            <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{log.oldValue || 'NULL'}</span>
+                            <span className="font-mono text-[9px] text-slate-400 bg-slate-50 px-1 py-0.2 rounded border border-slate-100">{log.oldValue || 'NULL'}</span>
                           </td>
                           <td className="py-2.5 px-4 text-center">
-                            <span className="font-mono text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 font-bold">{log.newValue || 'NULL'}</span>
+                            <span className="font-mono text-[9px] text-indigo-700 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-100 font-bold">{log.newValue || 'NULL'}</span>
                           </td>
-                          <td className="py-2.5 px-4 text-slate-500 italic max-w-[200px] truncate" title={log.reason}>
-                            {log.reason || 'Auto-synced update via system batch'}
+                          <td className="py-2.5 px-4 text-slate-500 italic font-medium leading-relaxed">
+                            {log.reason || 'No description recorded'}
                           </td>
                         </tr>
                       ))}
-                      {auditLogs.length === 0 && (
-                        <tr>
-                          <td colSpan={8} className="py-10 text-center text-slate-400 font-semibold">
-                            No operational audit entries recorded. Changes will be logged here.
-                          </td>
-                        </tr>
-                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1145,9 +1926,12 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
-          <button onClick={onClose} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs shadow-md cursor-pointer transition-colors">
-            Close Panel
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
+          <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+            Enterprise Metadata Engine Operational Status: Ready
+          </span>
+          <button onClick={onClose} className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs shadow-md cursor-pointer transition-colors">
+            Exit Configurator Workspace
           </button>
         </div>
 

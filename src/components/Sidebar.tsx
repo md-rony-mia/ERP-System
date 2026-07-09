@@ -78,10 +78,14 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
       subItems: [
         { id: 'suppliers', label: 'Suppliers' },
         { id: 'supplier_groups', label: 'Suppliers Groups' },
+        { id: 'purchase_requisitions', label: 'Purchase Requisitions (PR)' },
+        { id: 'request_quotations', label: 'Request for Quotation (RFQ)' },
         { id: 'purchase_orders', label: 'Purchase Orders' },
         { id: 'goods_receipt', label: 'Goods Receipt' },
+        { id: 'threeway_matching', label: '3-Way Matching System' },
         { id: 'purchase_returns', label: 'Purchase Returns' },
         { id: 'purchase_payments', label: 'Payment' },
+        { id: 'supplier_scorecard', label: 'Supplier Scorecard' },
       ],
     },
     {

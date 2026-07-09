@@ -759,6 +759,7 @@ export default function App() {
               onAddPurchaseOrder={handleAddPurchaseOrder}
               onReceivePurchaseOrder={handleReceivePurchaseOrder}
               activeSubTab={currentSubTab}
+              onTabChange={handleTabChange}
             />
           )}
 

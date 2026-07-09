@@ -10,6 +10,18 @@ export interface Product {
   stock: number;
   alertQty: number;
   pcsPerBox?: number;
+  // Advanced Enterprise Inventory parameters
+  reservedQty?: number;
+  allocatedQty?: number;
+  damagedQty?: number;
+  transitQty?: number;
+  onOrderQty?: number;
+  minStock?: number;
+  maxStock?: number;
+  safetyStock?: number;
+  abcClass?: 'A' | 'B' | 'C';
+  xyzClass?: 'X' | 'Y' | 'Z';
+  stockFreeze?: boolean;
 }
 
 export interface Customer {
