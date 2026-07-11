@@ -65,6 +65,21 @@ import {
   DiscountMatrixTab,
   PromotionManagerTab
 } from './InventoryExtensions';
+import {
+  ZonesTab,
+  AislesTab,
+  RacksTab,
+  ShelvesTab,
+  BinsTab,
+  AdjustmentTab,
+  ReservationTab,
+  BatchTab,
+  LotTab,
+  SerialTab,
+  ExpiryTab,
+  QrGeneratorTab,
+  ValuationTab
+} from './WarehouseExtensions';
 
 interface InventoryViewProps {
   products: Product[];
@@ -86,7 +101,8 @@ export default function InventoryView({
   // Navigation mapping if activeSubTab is parsed
   const currentTab = [
     'products', 'categories', 'units', 'warehouses', 'stock', 'stock_transfer', 'barcodes', 'offer_info',
-    'templates', 'variants', 'metadata', 'custom_fields', 'layout_builder', 'attributes', 'brands', 'manufacturers', 'pricing', 'discount', 'promotion'
+    'templates', 'variants', 'metadata', 'custom_fields', 'layout_builder', 'attributes', 'brands', 'manufacturers', 'pricing', 'discount', 'promotion',
+    'zones', 'aisles', 'racks', 'shelves', 'bins', 'adjustment', 'reservation', 'batch', 'lot', 'serial', 'expiry', 'qr', 'valuation'
   ].includes(activeSubTab)
     ? activeSubTab
     : 'products';
@@ -3691,6 +3707,58 @@ export default function InventoryView({
 
       {currentTab === 'promotion' && (
         <PromotionManagerTab />
+      )}
+
+      {currentTab === 'zones' && (
+        <ZonesTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'aisles' && (
+        <AislesTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'racks' && (
+        <RacksTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'shelves' && (
+        <ShelvesTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'bins' && (
+        <BinsTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'adjustment' && (
+        <AdjustmentTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'reservation' && (
+        <ReservationTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'batch' && (
+        <BatchTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'lot' && (
+        <LotTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'serial' && (
+        <SerialTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'expiry' && (
+        <ExpiryTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'qr' && (
+        <QrGeneratorTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
+      )}
+
+      {currentTab === 'valuation' && (
+        <ValuationTab products={products} onUpdateProducts={onUpdateProducts} warehouses={warehouses} />
       )}
 
       {/* =========================================
