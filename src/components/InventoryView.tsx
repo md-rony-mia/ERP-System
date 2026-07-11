@@ -52,6 +52,19 @@ import { useMetadata } from '../metadata/hooks';
 import { DynamicFormRenderer } from '../metadata/renderer';
 import { validateForm } from '../metadata/validators';
 import { MetadataEngine } from '../metadata/engine';
+import {
+  TemplatesTab,
+  VariantsTab,
+  MetadataTab,
+  CustomFieldsTab,
+  LayoutBuilderTab,
+  AttributesTab,
+  BrandsTab,
+  ManufacturersTab,
+  PricingEngineTab,
+  DiscountMatrixTab,
+  PromotionManagerTab
+} from './InventoryExtensions';
 
 interface InventoryViewProps {
   products: Product[];
@@ -71,7 +84,10 @@ export default function InventoryView({
   onUpdateProducts,
 }: InventoryViewProps) {
   // Navigation mapping if activeSubTab is parsed
-  const currentTab = ['products', 'categories', 'units', 'warehouses', 'stock', 'stock_transfer', 'barcodes', 'offer_info'].includes(activeSubTab)
+  const currentTab = [
+    'products', 'categories', 'units', 'warehouses', 'stock', 'stock_transfer', 'barcodes', 'offer_info',
+    'templates', 'variants', 'metadata', 'custom_fields', 'layout_builder', 'attributes', 'brands', 'manufacturers', 'pricing', 'discount', 'promotion'
+  ].includes(activeSubTab)
     ? activeSubTab
     : 'products';
 
@@ -3615,6 +3631,66 @@ export default function InventoryView({
             ))}
           </div>
         </div>
+      )}
+
+      {/* =========================================
+          EXTENSION INVENTORY GROUP TABS
+          ========================================= */}
+      {currentTab === 'templates' && (
+        <TemplatesTab
+          products={products}
+          onUpdateProducts={onUpdateProducts}
+        />
+      )}
+
+      {currentTab === 'variants' && (
+        <VariantsTab
+          products={products}
+          onUpdateProducts={onUpdateProducts}
+        />
+      )}
+
+      {currentTab === 'metadata' && (
+        <MetadataTab />
+      )}
+
+      {currentTab === 'custom_fields' && (
+        <CustomFieldsTab
+          products={products}
+          customFields={customFields}
+          setCustomFields={setCustomFields}
+        />
+      )}
+
+      {currentTab === 'layout_builder' && (
+        <LayoutBuilderTab />
+      )}
+
+      {currentTab === 'attributes' && (
+        <AttributesTab />
+      )}
+
+      {currentTab === 'brands' && (
+        <BrandsTab />
+      )}
+
+      {currentTab === 'manufacturers' && (
+        <ManufacturersTab />
+      )}
+
+      {currentTab === 'pricing' && (
+        <PricingEngineTab
+          products={products}
+          onUpdateProducts={onUpdateProducts}
+        />
+      )}
+
+      {currentTab === 'discount' && (
+        <DiscountMatrixTab />
+      )}
+
+      {currentTab === 'promotion' && (
+        <PromotionManagerTab />
       )}
 
       {/* =========================================
