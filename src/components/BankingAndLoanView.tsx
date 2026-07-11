@@ -554,7 +554,7 @@ export default function BankingAndLoanView({
       alert(`Successfully registered Firebase Auth & Firestore account for ${newUserFullName}! / ${newUserFullName}-এর অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!`);
     } catch (err: any) {
       console.error("In-app user creation error:", err);
-      let errMsg = 'Failed to create account. Please try again. / অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      let errMsg = `Failed to create account: ${err.message || err} / অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে: ${err.message || err}`;
       if (err.code === 'auth/email-already-in-use') {
         errMsg = 'This email address is already in use by another user. / এই ইমেইলটি ইতিমধ্যে অন্য অ্যাকাউন্টে ব্যবহৃত হচ্ছে।';
       } else if (err.code === 'auth/invalid-email') {
