@@ -150,7 +150,7 @@ export interface LoanAccount {
   durationMonths: number;
   disbursedAmount: number;
   outstandingAmount: number;
-  status: 'Active' | 'Paid';
+  status: 'Active' | 'Paid' | 'Disbursed' | 'Closed';
 }
 
 export interface LoanRepayment {

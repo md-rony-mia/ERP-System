@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -746,11 +747,16 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <Login settings={settings} onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <ErrorBoundary variant="full">
+        <Login settings={settings} onLoginSuccess={handleLoginSuccess} />
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-700 overflow-hidden font-sans">
+    <ErrorBoundary variant="full">
+      <div className="flex h-screen bg-slate-50 text-slate-700 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
       <Sidebar currentTab={currentTab} currentSubTab={currentSubTab} onTabChange={handleTabChange} />
 
@@ -771,170 +777,206 @@ export default function App() {
         {/* Dynamic content render views */}
         <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
           {currentTab === 'dashboard' && (
-            <DashboardView
-              products={products}
-              customers={customers}
-              invoices={invoices}
-              suppliers={suppliers}
-              onTabChange={handleTabChange}
-              isVisualEditMode={isVisualEditMode}
-              activeSubTab={currentSubTab}
-            />
+            <ErrorBoundary variant="section" sectionName="Dashboard Module">
+              <DashboardView
+                products={products}
+                customers={customers}
+                invoices={invoices}
+                suppliers={suppliers}
+                onTabChange={handleTabChange}
+                isVisualEditMode={isVisualEditMode}
+                activeSubTab={currentSubTab}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'inventory' && (
-            <InventoryView
-              products={products}
-              onAddProduct={handleAddProduct}
-              onUpdateStock={handleEditStock}
-              onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
-              activeSubTab={currentSubTab}
-              onUpdateProducts={setProducts}
-            />
+            <ErrorBoundary variant="section" sectionName="Inventory Module">
+              <InventoryView
+                products={products}
+                onAddProduct={handleAddProduct}
+                onUpdateStock={handleEditStock}
+                onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
+                activeSubTab={currentSubTab}
+                onUpdateProducts={setProducts}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'sales' && (
-            <SalesView
-              products={products}
-              customers={customers}
-              invoices={invoices}
-              onAddInvoice={handleAddInvoice}
-              onAddCustomer={handleAddCustomer}
-              onRecordCollection={handleRecordCollection}
-              activeSubTab={currentSubTab}
-              settings={settings}
-            />
+            <ErrorBoundary variant="section" sectionName="Sales & Billing Module">
+              <SalesView
+                products={products}
+                customers={customers}
+                invoices={invoices}
+                onAddInvoice={handleAddInvoice}
+                onAddCustomer={handleAddCustomer}
+                onRecordCollection={handleRecordCollection}
+                activeSubTab={currentSubTab}
+                settings={settings}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'purchase' && (
-            <PurchaseView
-              suppliers={suppliers}
-              purchaseOrders={purchaseOrders}
-              products={products}
-              onAddSupplier={handleAddSupplier}
-              onAddPurchaseOrder={handleAddPurchaseOrder}
-              onReceivePurchaseOrder={handleReceivePurchaseOrder}
-              activeSubTab={currentSubTab}
-              onTabChange={handleTabChange}
-            />
+            <ErrorBoundary variant="section" sectionName="Purchase & Inbound Module">
+              <PurchaseView
+                suppliers={suppliers}
+                purchaseOrders={purchaseOrders}
+                products={products}
+                onAddSupplier={handleAddSupplier}
+                onAddPurchaseOrder={handleAddPurchaseOrder}
+                onReceivePurchaseOrder={handleReceivePurchaseOrder}
+                activeSubTab={currentSubTab}
+                onTabChange={handleTabChange}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'employee' && (
-            <EmployeeView
-              employees={employees}
-              attendances={attendances}
-              onAddEmployee={handleAddEmployee}
-              onUpdateAttendance={handleUpdateAttendance}
-              activeSubTab={currentSubTab}
-            />
+            <ErrorBoundary variant="section" sectionName="HR & Employee Management Module">
+              <EmployeeView
+                employees={employees}
+                attendances={attendances}
+                onAddEmployee={handleAddEmployee}
+                onUpdateAttendance={handleUpdateAttendance}
+                activeSubTab={currentSubTab}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'accounting' && (
-            currentSubTab === 'assets' ? (
-              <FixedAssetsView activeSubTab={currentSubTab} currentUser={currentUser} />
-            ) : (
-              <AccountingView
-                accountHeads={accountHeads}
-                transactions={transactions}
-                bankAccounts={bankAccounts}
-                onLogTransaction={handleLogTransaction}
-                activeSubTab={currentSubTab}
-              />
-            )
+            <ErrorBoundary variant="section" sectionName="General Ledger & Accounting Module">
+              {currentSubTab === 'assets' ? (
+                <FixedAssetsView activeSubTab={currentSubTab} currentUser={currentUser} />
+              ) : (
+                <AccountingView
+                  accountHeads={accountHeads}
+                  transactions={transactions}
+                  bankAccounts={bankAccounts}
+                  onLogTransaction={handleLogTransaction}
+                  activeSubTab={currentSubTab}
+                />
+              )}
+            </ErrorBoundary>
           )}
 
           {(currentTab === 'banking' || currentTab === 'loan' || currentTab === 'settings') && (
-            <BankingAndLoanView
-              bankAccounts={bankAccounts}
-              loanAccounts={loanAccounts}
-              transactions={transactions}
-              currentTab={currentTab as 'banking' | 'loan' | 'settings'}
-              activeSubTab={currentSubTab}
-              onAddBankAccount={handleAddBankAccount}
-              onAddLoan={handleAddLoan}
-              settings={settings}
-              onUpdateSettings={handleUpdateSettings}
-              onResetData={handleResetData}
-              onImportData={handleImportData}
-              systemData={systemData}
-              currentUser={currentUser}
-            />
+            <ErrorBoundary variant="section" sectionName="Banking, Loans & Settings Module">
+              <BankingAndLoanView
+                bankAccounts={bankAccounts}
+                loanAccounts={loanAccounts}
+                transactions={transactions}
+                currentTab={currentTab as 'banking' | 'loan' | 'settings'}
+                activeSubTab={currentSubTab}
+                onAddBankAccount={handleAddBankAccount}
+                onAddLoan={handleAddLoan}
+                settings={settings}
+                onUpdateSettings={handleUpdateSettings}
+                onResetData={handleResetData}
+                onImportData={handleImportData}
+                systemData={systemData}
+                currentUser={currentUser}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'reports' && (
-            <ReportsView
-              products={products}
-              customers={customers}
-              suppliers={suppliers}
-              invoices={invoices}
-              purchaseOrders={purchaseOrders}
-              bankAccounts={bankAccounts}
-              transactions={transactions}
-              accountHeads={accountHeads}
-              employees={employees}
-              activeSubTab={currentSubTab}
-            />
+            <ErrorBoundary variant="section" sectionName="Standard PDF & Ledger Reports Module">
+              <ReportsView
+                products={products}
+                customers={customers}
+                suppliers={suppliers}
+                invoices={invoices}
+                purchaseOrders={purchaseOrders}
+                bankAccounts={bankAccounts}
+                transactions={transactions}
+                accountHeads={accountHeads}
+                employees={employees}
+                activeSubTab={currentSubTab}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'gridReport' && (
-            <GridReportView
-              products={products}
-              customers={customers}
-              suppliers={suppliers}
-              invoices={invoices}
-              transactions={transactions}
-              onUpdateProducts={setProducts}
-              onUpdateInvoices={setInvoices}
-              onUpdateCustomers={setCustomers}
-              onUpdateSuppliers={setSuppliers}
-              onUpdateTransactions={setTransactions}
-              isVisualEditMode={isVisualEditMode}
-              currentSubTab={currentSubTab}
-            />
+            <ErrorBoundary variant="section" sectionName="Dynamic Custom Grid Reports Module">
+              <GridReportView
+                products={products}
+                customers={customers}
+                suppliers={suppliers}
+                invoices={invoices}
+                transactions={transactions}
+                onUpdateProducts={setProducts}
+                onUpdateInvoices={setInvoices}
+                onUpdateCustomers={setCustomers}
+                onUpdateSuppliers={setSuppliers}
+                onUpdateTransactions={setTransactions}
+                isVisualEditMode={isVisualEditMode}
+                currentSubTab={currentSubTab}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'rdlReport' && (
-            <RdlReportView
-              products={products}
-              customers={customers}
-              suppliers={suppliers}
-              invoices={invoices}
-              transactions={transactions}
-              isVisualEditMode={isVisualEditMode}
-              currentSubTab={currentSubTab}
-            />
+            <ErrorBoundary variant="section" sectionName="RDL Template Report Builder Module">
+              <RdlReportView
+                products={products}
+                customers={customers}
+                suppliers={suppliers}
+                invoices={invoices}
+                transactions={transactions}
+                isVisualEditMode={isVisualEditMode}
+                currentSubTab={currentSubTab}
+              />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'crm' && (
-            <CRMView activeSubTab={currentSubTab} currentUser={currentUser} />
+            <ErrorBoundary variant="section" sectionName="CRM & Leads Module">
+              <CRMView activeSubTab={currentSubTab} currentUser={currentUser} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'projects' && (
-            <ProjectsView activeSubTab={currentSubTab} currentUser={currentUser} />
+            <ErrorBoundary variant="section" sectionName="Projects & Timesheets Module">
+              <ProjectsView activeSubTab={currentSubTab} currentUser={currentUser} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'manufacturing' && (
-            <ManufacturingView activeSubTab={currentSubTab} currentUser={currentUser} />
+            <ErrorBoundary variant="section" sectionName="Manufacturing Production Module">
+              <ManufacturingView activeSubTab={currentSubTab} currentUser={currentUser} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'service' && (
-            <ServiceView activeSubTab={currentSubTab} currentUser={currentUser} />
+            <ErrorBoundary variant="section" sectionName="Service Tickets & Helpdesk Module">
+              <ServiceView activeSubTab={currentSubTab} currentUser={currentUser} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'documents' && (
-            <DocumentsView activeSubTab={currentSubTab} />
+            <ErrorBoundary variant="section" sectionName="Document Repository & Contracts Module">
+              <DocumentsView activeSubTab={currentSubTab} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'workflow' && (
-            <WorkflowView activeSubTab={currentSubTab} />
+            <ErrorBoundary variant="section" sectionName="Business Workflow Approval Engine">
+              <WorkflowView activeSubTab={currentSubTab} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'ai' && (
-            <AIView activeSubTab={currentSubTab} />
+            <ErrorBoundary variant="section" sectionName="Gemini AI Assistant Module">
+              <AIView activeSubTab={currentSubTab} />
+            </ErrorBoundary>
           )}
 
           {currentTab === 'integration' && (
-            <IntegrationView activeSubTab={currentSubTab} />
+            <ErrorBoundary variant="section" sectionName="Third-Party Integration Engine">
+              <IntegrationView activeSubTab={currentSubTab} />
+            </ErrorBoundary>
           )}
 
           {/* Quick empty fallback screen for other secondary/reports links to prevent app crashes */}
@@ -960,5 +1002,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }
