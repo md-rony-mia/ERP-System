@@ -20,11 +20,20 @@ import {
   MapPin,
   Clock,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Archive,
+  RotateCcw
 } from 'lucide-react';
+import PageStandardsWrapper from './PageStandardsWrapper';
 
 interface CRMViewProps {
   activeSubTab?: string;
+  currentUser?: {
+    name?: string;
+    role?: string;
+    email?: string;
+  };
 }
 
 interface Lead {
@@ -38,6 +47,7 @@ interface Lead {
   assignedTo: string;
   createdAt: string;
   notes: string;
+  isArchived?: boolean;
 }
 
 interface ActivityItem {
@@ -70,10 +80,24 @@ interface Campaign {
   startDate: string;
 }
 
-export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
+export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMViewProps) {
   const currentTab = ['leads', 'pipeline', 'activities', 'meetings', 'campaigns'].includes(activeSubTab)
     ? activeSubTab
     : 'leads';
+
+  // --- CRM STANDARDS STATES ---
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  // Simulated skeletal loading delay on tab switch for premium design transitions
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [currentTab]);
 
   // --- CRM STATES ---
   const [leads, setLeads] = useState<Lead[]>(() => {
@@ -186,8 +210,62 @@ export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
   };
 
   const handleDeleteLead = (id: string) => {
-    if (confirm('Are you sure you want to delete this lead?')) {
+    if (confirm('Are you sure you want to permanently delete this lead?')) {
       setLeads(leads.filter(l => l.id !== id));
+    }
+  };
+
+  const handleDuplicateLead = (lead: Lead) => {
+    const duplicated: Lead = {
+      ...lead,
+      id: `l_dup_${Date.now()}`,
+      name: `${lead.name} (Copy)`,
+      createdAt: new Date().toISOString().split('T')[0],
+      isArchived: false
+    };
+    setLeads([duplicated, ...leads]);
+    
+    // Log dynamic event
+    const log: ActivityItem = {
+      id: `act_dup_${Date.now()}`,
+      leadName: duplicated.name,
+      type: 'Note',
+      description: `Opportunity duplicated from ${lead.name}`,
+      date: new Date().toLocaleString(),
+      user: currentUser?.name || 'Rony Mia'
+    };
+    setActivities([log, ...activities]);
+  };
+
+  const handleArchiveLead = (id: string) => {
+    setLeads(leads.map(l => l.id === id ? { ...l, isArchived: true } : l));
+    const lead = leads.find(l => l.id === id);
+    if (lead) {
+      const log: ActivityItem = {
+        id: `act_arc_${Date.now()}`,
+        leadName: lead.name,
+        type: 'Note',
+        description: `Opportunity marked as Archived`,
+        date: new Date().toLocaleString(),
+        user: currentUser?.name || 'Rony Mia'
+      };
+      setActivities([log, ...activities]);
+    }
+  };
+
+  const handleRestoreLead = (id: string) => {
+    setLeads(leads.map(l => l.id === id ? { ...l, isArchived: false } : l));
+    const lead = leads.find(l => l.id === id);
+    if (lead) {
+      const log: ActivityItem = {
+        id: `act_rst_${Date.now()}`,
+        leadName: lead.name,
+        type: 'Note',
+        description: `Opportunity restored to Active Pipeline`,
+        date: new Date().toLocaleString(),
+        user: currentUser?.name || 'Rony Mia'
+      };
+      setActivities([log, ...activities]);
     }
   };
 
@@ -265,7 +343,8 @@ export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
       l.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'All' || l.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesArchive = showArchived ? l.isArchived === true : !l.isArchived;
+    return matchesSearch && matchesStatus && matchesArchive;
   });
 
   const totalValue = filteredLeads.reduce((acc, curr) => acc + curr.value, 0);
@@ -286,64 +365,167 @@ export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
     document.body.removeChild(link);
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-150">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 font-display">Customer Relationship Management (CRM)</h2>
-          <p className="text-xs text-slate-400 mt-1">Acquire and nurture corporate business deals, track sales interactions, and analyze marketing campaigns.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {currentTab === 'leads' && (
-            <>
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-3.5 py-2 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Export CSV</span>
-              </button>
-              <button
-                onClick={() => setShowLeadModal(true)}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                <span>Register New Lead</span>
-              </button>
-            </>
-          )}
-          {currentTab === 'activities' && (
-            <button
-              onClick={() => setShowActivityModal(true)}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Log Action</span>
-            </button>
-          )}
-          {currentTab === 'meetings' && (
-            <button
-              onClick={() => setShowMeetingModal(true)}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              <span>Schedule Meeting</span>
-            </button>
-          )}
-          {currentTab === 'campaigns' && (
-            <button
-              onClick={() => setShowCampaignModal(true)}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              <Megaphone className="h-3.5 w-3.5" />
-              <span>Launch Campaign</span>
-            </button>
-          )}
-        </div>
-      </div>
+  // --- PRINT FUNCTION ---
+  const handlePrintLeads = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Axiom ERP CRM Leads Report</title>
+            <style>
+              body { font-family: sans-serif; padding: 25px; color: #1e293b; }
+              h1 { font-size: 22px; font-weight: bold; color: #1e1b4b; border-bottom: 2px solid #6366f1; padding-bottom: 8px; margin-bottom: 4px; }
+              h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 0; margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+              th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 11px; }
+              th { background-color: #f8fafc; font-weight: bold; color: #475569; }
+              tr:nth-child(even) { background-color: #f8fafc; }
+              .badge { font-weight: bold; padding: 2px 6px; border-radius: 9999px; font-size: 9px; text-transform: uppercase; }
+              .badge-new { background-color: #fef3c7; color: #d97706; }
+              .badge-won { background-color: #d1fae5; color: #065f46; }
+              .badge-lost { background-color: #fee2e2; color: #991b1b; }
+              .badge-other { background-color: #e0e7ff; color: #3730a3; }
+            </style>
+          </head>
+          <body>
+            <h1>AXIOM ENTERPRISE ERP</h1>
+            <h2>Corporate CRM Lead Opportunity Matrix — Generated on ${new Date().toLocaleDateString()}</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Lead Name</th>
+                  <th>Company</th>
+                  <th>Status</th>
+                  <th>Estimated Value</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Owner</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredLeads.map(l => `
+                  <tr>
+                    <td style="font-weight:bold;">${l.name}</td>
+                    <td>${l.company}</td>
+                    <td>
+                      <span class="badge ${
+                        l.status === 'New' ? 'badge-new' :
+                        l.status === 'Closed Won' ? 'badge-won' :
+                        l.status === 'Closed Lost' ? 'badge-lost' : 'badge-other'
+                      }">${l.status}</span>
+                    </td>
+                    <td style="font-weight:bold; color: #0f172a;">৳${l.value.toLocaleString()}</td>
+                    <td>${l.email}</td>
+                    <td>${l.phone}</td>
+                    <td>${l.assignedTo}</td>
+                    <td>${l.createdAt}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <div style="margin-top: 25px; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 9px; color: #94a3b8; text-align: right;">
+              AXIOM ERP SECURITIES • AUDITED DOCUMENT
+            </div>
+            <script>
+              window.onload = function() { window.print(); }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
 
-      {/* CRM BENTO WIDGETS */}
+  const actionToolbar = (
+    <div className="flex flex-wrap items-center gap-2">
+      {currentTab === 'leads' && (
+        <>
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`flex items-center gap-1.5 font-bold text-xs px-3 py-2 rounded-lg border transition-colors cursor-pointer ${
+              showArchived 
+                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Toggle between active and archived deals"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            <span>{showArchived ? 'View Active' : 'View Archived'}</span>
+          </button>
+          <button
+            onClick={handlePrintLeads}
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-3.5 py-2 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+            title="Print lead report"
+          >
+            <Printer className="h-3.5 w-3.5 text-slate-500" />
+            <span>Print List</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-3.5 py-2 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+            title="Download CSV database export"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={() => setShowLeadModal(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+            title="Register custom opportunity"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            <span>Register New Lead</span>
+          </button>
+        </>
+      )}
+      {currentTab === 'activities' && (
+        <button
+          onClick={() => setShowActivityModal(true)}
+          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>Log Action</span>
+        </button>
+      )}
+      {currentTab === 'meetings' && (
+        <button
+          onClick={() => setShowMeetingModal(true)}
+          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          <Calendar className="h-3.5 w-3.5" />
+          <span>Schedule Meeting</span>
+        </button>
+      )}
+      {currentTab === 'campaigns' && (
+        <button
+          onClick={() => setShowCampaignModal(true)}
+          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          <Megaphone className="h-3.5 w-3.5" />
+          <span>Launch Campaign</span>
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <PageStandardsWrapper
+      title="Customer Relationship Management"
+      subtitle="Acquire and nurture corporate business deals, track sales interactions, and analyze marketing campaigns."
+      loading={loading}
+      error={error}
+      currentUser={currentUser}
+      permissionRoles={['Administrator', 'Manager', 'Sales Agent']}
+      actionToolbar={actionToolbar}
+      breadcrumbs={[
+        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'CRM Module', active: true },
+      ]}
+    >
+      <div className="space-y-6">
+        {/* CRM BENTO WIDGETS */}
       {currentTab === 'leads' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white border border-slate-200/60 p-4 rounded-xl shadow-sm space-y-1">
@@ -468,13 +650,39 @@ export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
                         <div className="text-[10px] text-slate-400 font-mono">{l.createdAt}</div>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDeleteLead(l.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                          title="Archive Lead"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleDuplicateLead(l)}
+                            className="p-1 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                            title="Duplicate Opportunity"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          {l.isArchived ? (
+                            <button
+                              onClick={() => handleRestoreLead(l.id)}
+                              className="p-1 text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                              title="Restore Lead Opportunity"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleArchiveLead(l.id)}
+                              className="p-1 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                              title="Archive Lead"
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteLead(l.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Permanently Delete Lead"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -986,6 +1194,7 @@ export default function CRMView({ activeSubTab = 'leads' }: CRMViewProps) {
           </form>
         </div>
       )}
-    </div>
+      </div>
+    </PageStandardsWrapper>
   );
 }

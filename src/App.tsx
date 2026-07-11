@@ -861,7 +861,7 @@ export default function App() {
           )}
 
           {currentTab === 'crm' && (
-            <CRMView activeSubTab={currentSubTab} />
+            <CRMView activeSubTab={currentSubTab} currentUser={currentUser} />
           )}
 
           {currentTab === 'projects' && (
