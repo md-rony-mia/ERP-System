@@ -23,8 +23,6 @@ service cloud.firestore {
     // Helper check to verify if the authenticated user has either 'Administrator' or 'Manager' clearance level.
     function isAdminOrManager() {
       return isSignedIn() && (
-        request.auth.token.email == "ronymia2022@gmail.com" ||
-        request.auth.token.email == "tasnim@madani.com" ||
         getUserRole() == 'Administrator' || 
         getUserRole() == 'Manager'
       );
@@ -34,10 +32,6 @@ service cloud.firestore {
     // This allows Administrators, Managers, Cashiers, and Sales Agents to perform approved operational actions.
     function isAllowedOperator() {
       return isSignedIn() && (
-        request.auth.token.email == "ronymia2022@gmail.com" ||
-        request.auth.token.email == "tasnim@madani.com" ||
-        request.auth.token.email == "sabbir@madani.com" ||
-        request.auth.token.email == "sumona@madani.com" ||
         getUserRole() == 'Administrator' || 
         getUserRole() == 'Manager' || 
         getUserRole() == 'Cashier' || 
@@ -121,13 +115,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSignedIn();
       allow write: if isAdminOrManager();
-      allow create: if isSignedIn() && request.auth.uid == uid && (
-        (request.auth.token.email == "ronymia2022@gmail.com" && request.resource.data.role == "Administrator") ||
-        (request.auth.token.email == "tasnim@madani.com" && request.resource.data.role == "Manager") ||
-        (request.auth.token.email == "sabbir@madani.com" && request.resource.data.role == "Cashier") ||
-        (request.auth.token.email == "sumona@madani.com" && request.resource.data.role == "Sales Agent") ||
-        (!(request.auth.token.email in ["ronymia2022@gmail.com", "tasnim@madani.com", "sabbir@madani.com", "sumona@madani.com"]) && request.resource.data.role == "Sales Agent")
-      );
+      allow create: if isSignedIn() && request.auth.uid == uid;
     }
 
 
@@ -229,6 +217,16 @@ service cloud.firestore {
       allow write: if isAllowedOperator();
     }
     match /docContracts/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Reports Subsystem
+    match /gridReports/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /rdlTemplates/{docId} {
       allow read: if isSignedIn();
       allow write: if isAllowedOperator();
     }

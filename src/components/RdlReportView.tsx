@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 import {
   Product,
   Invoice,
@@ -185,10 +186,36 @@ export default function RdlReportView({
   ];
 
   // States
-  const [templates, setTemplates] = useState<RdlTemplate[]>(() => {
-    const saved = localStorage.getItem('nexova_rdl_templates');
-    return saved ? JSON.parse(saved) : initialTemplates;
-  });
+  const [templates, setTemplates] = useState<RdlTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const legacy = localStorage.getItem('nexova_rdl_templates');
+        let initial = initialTemplates;
+        if (legacy) {
+          try { initial = JSON.parse(legacy); } catch (e) {}
+        }
+        const seeded = await seedCollectionIfEmpty('rdlTemplates', initial);
+        setTemplates(seeded || []);
+        if (legacy) {
+          localStorage.removeItem('nexova_rdl_templates');
+        }
+      } catch (err) {
+        console.error("RDL templates migration failed", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('rdlTemplates', templates);
+  }, [templates, loading]);
 
   const [activeSubTab, setActiveSubTab] = useState<string>(currentSubTab || 'report_manager');
 
@@ -341,7 +368,6 @@ export default function RdlReportView({
     });
 
     setTemplates(updatedTemplates);
-    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
     setSelectedElementId(newEl.id);
   };
 
@@ -356,7 +382,6 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
     if (selectedElementId === id) setSelectedElementId(null);
   };
 
@@ -370,7 +395,6 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
   };
 
   const handleUpdateLayoutConfig = (key: keyof RdlTemplate, value: any) => {
@@ -381,7 +405,6 @@ export default function RdlReportView({
       return t;
     });
     setTemplates(updatedTemplates);
-    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updatedTemplates));
   };
 
   const handleSaveAsNewTemplate = (name: string) => {
@@ -393,7 +416,6 @@ export default function RdlReportView({
     };
     const updated = [...templates, newT];
     setTemplates(updated);
-    localStorage.setItem('nexova_rdl_templates', JSON.stringify(updated));
     setActiveTemplateId(newT.id);
     alert(`RDL template "${newT.name}" successfully designed and stored!`);
   };

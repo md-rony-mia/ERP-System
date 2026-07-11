@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 import {
   Product,
   Invoice,
@@ -245,10 +246,36 @@ export default function GridReportView({
   ];
 
   // System States
-  const [savedLayouts, setSavedLayouts] = useState<SavedGridLayout[]>(() => {
-    const saved = localStorage.getItem('nexova_custom_grids');
-    return saved ? JSON.parse(saved) : defaultLayouts;
-  });
+  const [savedLayouts, setSavedLayouts] = useState<SavedGridLayout[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const legacy = localStorage.getItem('nexova_custom_grids');
+        let initial = defaultLayouts;
+        if (legacy) {
+          try { initial = JSON.parse(legacy); } catch (e) {}
+        }
+        const seeded = await seedCollectionIfEmpty('gridReports', initial);
+        setSavedLayouts(seeded || []);
+        if (legacy) {
+          localStorage.removeItem('nexova_custom_grids');
+        }
+      } catch (err) {
+        console.error("Grid reports migration failed", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('gridReports', savedLayouts);
+  }, [savedLayouts, loading]);
 
   const [activeLayoutId, setActiveLayoutId] = useState<string>('l1');
   const [selectedDataset, setSelectedDataset] = useState<keyof typeof datasets>('invoices');
@@ -331,7 +358,6 @@ export default function GridReportView({
 
     const updated = [...savedLayouts, newLayout];
     setSavedLayouts(updated);
-    localStorage.setItem('nexova_custom_grids', JSON.stringify(updated));
     setActiveLayoutId(newLayout.id);
     setNewLayoutName('');
     alert(`Grid layout "${newLayout.name}" successfully designed and stored!`);
@@ -342,7 +368,6 @@ export default function GridReportView({
     if (window.confirm('Delete this custom Designed Grid Report?')) {
       const updated = savedLayouts.filter((l) => l.id !== id);
       setSavedLayouts(updated);
-      localStorage.setItem('nexova_custom_grids', JSON.stringify(updated));
       if (activeLayoutId === id) {
         setActiveLayoutId('');
       }
