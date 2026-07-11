@@ -32,6 +32,13 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   BookOpen,
+  Cpu,
+  Sliders,
+  Settings,
+  ArrowDown,
+  ArrowUp,
+  Wrench,
+  Download,
 } from 'lucide-react';
 
 interface ReportsViewProps {
