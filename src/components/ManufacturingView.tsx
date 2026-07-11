@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import PageStandardsWrapper from './PageStandardsWrapper';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface ManufacturingViewProps {
   activeSubTab?: string;
@@ -76,103 +77,149 @@ interface MRPReportItem {
   suggestedAction: string;
 }
 
+const DEFAULT_BOMS: BOMItem[] = [
+  {
+    id: 'bom1',
+    productName: 'TMT Steel Bar 12mm (Ton)',
+    sku: 'STL-12MM-TMT',
+    rawMaterials: [
+      { name: 'Iron Ore Billets', qty: 1.05, unit: 'Tons' },
+      { name: 'Coal Coke Catalyst', qty: 0.12, unit: 'Tons' },
+      { name: 'Hardening Chemical Compound', qty: 5, unit: 'Liters' }
+    ],
+    estimatedCost: 65000
+  },
+  {
+    id: 'bom2',
+    productName: 'Portland Composite Cement (100 Bags)',
+    sku: 'CMT-PCC-50KG',
+    rawMaterials: [
+      { name: 'Clinker Raw Powder', qty: 3.8, unit: 'Tons' },
+      { name: 'Gypsum Stabilizer', qty: 0.2, unit: 'Tons' },
+      { name: 'Fly Ash Filler', qty: 1.0, unit: 'Tons' }
+    ],
+    estimatedCost: 32000
+  }
+];
+
+const DEFAULT_WORKCENTERS: WorkCenter[] = [
+  { id: 'wc1', name: 'Rolling Mill Workcenter 01', operation: 'Steel heating, rolling, and rapid cooling', hourlyCost: 4500, capacity: '20 Tons/Hr', status: 'Operational' },
+  { id: 'wc2', name: 'Cement Blending Station 03', operation: 'Raw clinker, gypsum, and ash mixing', hourlyCost: 2800, capacity: '50 Bags/Min', status: 'Operational' },
+  { id: 'wc3', name: 'Chemical Treatment Unit', operation: 'Additive liquid spraying and micro audits', hourlyCost: 1500, capacity: '100 Liters/Hr', status: 'Maintenance' }
+];
+
+const DEFAULT_PRODUCTION_ORDERS: ProductionOrder[] = [
+  { id: 'po1', bomId: 'bom1', productName: 'TMT Steel Bar 12mm (Ton)', quantityToProduce: 150, workcenter: 'Rolling Mill Workcenter 01', startDate: '2026-07-01', status: 'In Progress', batchNo: 'BCH-STL-202607-A' },
+  { id: 'po2', bomId: 'bom2', productName: 'Portland Composite Cement (100 Bags)', quantityToProduce: 50, workcenter: 'Cement Blending Station 03', startDate: '2026-07-05', status: 'Queued', batchNo: 'BCH-CMT-202607-F' }
+];
+
+const DEFAULT_QUALITY_INSPECTIONS: QualityInspection[] = [
+  {
+    id: 'qi1',
+    productionOrderNo: 'BCH-STL-202607-A',
+    productName: 'TMT Steel Bar 12mm (Ton)',
+    inspectedBy: 'Engr. Jamil Chowdhury',
+    date: '2026-07-05',
+    parameters: [
+      { name: 'Yield Strength (Tension Test)', value: '520 MPa (Req: >500)', pass: true },
+      { name: 'Elongation Percentage', value: '16.5% (Req: >15%)', pass: true },
+      { name: 'Section Weight Deflection', value: '+0.2% (Req: +/- 1.5%)', pass: true }
+    ],
+    finalDecision: 'Passed'
+  }
+];
+
 export default function ManufacturingView({ activeSubTab = 'bom', currentUser }: ManufacturingViewProps) {
   const currentTab = ['bom', 'routing', 'production', 'mrp', 'quality'].includes(activeSubTab)
     ? activeSubTab
     : 'bom';
 
   // --- LOCAL PERSISTED STATES ---
-  const [boms, setBoms] = useState<BOMItem[]>(() => {
-    const saved = localStorage.getItem('axiom_mfg_boms');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      {
-        id: 'bom1',
-        productName: 'TMT Steel Bar 12mm (Ton)',
-        sku: 'STL-12MM-TMT',
-        rawMaterials: [
-          { name: 'Iron Ore Billets', qty: 1.05, unit: 'Tons' },
-          { name: 'Coal Coke Catalyst', qty: 0.12, unit: 'Tons' },
-          { name: 'Hardening Chemical Compound', qty: 5, unit: 'Liters' }
-        ],
-        estimatedCost: 65000
-      },
-      {
-        id: 'bom2',
-        productName: 'Portland Composite Cement (100 Bags)',
-        sku: 'CMT-PCC-50KG',
-        rawMaterials: [
-          { name: 'Clinker Raw Powder', qty: 3.8, unit: 'Tons' },
-          { name: 'Gypsum Stabilizer', qty: 0.2, unit: 'Tons' },
-          { name: 'Fly Ash Filler', qty: 1.0, unit: 'Tons' }
-        ],
-        estimatedCost: 32000
+  const [boms, setBoms] = useState<BOMItem[]>([]);
+  const [workcenters, setWorkcenters] = useState<WorkCenter[]>([]);
+  const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);
+  const [qualityInspections, setQualityInspections] = useState<QualityInspection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- FIREBASE DATA LOAD & ONE-TIME MIGRATION HELPER ---
+  useEffect(() => {
+    async function loadAndMigrate() {
+      try {
+        setLoading(true);
+
+        // Read legacy local storage data if present
+        const legacyBoms = localStorage.getItem('axiom_mfg_boms');
+        const legacyWorkcenters = localStorage.getItem('axiom_mfg_workcenters');
+        const legacyOrders = localStorage.getItem('axiom_mfg_production_orders');
+        const legacyInspections = localStorage.getItem('axiom_mfg_inspections');
+
+        let initialBoms = DEFAULT_BOMS;
+        let initialWorkcenters = DEFAULT_WORKCENTERS;
+        let initialOrders = DEFAULT_PRODUCTION_ORDERS;
+        let initialInspections = DEFAULT_QUALITY_INSPECTIONS;
+
+        if (legacyBoms) {
+          try { initialBoms = JSON.parse(legacyBoms); } catch (e) { console.error(e); }
+        }
+        if (legacyWorkcenters) {
+          try { initialWorkcenters = JSON.parse(legacyWorkcenters); } catch (e) { console.error(e); }
+        }
+        if (legacyOrders) {
+          try { initialOrders = JSON.parse(legacyOrders); } catch (e) { console.error(e); }
+        }
+        if (legacyInspections) {
+          try { initialInspections = JSON.parse(legacyInspections); } catch (e) { console.error(e); }
+        }
+
+        // Load & seed Firestore collections
+        const seededBoms = await seedCollectionIfEmpty('boms', initialBoms);
+        setBoms(seededBoms || []);
+
+        const seededWorkcenters = await seedCollectionIfEmpty('workcenters', initialWorkcenters);
+        setWorkcenters(seededWorkcenters || []);
+
+        const seededOrders = await seedCollectionIfEmpty('productionOrders', initialOrders);
+        setProductionOrders(seededOrders || []);
+
+        const seededInspections = await seedCollectionIfEmpty('qualityInspections', initialInspections);
+        setQualityInspections(seededInspections || []);
+
+        // Clean up legacy localStorage item so it doesn't run again
+        localStorage.setItem('axiom_mfg_migrated', 'true');
+        localStorage.removeItem('axiom_mfg_boms');
+        localStorage.removeItem('axiom_mfg_workcenters');
+        localStorage.removeItem('axiom_mfg_production_orders');
+        localStorage.removeItem('axiom_mfg_inspections');
+
+      } catch (err) {
+        console.error("Manufacturing data fetch/migration failed:", err);
+      } finally {
+        setLoading(false);
       }
-    ];
-  });
-
-  const [workcenters, setWorkcenters] = useState<WorkCenter[]>(() => {
-    const saved = localStorage.getItem('axiom_mfg_workcenters');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
     }
-    return [
-      { id: 'wc1', name: 'Rolling Mill Workcenter 01', operation: 'Steel heating, rolling, and rapid cooling', hourlyCost: 4500, capacity: '20 Tons/Hr', status: 'Operational' },
-      { id: 'wc2', name: 'Cement Blending Station 03', operation: 'Raw clinker, gypsum, and ash mixing', hourlyCost: 2800, capacity: '50 Bags/Min', status: 'Operational' },
-      { id: 'wc3', name: 'Chemical Treatment Unit', operation: 'Additive liquid spraying and micro audits', hourlyCost: 1500, capacity: '100 Liters/Hr', status: 'Maintenance' }
-    ];
-  });
+    loadAndMigrate();
+  }, []);
 
-  const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>(() => {
-    const saved = localStorage.getItem('axiom_mfg_production_orders');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'po1', bomId: 'bom1', productName: 'TMT Steel Bar 12mm (Ton)', quantityToProduce: 150, workcenter: 'Rolling Mill Workcenter 01', startDate: '2026-07-01', status: 'In Progress', batchNo: 'BCH-STL-202607-A' },
-      { id: 'po2', bomId: 'bom2', productName: 'Portland Composite Cement (100 Bags)', quantityToProduce: 50, workcenter: 'Cement Blending Station 03', startDate: '2026-07-05', status: 'Queued', batchNo: 'BCH-CMT-202607-F' }
-    ];
-  });
-
-  const [qualityInspections, setQualityInspections] = useState<QualityInspection[]>(() => {
-    const saved = localStorage.getItem('axiom_mfg_inspections');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      {
-        id: 'qi1',
-        productionOrderNo: 'BCH-STL-202607-A',
-        productName: 'TMT Steel Bar 12mm (Ton)',
-        inspectedBy: 'Engr. Jamil Chowdhury',
-        date: '2026-07-05',
-        parameters: [
-          { name: 'Yield Strength (Tension Test)', value: '520 MPa (Req: >500)', pass: true },
-          { name: 'Elongation Percentage', value: '16.5% (Req: >15%)', pass: true },
-          { name: 'Section Weight Deflection', value: '+0.2% (Req: +/- 1.5%)', pass: true }
-        ],
-        finalDecision: 'Passed'
-      }
-    ];
-  });
+  // --- FIRESTORE PERSISTENCE SYNCHRONIZERS ---
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('boms', boms);
+  }, [boms, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_mfg_boms', JSON.stringify(boms));
-  }, [boms]);
+    if (loading) return;
+    syncCollectionToFirestore('workcenters', workcenters);
+  }, [workcenters, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_mfg_workcenters', JSON.stringify(workcenters));
-  }, [workcenters]);
+    if (loading) return;
+    syncCollectionToFirestore('productionOrders', productionOrders);
+  }, [productionOrders, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_mfg_production_orders', JSON.stringify(productionOrders));
-  }, [productionOrders]);
-
-  useEffect(() => {
-    localStorage.setItem('axiom_mfg_inspections', JSON.stringify(qualityInspections));
-  }, [qualityInspections]);
+    if (loading) return;
+    syncCollectionToFirestore('qualityInspections', qualityInspections);
+  }, [qualityInspections, loading]);
 
   // --- MODAL FORM STATES ---
   const [showBOMModal, setShowBOMModal] = useState(false);
@@ -309,7 +356,7 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
     <PageStandardsWrapper
       title="Manufacturing Control & MRP"
       subtitle="Design Bills of Materials (BOM), manage work centers, schedule runs, run automated MRP, and log QA inspections."
-      loading={false}
+      loading={loading}
       error={null}
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager', 'Production Supervisor']}
