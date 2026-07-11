@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDocs, collection, writeBatch, deleteDoc } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, User as FirebaseUser } from 'firebase/auth';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0450547040",
@@ -28,6 +28,41 @@ export function signOutUser() {
 
 export function onAuthStateChange(callback: (user: FirebaseUser | null) => void) {
   return onAuthStateChanged(auth, callback);
+}
+
+export async function createNewUserWithSecondaryApp(email: string, password: string, name: string, role: string, username: string) {
+  let secondaryApp;
+  const secondaryAppName = "SecondaryAppForUserCreation";
+  const apps = getApps();
+  const existingApp = apps.find(a => a.name === secondaryAppName);
+  if (existingApp) {
+    secondaryApp = existingApp;
+  } else {
+    secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+  }
+
+  const secondaryAuth = getAuth(secondaryApp);
+  
+  // Create user
+  const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+  const newUser = userCredential.user;
+  const uid = newUser.uid;
+
+  // Immediately sign out secondary auth so it doesn't leave active sessions
+  await signOut(secondaryAuth);
+
+  // Now create the Firestore document /users/{uid} using the primary db instance
+  const userDocRef = doc(db, 'users', uid);
+  await setDoc(userDocRef, {
+    uid: uid,
+    name: name,
+    email: email,
+    role: role,
+    status: 'Active',
+    username: username.toLowerCase().replace(/\s/g, '_'),
+  });
+
+  return { uid, email, name, role };
 }
 
 export enum OperationType {

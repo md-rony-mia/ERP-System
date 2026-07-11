@@ -13,7 +13,6 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [showHint, setShowHint] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -197,35 +196,6 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
             )}
           </button>
         </form>
-
-        {/* Divider line */}
-        <div className="border-t border-slate-100 mt-2"></div>
-
-        {/* Dynamic Helpful Quick Login Box */}
-        {showHint && (
-          <div id="login-helper-box" className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 flex gap-2.5 text-xs text-blue-800/90 font-medium font-sans">
-            <Info className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />
-            <div className="flex flex-col gap-1 w-full">
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-blue-950">Quick Sign In Credentials</span>
-                <button
-                  type="button"
-                  onClick={() => setShowHint(false)}
-                  className="text-[10px] text-blue-400 hover:text-blue-600 hover:underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-              <p className="text-[11px] text-blue-800/80 leading-normal">
-                Try logging in with standard administrator:
-              </p>
-              <div className="font-mono bg-white/80 border border-blue-100/50 rounded px-2 py-1 mt-0.5 text-[10px] text-blue-900/90 flex flex-col gap-0.5">
-                <div>Username: <span className="font-bold text-indigo-600">admin_rony</span></div>
-                <div>Password: <span className="font-bold text-indigo-600">123456</span></div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Copyright notice matching screenshot */}
         <p id="login-copyright" className="text-slate-400 text-[11px] font-medium text-center font-sans tracking-tight">

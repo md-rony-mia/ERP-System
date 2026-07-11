@@ -857,6 +857,7 @@ export default function App() {
               onResetData={handleResetData}
               onImportData={handleImportData}
               systemData={systemData}
+              currentUser={currentUser}
             />
           )}
 

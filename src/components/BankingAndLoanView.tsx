@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
 import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
+import { createNewUserWithSecondaryApp } from '../lib/firebase';
 import * as Icons from 'lucide-react';
 import {
   Landmark,
@@ -8,6 +9,7 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
+  Loader2,
   Settings as SetIcon,
   ShieldCheck,
   CheckCircle,
@@ -54,6 +56,7 @@ interface BankingAndLoanViewProps {
   onResetData?: () => void;
   onImportData?: (importedData: any) => void;
   systemData?: any;
+  currentUser?: any;
 }
 
 export default function BankingAndLoanView({
@@ -69,6 +72,7 @@ export default function BankingAndLoanView({
   onResetData,
   onImportData,
   systemData,
+  currentUser,
 }: BankingAndLoanViewProps) {
   // --- SUB-TAB ROUTERS ---
   const subTab = activeSubTab || (currentTab === 'loan' ? 'loan_accounts' : 'bank_accounts');
@@ -445,6 +449,9 @@ export default function BankingAndLoanView({
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserUsername, setNewUserUsername] = useState('');
   const [newUserRole, setNewUserRole] = useState('Cashier');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
 
   // SYSTEM USER ACTIONS
   const startEditUser = (usr: any) => {
@@ -488,32 +495,79 @@ export default function BankingAndLoanView({
     }
   };
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserFullName || !newUserUsername || !newUserEmail) return;
-    const initials = newUserFullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    const newUser = {
-      id: Date.now().toString(),
-      name: newUserFullName,
-      username: newUserUsername.toLowerCase().replace(/\s/g, '_'),
-      email: newUserEmail,
-      role: newUserRole,
-      status: 'Active',
-      avatar: initials || 'U',
-    };
-    const updated = [...usersList, newUser];
-    setUsersList(updated);
-    setNewUserFullName('');
-    setNewUserEmail('');
-    setNewUserUsername('');
-    
-    if (onUpdateSettings && settings) {
-      onUpdateSettings({
-        ...settings,
-        usersList: updated
-      });
+    setAddUserError(null);
+
+    // Only allow Administrators to perform this
+    if (currentUser?.role !== 'Administrator') {
+      setAddUserError('Only active Administrators can create new user accounts. / শুধুমাত্র সচল এডমিনিস্ট্রেটররা নতুন অ্যাকাউন্ট তৈরি করতে পারেন।');
+      return;
     }
-    alert(`User Account for ${newUserFullName} created!`);
+
+    if (!newUserFullName || !newUserUsername || !newUserEmail || !newUserPassword) {
+      setAddUserError('All fields including password are required. / পাসওয়ার্ড সহ সব তথ্য পূরণ করা আবশ্যক।');
+      return;
+    }
+
+    if (newUserPassword.length < 6) {
+      setAddUserError('Password must be at least 6 characters long. / পাসওয়ার্ডটি কমপক্ষে ৬ অক্ষরের হতে হবে।');
+      return;
+    }
+
+    try {
+      setAddUserLoading(false); // set true during process
+      setAddUserLoading(true);
+      
+      const result = await createNewUserWithSecondaryApp(
+        newUserEmail,
+        newUserPassword,
+        newUserFullName,
+        newUserRole,
+        newUserUsername
+      );
+
+      const initials = newUserFullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const newUser = {
+        id: result.uid,
+        name: newUserFullName,
+        username: newUserUsername.toLowerCase().replace(/\s/g, '_'),
+        email: newUserEmail,
+        role: newUserRole,
+        status: 'Active',
+        avatar: initials || 'U',
+      };
+
+      const updated = [...usersList, newUser];
+      setUsersList(updated);
+      setNewUserFullName('');
+      setNewUserEmail('');
+      setNewUserUsername('');
+      setNewUserPassword('');
+      
+      if (onUpdateSettings && settings) {
+        onUpdateSettings({
+          ...settings,
+          usersList: updated
+        });
+      }
+      alert(`Successfully registered Firebase Auth & Firestore account for ${newUserFullName}! / ${newUserFullName}-এর অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!`);
+    } catch (err: any) {
+      console.error("In-app user creation error:", err);
+      let errMsg = 'Failed to create account. Please try again. / অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      if (err.code === 'auth/email-already-in-use') {
+        errMsg = 'This email address is already in use by another user. / এই ইমেইলটি ইতিমধ্যে অন্য অ্যাকাউন্টে ব্যবহৃত হচ্ছে।';
+      } else if (err.code === 'auth/invalid-email') {
+        errMsg = 'The email address is invalid. / অনুগ্রহ করে একটি সঠিক ইমেইল এড্রেস প্রদান করুন।';
+      } else if (err.code === 'auth/weak-password') {
+        errMsg = 'The password is too weak. Please choose a stronger password. / পাসওয়ার্ডটি অত্যন্ত দুর্বল। অনুগ্রহ করে আরও শক্তিশালী পাসওয়ার্ড দিন।';
+      } else if (err.message && err.message.includes('permission-denied')) {
+        errMsg = 'Access Denied. You do not have permission to write this user profile. / প্রবেশাধিকার প্রত্যাখ্যাত। ফায়ারস্টোর পারমিশন নেই।';
+      }
+      setAddUserError(errMsg);
+    } finally {
+      setAddUserLoading(false);
+    }
   };
 
   // 9. Roles Permissions Matrix
@@ -2460,50 +2514,81 @@ export default function BankingAndLoanView({
                   })}
                 </div>
 
-                <form onSubmit={handleAddUser} className="p-5 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4">
-                  <span className="block text-xs font-bold text-slate-800">Add Portal Employee User Login</span>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Employee Full Name</label>
-                      <input
-                        type="text" required placeholder="e.g. Rashedul Islam" value={newUserFullName} onChange={(e) => setNewUserFullName(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-semibold"
-                      />
+                {currentUser?.role === 'Administrator' ? (
+                  <form onSubmit={handleAddUser} className="p-5 border border-slate-200 rounded-xl bg-slate-50/40 space-y-4">
+                    <span className="block text-xs font-bold text-slate-800">Add Portal Employee User Login (Administrator Tool)</span>
+                    
+                    {addUserError && (
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg font-medium">
+                        {addUserError}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Employee Full Name</label>
+                        <input
+                          type="text" required disabled={addUserLoading} placeholder="e.g. Rashedul Islam" value={newUserFullName} onChange={(e) => setNewUserFullName(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-semibold disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Username (Login ID)</label>
+                        <input
+                          type="text" required disabled={addUserLoading} placeholder="e.g. rashed_csh" value={newUserUsername} onChange={(e) => setNewUserUsername(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-mono disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Portal Email Address</label>
+                        <input
+                          type="email" required disabled={addUserLoading} placeholder="rashed@madani.com" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Initial Password</label>
+                        <input
+                          type="password" required disabled={addUserLoading} placeholder="At least 6 characters" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">User Assignment Role</label>
+                        <select
+                          disabled={addUserLoading} value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 cursor-pointer disabled:opacity-50"
+                        >
+                          <option value="Administrator">Administrator</option>
+                          <option value="Manager">Manager</option>
+                          <option value="Cashier">Cashier</option>
+                          <option value="Sales Agent">Sales Agent</option>
+                          <option value="Inventory Officer">Inventory Officer</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Username (Login ID)</label>
-                      <input
-                        type="text" required placeholder="e.g. rashed_csh" value={newUserUsername} onChange={(e) => setNewUserUsername(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Portal Email Address</label>
-                      <input
-                        type="email" required placeholder="rashed@madani.com" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">User Assignment Role</label>
-                      <select
-                        value={newUserRole} onChange={(e) => setNewUserRole(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={addUserLoading}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <option value="Administrator">Administrator</option>
-                        <option value="Manager">Manager</option>
-                        <option value="Cashier">Cashier</option>
-                        <option value="Sales Agent">Sales Agent</option>
-                        <option value="Inventory Officer">Inventory Officer</option>
-                      </select>
+                        {addUserLoading ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Creating Account... / তৈরি হচ্ছে...</span>
+                          </>
+                        ) : (
+                          'Register Portal Account'
+                        )}
+                      </button>
                     </div>
+                  </form>
+                ) : (
+                  <div className="p-4 border border-slate-100 rounded-xl bg-slate-50 text-xs text-slate-400 font-medium">
+                    ⓘ Adding or registering new portal employee user login accounts is restricted to active system Administrators. / নতুন পোর্টাল ব্যবহারকারী অ্যাকাউন্ট তৈরি করার প্রক্রিয়াটি শুধুমাত্র এডমিনিস্ট্রেটরদের জন্য অনুমোদিত।
                   </div>
-                  <div className="flex justify-end">
-                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-xs">
-                      Register Portal Account
-                    </button>
-                  </div>
-                </form>
+                )}
               </div>
             )}
 
