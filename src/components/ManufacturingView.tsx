@@ -19,9 +19,15 @@ import {
   Warehouse
 } from 'lucide-react';
 
+import PageStandardsWrapper from './PageStandardsWrapper';
+
 interface ManufacturingViewProps {
   activeSubTab?: string;
-  // We can pass current stocks if needed, but managing local stocks inside component mimics real behavior perfectly.
+  currentUser?: {
+    name?: string;
+    role?: string;
+    email?: string;
+  };
 }
 
 interface BOMItem {
@@ -70,7 +76,7 @@ interface MRPReportItem {
   suggestedAction: string;
 }
 
-export default function ManufacturingView({ activeSubTab = 'bom' }: ManufacturingViewProps) {
+export default function ManufacturingView({ activeSubTab = 'bom', currentUser }: ManufacturingViewProps) {
   const currentTab = ['bom', 'routing', 'production', 'mrp', 'quality'].includes(activeSubTab)
     ? activeSubTab
     : 'bom';
@@ -300,14 +306,21 @@ export default function ManufacturingView({ activeSubTab = 'bom' }: Manufacturin
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 font-display">Manufacturing & MRP Engine</h2>
-          <p className="text-xs text-slate-400 mt-1">Design Bills of Materials (BOM), assign work centers, launch active production lots, and audit quality standards.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <PageStandardsWrapper
+      title="Manufacturing Control & MRP"
+      subtitle="Design Bills of Materials (BOM), manage work centers, schedule runs, run automated MRP, and log QA inspections."
+      loading={false}
+      error={null}
+      currentUser={currentUser}
+      permissionRoles={['Administrator', 'Manager', 'Production Supervisor']}
+      breadcrumbs={[
+        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Manufacturing & MRP', active: true },
+      ]}
+    >
+      <div className="space-y-6">
+        {/* ACTION BAR */}
+        <div className="flex justify-end gap-2 pb-2">
           {currentTab === 'bom' && (
             <button
               onClick={() => setShowBOMModal(true)}
@@ -336,7 +349,6 @@ export default function ManufacturingView({ activeSubTab = 'bom' }: Manufacturin
             </button>
           )}
         </div>
-      </div>
 
       {/* CORE MATRIX TABS */}
       {currentTab === 'bom' && (
@@ -754,6 +766,7 @@ export default function ManufacturingView({ activeSubTab = 'bom' }: Manufacturin
           </form>
         </div>
       )}
-    </div>
+      </div>
+    </PageStandardsWrapper>
   );
 }

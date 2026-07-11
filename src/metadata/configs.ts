@@ -85,7 +85,7 @@ export const FIXED_ASSETS_CONFIG: ModuleConfig = {
   iconName: 'Building',
   primaryKey: 'id',
   fields: [
-    { key: 'code', label: 'Asset Identifier Code', type: 'text', required: true, unique: true, searchable: true },
+    { key: 'code', label: 'Asset Identifier Code', type: 'text', required: true, unique: true, searchable: true, autocompletePresets: ['EQ-IT-101', 'EQ-MCH-202', 'EQ-VEH-303'] },
     { key: 'name', label: 'Asset Name', type: 'text', required: true, searchable: true },
     {
       key: 'category',
@@ -100,8 +100,20 @@ export const FIXED_ASSETS_CONFIG: ModuleConfig = {
       ]
     },
     { key: 'purchasePrice', label: 'Purchase Cost (BDT)', type: 'currency', required: true, sortable: true },
+    { key: 'taxRate', label: 'Applicable Tax Rate', type: 'number', helpText: 'Multiplier (e.g. 0.15 for 15%)', defaultValue: 0.15 },
+    { key: 'totalValueWithTax', label: 'Total Value With Tax (BDT)', type: 'number', formula: 'purchasePrice * taxRate', helpText: 'Computed automatically from formula: purchasePrice * taxRate' },
     { key: 'purchaseDate', label: 'Acquisition Date', type: 'date', required: true },
     { key: 'usefulLife', label: 'Useful Life (Years)', type: 'number', required: true },
+    
+    // Conditional Field: Show only if Useful Life is greater than 5 years
+    { 
+      key: 'extendedWarrantyVendor', 
+      label: 'Extended Warranty Vendor Details', 
+      type: 'text', 
+      dependsOn: { field: 'usefulLife', value: '10' }, 
+      helpText: 'Conditional: Shows only if Useful Life is set exactly to 10 years.' 
+    },
+
     {
       key: 'depreciationMethod',
       label: 'Depreciation Method',
@@ -121,6 +133,26 @@ export const FIXED_ASSETS_CONFIG: ModuleConfig = {
         { label: 'Active', value: 'Active' },
         { label: 'In Maintenance', value: 'In Maintenance' },
         { label: 'Retired', value: 'Retired' }
+      ]
+    },
+
+    // Rich Custom Fields
+    { key: 'brandColor', label: 'Custom Brand Coding Color', type: 'colorPicker', helpText: 'Select or pick corporate category color.' },
+    { key: 'customSpecs', label: 'Structured Specification Specs (JSON)', type: 'jsonEditor', helpText: 'Compliant with enterprise hardware models.' },
+    { key: 'assessmentNotes', label: 'SLA Engineering Assessment', type: 'richText', helpText: 'Supports real-time rich layout markdown annotations.' },
+    { key: 'barcode', label: 'Asset Barcode Identifier', type: 'barcode', helpText: 'Enter code or click Scan to scan barcode tag.' },
+    { key: 'qrcode', label: 'Asset QR Identity Redirect', type: 'qr', helpText: 'Scan or insert redirect tracking URL.' },
+    { key: 'gps', label: 'Asset GPS Geolocation coordinates', type: 'gps', helpText: 'Track physical assets using integrated device satellite signals.' },
+    { key: 'signature', label: 'Authorized Inspector Sign-off', type: 'signature', helpText: 'Sign securely on the digital signature canvas.' },
+    { key: 'attachments', label: 'Associated Service SLAs', type: 'attachment', helpText: 'Attach official PDF / invoice clearances.' },
+    {
+      key: 'maintenanceLogs',
+      label: 'Chronological Maintenance Runs Log',
+      type: 'repeatable',
+      subFields: [
+        { key: 'date', label: 'Service Date', type: 'date' },
+        { key: 'technician', label: 'Field Engineer Name', type: 'text' },
+        { key: 'cost', label: 'Cost estimate (BDT)', type: 'number' }
       ]
     }
   ],

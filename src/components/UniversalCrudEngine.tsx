@@ -43,6 +43,7 @@ import {
   Wrench,
   Sparkles
 } from 'lucide-react';
+import MetadataFormEngine from './MetadataFormEngine';
 
 // ==========================================
 // UNIVERSAL CRUD SCHEMAS & TYPES
@@ -58,7 +59,18 @@ export type FieldType =
   | 'select'
   | 'boolean'
   | 'email'
-  | 'phone';
+  | 'phone'
+  | 'richText'
+  | 'image'
+  | 'attachment'
+  | 'barcode'
+  | 'qr'
+  | 'gps'
+  | 'signature'
+  | 'colorPicker'
+  | 'jsonEditor'
+  | 'repeatable'
+  | 'nested';
 
 export interface FieldOption {
   label: string;
@@ -86,6 +98,12 @@ export interface FieldDef {
   placeholder?: string;
   helpText?: string;
   validationRules?: FieldValidation[];
+  dependsOn?: { field: string; value: any; operator?: 'equals' | 'contains' | 'notEquals' };
+  formula?: string;
+  lookupTable?: string;
+  lookupField?: string;
+  autocompletePresets?: string[];
+  subFields?: FieldDef[];
 }
 
 export interface ModuleConfig {
@@ -1611,94 +1629,16 @@ export default function UniversalCrudEngine({
             {/* Modal Body Form */}
             <form onSubmit={handleSaveRecord} className="flex-1 overflow-y-auto p-5 space-y-4">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {fields.map((field) => {
-                  const isRequired = !!field.required;
-                  const hasError = formErrors[field.key];
-                  const val = formData[field.key] ?? '';
-
-                  return (
-                    <div key={field.key} className={field.type === 'textarea' ? 'col-span-1 sm:col-span-2' : ''}>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                        <span>{field.label}</span>
-                        {isRequired && <span className="text-rose-500 ml-0.5 font-bold">*</span>}
-                      </label>
-
-                      {viewOnly ? (
-                        <div className="bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-semibold text-slate-700 min-h-[32px] break-words">
-                          {field.type === 'currency' ? `৳${Number(val || 0).toLocaleString()}` : String(val ?? '') || '—'}
-                        </div>
-                      ) : field.type === 'textarea' ? (
-                        <textarea
-                          placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-                          value={val}
-                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                          className={`w-full bg-slate-50/50 text-xs text-slate-800 px-3 py-2 border rounded-lg focus:outline-none focus:bg-white focus:ring-1 transition-all ${
-                            hasError ? 'border-rose-400 focus:ring-rose-400' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500'
-                          }`}
-                          rows={3}
-                        />
-                      ) : field.type === 'select' ? (
-                        <select
-                          value={val}
-                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                          className={`w-full bg-slate-50/50 text-xs text-slate-800 px-3 py-2 border rounded-lg focus:outline-none focus:bg-white focus:ring-1 transition-all font-semibold ${
-                            hasError ? 'border-rose-400 focus:ring-rose-400' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500'
-                          }`}
-                        >
-                          <option value="">-- Select option --</option>
-                          {field.options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={field.type === 'number' || field.type === 'currency' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
-                          placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-                          value={val}
-                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                          className={`w-full bg-slate-50/50 text-xs text-slate-800 px-3 py-2 border rounded-lg focus:outline-none focus:bg-white focus:ring-1 transition-all ${
-                            hasError ? 'border-rose-400 focus:ring-rose-400' : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500'
-                          }`}
-                        />
-                      )}
-
-                      {hasError && (
-                        <p className="text-rose-500 text-[10px] font-bold mt-1.5 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3 shrink-0" />
-                          <span>{hasError}</span>
-                        </p>
-                      )}
-                      
-                      {field.helpText && !hasError && (
-                        <p className="text-slate-400 text-[9px] mt-0.5">{field.helpText}</p>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Workflow Status Picker */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Workflow status
-                  </label>
-                  {viewOnly ? (
-                    <div className="bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-indigo-700 uppercase">
-                      {formData.status || 'Draft'}
-                    </div>
-                  ) : (
-                    <select
-                      value={formData.status || 'Draft'}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full bg-slate-50/50 text-xs text-slate-800 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-500 font-semibold"
-                    >
-                      {workflowStatuses.map((st) => (
-                        <option key={st} value={st}>{st}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
+              <MetadataFormEngine
+                fields={fields as any}
+                formData={formData}
+                setFormData={setFormData}
+                formErrors={formErrors}
+                setFormErrors={setFormErrors}
+                viewOnly={viewOnly}
+                workflowStatuses={workflowStatuses}
+                moduleKey={moduleKey}
+              />
 
               {/* Revision snapshot history list inside the record modal */}
               {currentRecord && (

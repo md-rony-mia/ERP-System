@@ -20,6 +20,7 @@ import DocumentsView from './components/DocumentsView';
 import WorkflowView from './components/WorkflowView';
 import AIView from './components/AIView';
 import IntegrationView from './components/IntegrationView';
+import FixedAssetsView from './components/FixedAssetsView';
 
 import {
   seedCollectionIfEmpty,
@@ -790,13 +791,17 @@ export default function App() {
           )}
 
           {currentTab === 'accounting' && (
-            <AccountingView
-              accountHeads={accountHeads}
-              transactions={transactions}
-              bankAccounts={bankAccounts}
-              onLogTransaction={handleLogTransaction}
-              activeSubTab={currentSubTab}
-            />
+            currentSubTab === 'assets' ? (
+              <FixedAssetsView activeSubTab={currentSubTab} currentUser={currentUser} />
+            ) : (
+              <AccountingView
+                accountHeads={accountHeads}
+                transactions={transactions}
+                bankAccounts={bankAccounts}
+                onLogTransaction={handleLogTransaction}
+                activeSubTab={currentSubTab}
+              />
+            )
           )}
 
           {(currentTab === 'banking' || currentTab === 'loan' || currentTab === 'settings') && (
@@ -865,15 +870,15 @@ export default function App() {
           )}
 
           {currentTab === 'projects' && (
-            <ProjectsView activeSubTab={currentSubTab} />
+            <ProjectsView activeSubTab={currentSubTab} currentUser={currentUser} />
           )}
 
           {currentTab === 'manufacturing' && (
-            <ManufacturingView activeSubTab={currentSubTab} />
+            <ManufacturingView activeSubTab={currentSubTab} currentUser={currentUser} />
           )}
 
           {currentTab === 'service' && (
-            <ServiceView activeSubTab={currentSubTab} />
+            <ServiceView activeSubTab={currentSubTab} currentUser={currentUser} />
           )}
 
           {currentTab === 'documents' && (
