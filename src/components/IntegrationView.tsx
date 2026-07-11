@@ -25,6 +25,7 @@ import {
   Database,
   ArrowUpRight
 } from 'lucide-react';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface IntegrationViewProps {
   activeSubTab?: string;
@@ -52,92 +53,141 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
     : 'import';
 
   // --- LOCAL PERSISTED STATES ---
-  const [webhooks, setWebhooks] = useState<Webhook[]>(() => {
-    const saved = localStorage.getItem('axiom_integrations_webhooks');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'wh1', name: 'Invoice Paid Event Stream', url: 'https://api.yourcompany.com/webhooks/invoice-paid', triggerEvent: 'Invoice Paid', status: 'Active' },
-      { id: 'wh2', name: 'Low Stock Slack Alert', url: 'https://hooks.slack.com/services/T00/B00/X00', triggerEvent: 'Inventory Low Stock', status: 'Active' }
-    ];
-  });
-
-  const [marketplaceApps, setMarketplaceApps] = useState<MarketplaceApp[]>(() => {
-    const saved = localStorage.getItem('axiom_integrations_apps');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'app1', name: 'Stripe Payment Gateway', description: 'Reconcile invoice payments instantly via secure credit cards.', category: 'Fintech', connected: true },
-      { id: 'app2', name: 'Twilio SMS Broadcaster', description: 'Send low stock and employee pay slip notifications.', category: 'Telecom', connected: false },
-      { id: 'app3', name: 'Google Workspace Sync', description: 'Synchronize meetings and calendars with engineering schedules.', category: 'Utility', connected: true }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('axiom_integrations_webhooks', JSON.stringify(webhooks));
-  }, [webhooks]);
-
-  useEffect(() => {
-    localStorage.setItem('axiom_integrations_apps', JSON.stringify(marketplaceApps));
-  }, [marketplaceApps]);
-
-  // --- GITHUB INTEGRATION STATES ---
-  const [gitConnected, setGitConnected] = useState<boolean>(() => {
-    return localStorage.getItem('axiom_github_connected') === 'true';
-  });
-  const [gitRepo, setGitRepo] = useState<string>(() => {
-    return localStorage.getItem('axiom_github_repo') || 'ronymia2022/axiom-erp';
-  });
-  const [gitBranch, setGitBranch] = useState<string>(() => {
-    return localStorage.getItem('axiom_github_branch') || 'main';
-  });
-  const [gitToken, setGitToken] = useState<string>(() => {
-    return localStorage.getItem('axiom_github_token') || 'ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0';
-  });
-  const [gitAutoSync, setGitAutoSync] = useState<boolean>(() => {
-    return localStorage.getItem('axiom_github_autosync') !== 'false';
-  });
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [marketplaceApps, setMarketplaceApps] = useState<MarketplaceApp[]>([]);
+  const [gitConnected, setGitConnected] = useState<boolean>(false);
+  const [gitRepo, setGitRepo] = useState<string>('ronymia2022/axiom-erp');
+  const [gitBranch, setGitBranch] = useState<string>('main');
+  const [gitToken, setGitToken] = useState<string>('ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0');
+  const [gitAutoSync, setGitAutoSync] = useState<boolean>(true);
+  const [gitLogs, setGitLogs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isGitSyncing, setIsGitSyncing] = useState(false);
   const [commitMessageInput, setCommitMessageInput] = useState('');
-  const [gitLogs, setGitLogs] = useState<string[]>(() => {
-    const saved = localStorage.getItem('axiom_github_logs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        // 1. Webhooks
+        const legacyWebhooks = localStorage.getItem('axiom_integrations_webhooks');
+        let initialWebhooks = [
+          { id: 'wh1', name: 'Invoice Paid Event Stream', url: 'https://api.yourcompany.com/webhooks/invoice-paid', triggerEvent: 'Invoice Paid', status: 'Active' as const },
+          { id: 'wh2', name: 'Low Stock Slack Alert', url: 'https://hooks.slack.com/services/T00/B00/X00', triggerEvent: 'Inventory Low Stock', status: 'Active' as const }
+        ];
+        if (legacyWebhooks) {
+          try { initialWebhooks = JSON.parse(legacyWebhooks); } catch (e) {}
+        }
+        const seededWebhooks = await seedCollectionIfEmpty('integrationsWebhooks', initialWebhooks);
+        setWebhooks(seededWebhooks || []);
+        if (legacyWebhooks) {
+          localStorage.removeItem('axiom_integrations_webhooks');
+        }
+
+        // 2. Marketplace Apps
+        const legacyApps = localStorage.getItem('axiom_integrations_apps');
+        let initialApps = [
+          { id: 'app1', name: 'Stripe Payment Gateway', description: 'Reconcile invoice payments instantly via secure credit cards.', category: 'Fintech', connected: true },
+          { id: 'app2', name: 'Twilio SMS Broadcaster', description: 'Send low stock and employee pay slip notifications.', category: 'Telecom', connected: false },
+          { id: 'app3', name: 'Google Workspace Sync', description: 'Synchronize meetings and calendars with engineering schedules.', category: 'Utility', connected: true }
+        ];
+        if (legacyApps) {
+          try { initialApps = JSON.parse(legacyApps); } catch (e) {}
+        }
+        const seededApps = await seedCollectionIfEmpty('integrationsApps', initialApps);
+        setMarketplaceApps(seededApps || []);
+        if (legacyApps) {
+          localStorage.removeItem('axiom_integrations_apps');
+        }
+
+        // 3. Github Config
+        const legacyConnected = localStorage.getItem('axiom_github_connected') === 'true';
+        const legacyRepo = localStorage.getItem('axiom_github_repo') || 'ronymia2022/axiom-erp';
+        const legacyBranch = localStorage.getItem('axiom_github_branch') || 'main';
+        const legacyToken = localStorage.getItem('axiom_github_token') || 'ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0';
+        const legacyAutoSync = localStorage.getItem('axiom_github_autosync') !== 'false';
+
+        const defaultGithubConfig = [{
+          id: 'config',
+          connected: legacyConnected,
+          repo: legacyRepo,
+          branch: legacyBranch,
+          token: legacyToken,
+          autoSync: legacyAutoSync
+        }];
+
+        const seededGithub = await seedCollectionIfEmpty('integrationGithub', defaultGithubConfig);
+        const githubConfig = seededGithub?.[0] || defaultGithubConfig[0];
+        setGitConnected(githubConfig.connected);
+        setGitRepo(githubConfig.repo);
+        setGitBranch(githubConfig.branch);
+        setGitToken(githubConfig.token);
+        setGitAutoSync(githubConfig.autoSync);
+
+        // Clear legacy Github config
+        localStorage.removeItem('axiom_github_connected');
+        localStorage.removeItem('axiom_github_repo');
+        localStorage.removeItem('axiom_github_branch');
+        localStorage.removeItem('axiom_github_token');
+        localStorage.removeItem('axiom_github_autosync');
+
+        // 4. Github Logs
+        const legacyLogs = localStorage.getItem('axiom_github_logs');
+        let initialLogs = [
+          '[SYSTEM] Initialized secure TLS connection handshake with github.com API.',
+          '[SUCCESS] Verified repository authentication with Personal Access Token scopes: repo, write:packages.',
+          '[INFO] Last synced on: 2026-07-11 00:24:32 UTC from branch main.',
+          '[COMMIT] d3f1b4 - Arif Hossain: Refactored Sales Invoice Tax calculation model.',
+          '[PULL] Successfully integrated latest commit changes from upstream repository.'
+        ];
+        if (legacyLogs) {
+          try { initialLogs = JSON.parse(legacyLogs); } catch (e) {}
+        }
+        const seededLogs = await seedCollectionIfEmpty('integrationGithubLogs', [{ id: 'logs', entries: initialLogs }]);
+        setGitLogs(seededLogs?.[0]?.entries || initialLogs);
+        if (legacyLogs) {
+          localStorage.removeItem('axiom_github_logs');
+        }
+
+      } catch (err) {
+        console.error("Integrations migration failed", err);
+      } finally {
+        setLoading(false);
+      }
     }
-    return [
-      '[SYSTEM] Initialized secure TLS connection handshake with github.com API.',
-      '[SUCCESS] Verified repository authentication with Personal Access Token scopes: repo, write:packages.',
-      '[INFO] Last synced on: 2026-07-11 00:24:32 UTC from branch main.',
-      '[COMMIT] d3f1b4 - Arif Hossain: Refactored Sales Invoice Tax calculation model.',
-      '[PULL] Successfully integrated latest commit changes from upstream repository.'
-    ];
-  });
+    loadData();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('axiom_github_connected', String(gitConnected));
-  }, [gitConnected]);
+    if (loading) return;
+    syncCollectionToFirestore('integrationsWebhooks', webhooks);
+  }, [webhooks, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_github_repo', gitRepo);
-  }, [gitRepo]);
+    if (loading) return;
+    syncCollectionToFirestore('integrationsApps', marketplaceApps);
+  }, [marketplaceApps, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_github_branch', gitBranch);
-  }, [gitBranch]);
+    if (loading) return;
+    syncCollectionToFirestore('integrationGithub', [{
+      id: 'config',
+      connected: gitConnected,
+      repo: gitRepo,
+      branch: gitBranch,
+      token: gitToken,
+      autoSync: gitAutoSync
+    }]);
+  }, [gitConnected, gitRepo, gitBranch, gitToken, gitAutoSync, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_github_token', gitToken);
-  }, [gitToken]);
-
-  useEffect(() => {
-    localStorage.setItem('axiom_github_autosync', String(gitAutoSync));
-  }, [gitAutoSync]);
-
-  useEffect(() => {
-    localStorage.setItem('axiom_github_logs', JSON.stringify(gitLogs));
-  }, [gitLogs]);
+    if (loading) return;
+    syncCollectionToFirestore('integrationGithubLogs', [{
+      id: 'logs',
+      entries: gitLogs
+    }]);
+  }, [gitLogs, loading]);
 
   const handleManualGitSync = () => {
     if (!gitConnected) {

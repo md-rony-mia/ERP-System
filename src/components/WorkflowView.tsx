@@ -17,6 +17,7 @@ import {
   TrendingUp,
   FileText
 } from 'lucide-react';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface WorkflowViewProps {
   activeSubTab?: string;
@@ -56,50 +57,83 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
     : 'pending_approval';
 
   // --- LOCAL PERSISTED STATES ---
-  const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>(() => {
-    const saved = localStorage.getItem('axiom_wf_rules');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'ar1', name: 'High Value PO Overrides', triggerEvent: 'Purchase Order Total', conditionThreshold: 500000, approverRole: 'Managing Director', status: 'Active' },
-      { id: 'ar2', name: 'Credit Sale Authorization', triggerEvent: 'Credit Invoice Total', conditionThreshold: 200000, approverRole: 'CFO', status: 'Active' }
-    ];
-  });
-
-  const [automationRules, setAutomationRules] = useState<AutomationRule[]>(() => {
-    const saved = localStorage.getItem('axiom_wf_automations');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'atr1', name: 'Low Stock Supervisor Email Alert', eventTrigger: 'Stock Alert', actionChannel: 'Email', status: 'Active' },
-      { id: 'atr2', name: 'Sales Lead Webhook Payload', eventTrigger: 'New Lead', actionChannel: 'Webhook', status: 'Inactive' }
-    ];
-  });
-
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>(() => {
-    const saved = localStorage.getItem('axiom_wf_pending');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'pa1', documentNo: 'PO-2026-9021', documentType: 'Purchase Order', amount: 820000, requestedBy: 'Tasnim Ahmed', dateRequested: '2026-07-08', status: 'Awaiting Sign-off' },
-      { id: 'pa2', documentNo: 'INV-2026-0412', documentType: 'Invoice', amount: 450000, requestedBy: 'Rony Mia', dateRequested: '2026-07-09', status: 'Awaiting Sign-off' }
-    ];
-  });
+  const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
+  const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('axiom_wf_rules', JSON.stringify(approvalRules));
-  }, [approvalRules]);
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        // 1. approvalRules
+        const legacyRules = localStorage.getItem('axiom_wf_rules');
+        let initialRules = [
+          { id: 'ar1', name: 'High Value PO Overrides', triggerEvent: 'Purchase Order Total', conditionThreshold: 500000, approverRole: 'Managing Director', status: 'Active' as const },
+          { id: 'ar2', name: 'Credit Sale Authorization', triggerEvent: 'Credit Invoice Total', conditionThreshold: 200000, approverRole: 'CFO', status: 'Active' as const }
+        ];
+        if (legacyRules) {
+          try { initialRules = JSON.parse(legacyRules); } catch (e) {}
+        }
+        const seededRules = await seedCollectionIfEmpty('wfRules', initialRules);
+        setApprovalRules(seededRules || []);
+        if (legacyRules) {
+          localStorage.removeItem('axiom_wf_rules');
+        }
+
+        // 2. automationRules
+        const legacyAutos = localStorage.getItem('axiom_wf_automations');
+        let initialAutos = [
+          { id: 'atr1', name: 'Low Stock Supervisor Email Alert', eventTrigger: 'Stock Alert' as const, actionChannel: 'Email' as const, status: 'Active' as const },
+          { id: 'atr2', name: 'Sales Lead Webhook Payload', eventTrigger: 'New Lead' as const, actionChannel: 'Webhook' as const, status: 'Inactive' as const }
+        ];
+        if (legacyAutos) {
+          try { initialAutos = JSON.parse(legacyAutos); } catch (e) {}
+        }
+        const seededAutos = await seedCollectionIfEmpty('wfAutomations', initialAutos);
+        setAutomationRules(seededAutos || []);
+        if (legacyAutos) {
+          localStorage.removeItem('axiom_wf_automations');
+        }
+
+        // 3. pendingApprovals
+        const legacyPending = localStorage.getItem('axiom_wf_pending');
+        let initialPending = [
+          { id: 'pa1', documentNo: 'PO-2026-9021', documentType: 'Purchase Order' as const, amount: 820000, requestedBy: 'Tasnim Ahmed', dateRequested: '2026-07-08', status: 'Awaiting Sign-off' as const },
+          { id: 'pa2', documentNo: 'INV-2026-0412', documentType: 'Invoice' as const, amount: 450000, requestedBy: 'Rony Mia', dateRequested: '2026-07-09', status: 'Awaiting Sign-off' as const }
+        ];
+        if (legacyPending) {
+          try { initialPending = JSON.parse(legacyPending); } catch (e) {}
+        }
+        const seededPending = await seedCollectionIfEmpty('wfPending', initialPending);
+        setPendingApprovals(seededPending || []);
+        if (legacyPending) {
+          localStorage.removeItem('axiom_wf_pending');
+        }
+      } catch (err) {
+        console.error("Workflow migration failed", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('axiom_wf_automations', JSON.stringify(automationRules));
-  }, [automationRules]);
+    if (loading) return;
+    syncCollectionToFirestore('wfRules', approvalRules);
+  }, [approvalRules, loading]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_wf_pending', JSON.stringify(pendingApprovals));
-  }, [pendingApprovals]);
+    if (loading) return;
+    syncCollectionToFirestore('wfAutomations', automationRules);
+  }, [automationRules, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('wfPending', pendingApprovals);
+  }, [pendingApprovals, loading]);
 
   // --- MODALS FORM STATES ---
   const [showApprovalRuleModal, setShowApprovalRuleModal] = useState(false);

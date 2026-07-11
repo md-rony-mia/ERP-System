@@ -44,6 +44,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import MetadataFormEngine from './MetadataFormEngine';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 // ==========================================
 // UNIVERSAL CRUD SCHEMAS & TYPES
@@ -255,20 +256,48 @@ export default function UniversalCrudEngine({
   const [bulkFieldToUpdate, setBulkFieldToUpdate] = useState('');
   const [bulkValueToUpdate, setBulkValueToUpdate] = useState<any>('');
 
+  const [loading, setLoading] = useState(true);
+  const isMigrated = useMemo(() => ['projects', 'leads', 'campaigns', 'assets'].includes(moduleKey), [moduleKey]);
+
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
-    const savedData = localStorage.getItem(`axiom_crud_${moduleKey}`);
-    if (savedData) {
+    async function loadAndMigrate() {
       try {
-        setData(JSON.parse(savedData));
-      } catch (e) {
-        console.error(e);
+        setLoading(true);
+        if (isMigrated) {
+          const legacyData = localStorage.getItem(`axiom_crud_${moduleKey}`);
+          let initialData = initialSeedData || getSeedDataForModule(moduleKey);
+          if (legacyData) {
+            try { initialData = JSON.parse(legacyData); } catch (e) { console.error(e); }
+          }
+          const seeded = await seedCollectionIfEmpty(moduleKey, initialData);
+          setData(seeded || []);
+          
+          // Clear legacy so we don't migrate again
+          localStorage.setItem(`axiom_crud_${moduleKey}_migrated`, 'true');
+          localStorage.removeItem(`axiom_crud_${moduleKey}`);
+        } else {
+          const savedData = localStorage.getItem(`axiom_crud_${moduleKey}`);
+          if (savedData) {
+            try {
+              setData(JSON.parse(savedData));
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            const seed = initialSeedData || getSeedDataForModule(moduleKey);
+            setData(seed);
+            localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(seed));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load / migrate CRUD collection:", moduleKey, err);
+      } finally {
+        setLoading(false);
       }
-    } else {
-      const seed = initialSeedData || getSeedDataForModule(moduleKey);
-      setData(seed);
-      localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(seed));
     }
+
+    loadAndMigrate();
 
     // Load Audit Logs
     const savedAudits = localStorage.getItem(`axiom_crud_audit_${moduleKey}`);
@@ -281,12 +310,22 @@ export default function UniversalCrudEngine({
     if (savedRevs) {
       try { setRevisions(JSON.parse(savedRevs)); } catch (e) {}
     }
-  }, [moduleKey, initialSeedData]);
+  }, [moduleKey, initialSeedData, isMigrated]);
+
+  // --- FIRESTORE AUTO-SYNCHRONIZER ---
+  useEffect(() => {
+    if (loading || !isMigrated) return;
+    syncCollectionToFirestore(moduleKey, data);
+  }, [data, loading, moduleKey, isMigrated]);
 
   // --- SYNC DATA SAVER ---
   const syncAndSave = (updatedData: any[]) => {
     setData(updatedData);
-    localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(updatedData));
+    if (!isMigrated) {
+      localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(updatedData));
+    } else {
+      syncCollectionToFirestore(moduleKey, updatedData);
+    }
     if (onDataChange) {
       onDataChange(updatedData);
     }

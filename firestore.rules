@@ -161,6 +161,132 @@ service cloud.firestore {
 
 
     // =========================================================================
+    // SECTION B.2: EXTENDED ENTERPRISE SUBSYSTEM COLLECTIONS
+    // =========================================================================
+    // Rules covering Manufacturing, Projects, Service, Documents, Workflow and Integration modules.
+
+    // Manufacturing Subsystem
+    match /boms/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /workcenters/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /productionOrders/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /qualityInspections/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Projects Subsystem
+    match /projects/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /projectTasks/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /projectMilestones/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /projectTimesheets/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Service Subsystem
+    match /serviceTechnicians/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /serviceAmcs/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /serviceWarranties/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /serviceRepairs/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /serviceComplaints/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Documents Subsystem
+    match /documents/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /docContracts/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Workflow Subsystem
+    match /wfRules/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /wfAutomations/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /wfPending/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Integration Subsystem
+    match /integrationsWebhooks/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /integrationsApps/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /integrationGithub/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /integrationGithubLogs/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // CRM Subsystem
+    match /leads/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /campaigns/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+    match /crmActivities/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+    // Fixed Assets Subsystem
+    match /assets/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
+    }
+
+
+    // =========================================================================
     // SECTION C: FALLBACK SAFETY NET
     // =========================================================================
     // An absolute deny-all fallback rule protecting the database from any queries

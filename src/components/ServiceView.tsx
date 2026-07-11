@@ -18,6 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import PageStandardsWrapper from './PageStandardsWrapper';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface ServiceViewProps {
   activeSubTab?: string;
@@ -120,6 +121,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
   const [complaints, setComplaints] = useState<ComplaintRecord[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianRecord[]>([]);
   const [amcs, setAmcs] = useState<AMCRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [metrics, setMetrics] = useState({
     totalClaims: 3,
@@ -128,67 +130,73 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
     slaCompliance: '98.6%'
   });
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
+      setLoading(true);
       // 1. Warranties
-      const rawWar = localStorage.getItem('axiom_service_warranties');
-      let parsedWar = [];
-      if (rawWar) {
-        parsedWar = JSON.parse(rawWar);
-      } else {
-        parsedWar = DEFAULT_WARRANTIES;
-        localStorage.setItem('axiom_service_warranties', JSON.stringify(DEFAULT_WARRANTIES));
+      const legacyWar = localStorage.getItem('axiom_service_warranties');
+      let initialWar = DEFAULT_WARRANTIES;
+      if (legacyWar) {
+        try { initialWar = JSON.parse(legacyWar); } catch (e) {}
       }
-      setWarranties(parsedWar);
+      const parsedWar = await seedCollectionIfEmpty('serviceWarranties', initialWar);
+      setWarranties(parsedWar || []);
+      if (legacyWar) {
+        localStorage.removeItem('axiom_service_warranties');
+      }
 
       // 2. Repairs
-      const rawRep = localStorage.getItem('axiom_service_repairs');
-      let parsedRep = [];
-      if (rawRep) {
-        parsedRep = JSON.parse(rawRep);
-      } else {
-        parsedRep = DEFAULT_REPAIRS;
-        localStorage.setItem('axiom_service_repairs', JSON.stringify(DEFAULT_REPAIRS));
+      const legacyRep = localStorage.getItem('axiom_service_repairs');
+      let initialRep = DEFAULT_REPAIRS;
+      if (legacyRep) {
+        try { initialRep = JSON.parse(legacyRep); } catch (e) {}
       }
-      setRepairs(parsedRep);
+      const parsedRep = await seedCollectionIfEmpty('serviceRepairs', initialRep);
+      setRepairs(parsedRep || []);
+      if (legacyRep) {
+        localStorage.removeItem('axiom_service_repairs');
+      }
 
       // 3. Complaints
-      const rawComp = localStorage.getItem('axiom_service_complaints');
-      let parsedComp = [];
-      if (rawComp) {
-        parsedComp = JSON.parse(rawComp);
-      } else {
-        parsedComp = DEFAULT_COMPLAINTS;
-        localStorage.setItem('axiom_service_complaints', JSON.stringify(DEFAULT_COMPLAINTS));
+      const legacyComp = localStorage.getItem('axiom_service_complaints');
+      let initialComp = DEFAULT_COMPLAINTS;
+      if (legacyComp) {
+        try { initialComp = JSON.parse(legacyComp); } catch (e) {}
       }
-      setComplaints(parsedComp);
+      const parsedComp = await seedCollectionIfEmpty('serviceComplaints', initialComp);
+      setComplaints(parsedComp || []);
+      if (legacyComp) {
+        localStorage.removeItem('axiom_service_complaints');
+      }
 
       // 4. Technicians
-      const rawTech = localStorage.getItem('axiom_service_technicians');
-      let parsedTech = [];
-      if (rawTech) {
-        parsedTech = JSON.parse(rawTech);
-      } else {
-        parsedTech = DEFAULT_TECHNICIANS;
-        localStorage.setItem('axiom_service_technicians', JSON.stringify(DEFAULT_TECHNICIANS));
+      const legacyTech = localStorage.getItem('axiom_service_technicians');
+      let initialTech = DEFAULT_TECHNICIANS;
+      if (legacyTech) {
+        try { initialTech = JSON.parse(legacyTech); } catch (e) {}
       }
-      setTechnicians(parsedTech);
+      const parsedTech = await seedCollectionIfEmpty('serviceTechnicians', initialTech);
+      setTechnicians(parsedTech || []);
+      if (legacyTech) {
+        localStorage.removeItem('axiom_service_technicians');
+      }
 
       // 5. AMCs
-      const rawAmc = localStorage.getItem('axiom_service_amcs');
-      let parsedAmc = [];
-      if (rawAmc) {
-        parsedAmc = JSON.parse(rawAmc);
-      } else {
-        parsedAmc = DEFAULT_AMCS;
-        localStorage.setItem('axiom_service_amcs', JSON.stringify(DEFAULT_AMCS));
+      const legacyAmc = localStorage.getItem('axiom_service_amcs');
+      let initialAmc = DEFAULT_AMCS;
+      if (legacyAmc) {
+        try { initialAmc = JSON.parse(legacyAmc); } catch (e) {}
       }
-      setAmcs(parsedAmc);
+      const parsedAmc = await seedCollectionIfEmpty('serviceAmcs', initialAmc);
+      setAmcs(parsedAmc || []);
+      if (legacyAmc) {
+        localStorage.removeItem('axiom_service_amcs');
+      }
 
       // Calculations for metrics
-      const totalClaims = parsedComp.filter(c => c.status !== 'Resolved').length + parsedRep.length;
-      const activeRepairs = parsedRep.filter(r => r.stage !== 'Dispatched').length;
-      const remediationCost = parsedRep.reduce((sum, r) => sum + (Number(r.costEstimate) || 0), 0);
+      const totalClaims = (parsedComp || []).filter(c => c.status !== 'Resolved').length + (parsedRep || []).length;
+      const activeRepairs = (parsedRep || []).filter(r => r.stage !== 'Dispatched').length;
+      const remediationCost = (parsedRep || []).reduce((sum, r) => sum + (Number(r.costEstimate) || 0), 0);
 
       setMetrics({
         totalClaims,
@@ -198,6 +206,8 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       });
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -254,7 +264,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
 
     const updated = [...warranties, newWar];
     setWarranties(updated);
-    localStorage.setItem('axiom_service_warranties', JSON.stringify(updated));
+    syncCollectionToFirestore('serviceWarranties', updated);
     setShowWarrantyModal(false);
     setWarrantyForm({
       customerName: '',
@@ -302,7 +312,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
 
     const updatedRepairs = [...repairs, newRMA];
     setRepairs(updatedRepairs);
-    localStorage.setItem('axiom_service_repairs', JSON.stringify(updatedRepairs));
+    syncCollectionToFirestore('serviceRepairs', updatedRepairs);
     
     // Increment active ticket count for technician
     const updatedTechs = technicians.map(t => {
@@ -312,7 +322,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       return t;
     });
     setTechnicians(updatedTechs);
-    localStorage.setItem('axiom_service_technicians', JSON.stringify(updatedTechs));
+    syncCollectionToFirestore('serviceTechnicians', updatedTechs);
 
     setShowRMAPreparationModal(false);
     loadData();
@@ -342,7 +352,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
 
     const updated = [newComp, ...complaints];
     setComplaints(updated);
-    localStorage.setItem('axiom_service_complaints', JSON.stringify(updated));
+    syncCollectionToFirestore('serviceComplaints', updated);
     setShowComplaintModal(false);
     setComplaintForm({ customerName: '', subject: '', severity: 'Medium' });
     loadData();
@@ -356,7 +366,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       return c;
     });
     setComplaints(updated);
-    localStorage.setItem('axiom_service_complaints', JSON.stringify(updated));
+    syncCollectionToFirestore('serviceComplaints', updated);
     loadData();
   };
 
@@ -379,7 +389,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       return t;
     });
     setTechnicians(updatedTechs);
-    localStorage.setItem('axiom_service_technicians', JSON.stringify(updatedTechs));
+    syncCollectionToFirestore('serviceTechnicians', updatedTechs);
 
     // Also append an automated repair ticket
     const tech = technicians.find(t => t.id === dispatcher.techId);
@@ -393,7 +403,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
     };
     const updatedRepairs = [...repairs, autoRep];
     setRepairs(updatedRepairs);
-    localStorage.setItem('axiom_service_repairs', JSON.stringify(updatedRepairs));
+    syncCollectionToFirestore('serviceRepairs', updatedRepairs);
 
     setDispatcher({ techId: '', ticketSubject: '', customerLink: '', location: '' });
     loadData();
@@ -424,7 +434,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
 
     const updated = [...amcs, newAMC];
     setAmcs(updated);
-    localStorage.setItem('axiom_service_amcs', JSON.stringify(updated));
+    syncCollectionToFirestore('serviceAmcs', updated);
     setShowAmcModal(false);
     setAmcForm({ corporateClient: '', contractType: 'Gold', monthlyVisitDay: '15' });
     loadData();
@@ -438,7 +448,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       return a;
     });
     setAmcs(updated);
-    localStorage.setItem('axiom_service_amcs', JSON.stringify(updated));
+    syncCollectionToFirestore('serviceAmcs', updated);
     loadData();
   };
 

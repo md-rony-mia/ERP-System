@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Sparkles
 } from 'lucide-react';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface DocumentsViewProps {
   activeSubTab?: string;
@@ -51,36 +52,63 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
     : 'document_center';
 
   // --- LOCAL PERSISTED STATES ---
-  const [documents, setDocuments] = useState<ERPDocument[]>(() => {
-    const saved = localStorage.getItem('axiom_docs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'doc1', name: 'Raw Steel Supply Agreement 2026.pdf', category: 'Legal', type: 'PDF', uploadedBy: 'Farhana Yasmin', date: '2026-07-01', size: '2.4 MB', version: 'v1.2' },
-      { id: 'doc2', name: 'Q2 Financial Balance Audit Spreadsheet.xlsx', category: 'Finance', type: 'XLSX', uploadedBy: 'Sabbir Rahman', date: '2026-07-04', size: '14.1 MB', version: 'v2.0' },
-      { id: 'doc3', name: 'Staff Code of Conduct Handbook.docx', category: 'HR', type: 'DOCX', uploadedBy: 'Tasnim Ahmed', date: '2026-06-15', size: '840 KB', version: 'v1.0' }
-    ];
-  });
-
-  const [contracts, setContracts] = useState<SignatureContract[]>(() => {
-    const saved = localStorage.getItem('axiom_doc_contracts');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'ct1', title: 'Cement Bulk Distribution Indemnity Deed', clientName: 'Purbachal Housing Ltd', dateSent: '2026-07-02', status: 'Pending Signature' },
-      { id: 'ct2', title: 'Narayanganj Yard Leasing Contract', clientName: 'Axiom Logistics', dateSent: '2026-06-25', status: 'Signed', signedTimestamp: '2026-06-26 10:45 AM' }
-    ];
-  });
+  const [documents, setDocuments] = useState<ERPDocument[]>([]);
+  const [contracts, setContracts] = useState<SignatureContract[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('axiom_docs', JSON.stringify(documents));
-  }, [documents]);
+    async function loadData() {
+      try {
+        setLoading(true);
+
+        // 1. Documents
+        const legacyDocs = localStorage.getItem('axiom_docs');
+        let initialDocs: ERPDocument[] = [
+          { id: 'doc1', name: 'Raw Steel Supply Agreement 2026.pdf', category: 'Legal', type: 'PDF', uploadedBy: 'Farhana Yasmin', date: '2026-07-01', size: '2.4 MB', version: 'v1.2' },
+          { id: 'doc2', name: 'Q2 Financial Balance Audit Spreadsheet.xlsx', category: 'Finance', type: 'XLSX', uploadedBy: 'Sabbir Rahman', date: '2026-07-04', size: '14.1 MB', version: 'v2.0' },
+          { id: 'doc3', name: 'Staff Code of Conduct Handbook.docx', category: 'HR', type: 'DOCX', uploadedBy: 'Tasnim Ahmed', date: '2026-06-15', size: '840 KB', version: 'v1.0' }
+        ];
+        if (legacyDocs) {
+          try { initialDocs = JSON.parse(legacyDocs); } catch (e) {}
+        }
+        const seededDocs = await seedCollectionIfEmpty('documents', initialDocs);
+        setDocuments(seededDocs || []);
+        if (legacyDocs) {
+          localStorage.removeItem('axiom_docs');
+        }
+
+        // 2. Contracts
+        const legacyContracts = localStorage.getItem('axiom_doc_contracts');
+        let initialContracts: SignatureContract[] = [
+          { id: 'ct1', title: 'Cement Bulk Distribution Indemnity Deed', clientName: 'Purbachal Housing Ltd', dateSent: '2026-07-02', status: 'Pending Signature' },
+          { id: 'ct2', title: 'Narayanganj Yard Leasing Contract', clientName: 'Axiom Logistics', dateSent: '2026-06-25', status: 'Signed', signedTimestamp: '2026-06-26 10:45 AM' }
+        ];
+        if (legacyContracts) {
+          try { initialContracts = JSON.parse(legacyContracts); } catch (e) {}
+        }
+        const seededContracts = await seedCollectionIfEmpty('docContracts', initialContracts);
+        setContracts(seededContracts || []);
+        if (legacyContracts) {
+          localStorage.removeItem('axiom_doc_contracts');
+        }
+      } catch (err) {
+        console.error("Documents migration failed", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('axiom_doc_contracts', JSON.stringify(contracts));
-  }, [contracts]);
+    if (loading) return;
+    syncCollectionToFirestore('documents', documents);
+  }, [documents, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('docContracts', contracts);
+  }, [contracts, loading]);
 
   // --- SEARCH QUERY & FOLDER FILTER ---
   const [searchQuery, setSearchQuery] = useState('');

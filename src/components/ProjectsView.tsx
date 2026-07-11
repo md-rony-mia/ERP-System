@@ -21,6 +21,7 @@ import {
 import PageStandardsWrapper from './PageStandardsWrapper';
 import UniversalCrudEngine from './UniversalCrudEngine';
 import { PROJECTS_CONFIG } from '../metadata/configs';
+import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface ProjectsViewProps {
   activeSubTab?: string;
@@ -102,6 +103,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [milestones, setMilestones] = useState<ProjectMilestone[]>([]);
   const [timesheets, setTimesheets] = useState<ProjectTimesheet[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [metrics, setMetrics] = useState({
     totalBudget: 6550000,
@@ -110,57 +112,62 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
     activeStage: 2
   });
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
+      setLoading(true);
       // 1. Projects
-      const rawProjs = localStorage.getItem('axiom_crud_projects');
-      let parsedProjs = [];
-      if (rawProjs) {
-        parsedProjs = JSON.parse(rawProjs);
-      } else {
-        parsedProjs = DEFAULT_PROJECTS;
-        localStorage.setItem('axiom_crud_projects', JSON.stringify(DEFAULT_PROJECTS));
+      const legacyProjs = localStorage.getItem('axiom_crud_projects');
+      let initialProjs = DEFAULT_PROJECTS;
+      if (legacyProjs) {
+        try { initialProjs = JSON.parse(legacyProjs); } catch (e) {}
       }
-      setProjects(parsedProjs);
+      const parsedProjs = await seedCollectionIfEmpty('projects', initialProjs);
+      setProjects(parsedProjs || []);
+      if (legacyProjs) {
+        localStorage.removeItem('axiom_crud_projects');
+      }
 
       // 2. Tasks
-      const rawTasks = localStorage.getItem('axiom_project_tasks');
-      let parsedTasks = [];
-      if (rawTasks) {
-        parsedTasks = JSON.parse(rawTasks);
-      } else {
-        parsedTasks = DEFAULT_TASKS;
-        localStorage.setItem('axiom_project_tasks', JSON.stringify(DEFAULT_TASKS));
+      const legacyTasks = localStorage.getItem('axiom_project_tasks');
+      let initialTasks = DEFAULT_TASKS;
+      if (legacyTasks) {
+        try { initialTasks = JSON.parse(legacyTasks); } catch (e) {}
       }
-      setTasks(parsedTasks);
+      const parsedTasks = await seedCollectionIfEmpty('projectTasks', initialTasks);
+      setTasks(parsedTasks || []);
+      if (legacyTasks) {
+        localStorage.removeItem('axiom_project_tasks');
+      }
 
       // 3. Milestones
-      const rawMiles = localStorage.getItem('axiom_project_milestones');
-      let parsedMiles = [];
-      if (rawMiles) {
-        parsedMiles = JSON.parse(rawMiles);
-      } else {
-        parsedMiles = DEFAULT_MILESTONES;
-        localStorage.setItem('axiom_project_milestones', JSON.stringify(DEFAULT_MILESTONES));
+      const legacyMiles = localStorage.getItem('axiom_project_milestones');
+      let initialMiles = DEFAULT_MILESTONES;
+      if (legacyMiles) {
+        try { initialMiles = JSON.parse(legacyMiles); } catch (e) {}
       }
-      setMilestones(parsedMiles);
+      const parsedMiles = await seedCollectionIfEmpty('projectMilestones', initialMiles);
+      setMilestones(parsedMiles || []);
+      if (legacyMiles) {
+        localStorage.removeItem('axiom_project_milestones');
+      }
 
       // 4. Timesheets
-      const rawTimes = localStorage.getItem('axiom_project_timesheets');
-      let parsedTimes = [];
-      if (rawTimes) {
-        parsedTimes = JSON.parse(rawTimes);
-      } else {
-        parsedTimes = DEFAULT_TIMESHEETS;
-        localStorage.setItem('axiom_project_timesheets', JSON.stringify(DEFAULT_TIMESHEETS));
+      const legacyTimes = localStorage.getItem('axiom_project_timesheets');
+      let initialTimes = DEFAULT_TIMESHEETS;
+      if (legacyTimes) {
+        try { initialTimes = JSON.parse(legacyTimes); } catch (e) {}
       }
-      setTimesheets(parsedTimes);
+      const parsedTimes = await seedCollectionIfEmpty('projectTimesheets', initialTimes);
+      setTimesheets(parsedTimes || []);
+      if (legacyTimes) {
+        localStorage.removeItem('axiom_project_timesheets');
+      }
 
       // Calculations for metrics
-      const totalBudget = parsedProjs.reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
-      const totalProjects = parsedProjs.length;
-      const highPriority = parsedTasks.filter(t => t.priority === 'High' && t.status !== 'Completed').length;
-      const activeStage = parsedProjs.filter(p => p.stage === 'Active' || p.stage === 'In Progress').length || 2;
+      const totalBudget = (parsedProjs || []).reduce((sum, p) => sum + (Number(p.budget) || 0), 0);
+      const totalProjects = (parsedProjs || []).length;
+      const highPriority = (parsedTasks || []).filter(t => t.priority === 'High' && t.status !== 'Completed').length;
+      const activeStage = (parsedProjs || []).filter(p => p.stage === 'Active' || p.stage === 'In Progress').length || 2;
 
       setMetrics({
         totalBudget: totalBudget || 6550000,
@@ -170,6 +177,8 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       });
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -209,7 +218,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
 
     const updated = [...tasks, newTask];
     setTasks(updated);
-    localStorage.setItem('axiom_project_tasks', JSON.stringify(updated));
+    syncCollectionToFirestore('projectTasks', updated);
     setShowTaskModal(false);
     setTaskForm({
       title: '',
@@ -227,7 +236,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
     if (confirm('Permanently remove this task from project roster?')) {
       const updated = tasks.filter(t => t.id !== id);
       setTasks(updated);
-      localStorage.setItem('axiom_project_tasks', JSON.stringify(updated));
+      syncCollectionToFirestore('projectTasks', updated);
       loadData();
     }
   };
@@ -243,7 +252,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       return t;
     });
     setTasks(updated);
-    localStorage.setItem('axiom_project_tasks', JSON.stringify(updated));
+    syncCollectionToFirestore('projectTasks', updated);
     loadData();
   };
 
@@ -258,7 +267,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       return t;
     });
     setTasks(updated);
-    localStorage.setItem('axiom_project_tasks', JSON.stringify(updated));
+    syncCollectionToFirestore('projectTasks', updated);
     loadData();
   };
 
@@ -287,7 +296,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
 
     const updated = [...milestones, newMile];
     setMilestones(updated);
-    localStorage.setItem('axiom_project_milestones', JSON.stringify(updated));
+    syncCollectionToFirestore('projectMilestones', updated);
     setShowMilestoneModal(false);
     setMilestoneForm({
       title: '',
@@ -309,7 +318,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       return m;
     });
     setMilestones(updated);
-    localStorage.setItem('axiom_project_milestones', JSON.stringify(updated));
+    syncCollectionToFirestore('projectMilestones', updated);
     loadData();
   };
 
@@ -317,7 +326,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
     if (confirm('Archive this project milestone?')) {
       const updated = milestones.filter(m => m.id !== id);
       setMilestones(updated);
-      localStorage.setItem('axiom_project_milestones', JSON.stringify(updated));
+      syncCollectionToFirestore('projectMilestones', updated);
       loadData();
     }
   };
@@ -347,7 +356,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
 
     const updated = [newTime, ...timesheets];
     setTimesheets(updated);
-    localStorage.setItem('axiom_project_timesheets', JSON.stringify(updated));
+    syncCollectionToFirestore('projectTimesheets', updated);
     setShowTimesheetModal(false);
     setTimesheetForm({
       projectName: 'Purbachal Concrete Tower (Phase 1)',
@@ -362,7 +371,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
     if (confirm('Delete timesheet entry?')) {
       const updated = timesheets.filter(t => t.id !== id);
       setTimesheets(updated);
-      localStorage.setItem('axiom_project_timesheets', JSON.stringify(updated));
+      syncCollectionToFirestore('projectTimesheets', updated);
       loadData();
     }
   };
