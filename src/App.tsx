@@ -28,7 +28,11 @@ import {
   fetchCollectionFromFirestore,
   saveSettingsToFirestore,
   syncCollectionToFirestore,
+  db,
+  onAuthStateChange,
+  signOutUser,
 } from './lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 import {
   Product,
@@ -64,26 +68,45 @@ export default function App() {
   const [currentSubTab, setCurrentSubTab] = useState('');
   const [isVisualEditMode, setIsVisualEditMode] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState<any | null>(() => {
-    const saved = localStorage.getItem('axiom_current_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChange(async (fbUser) => {
+      if (fbUser) {
+        try {
+          const userDocRef = doc(db, 'users', fbUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const profile = userDocSnap.data();
+            setCurrentUser(profile);
+            localStorage.setItem('axiom_current_user', JSON.stringify(profile));
+          } else {
+            // Profile doc doesn't exist yet, we'll let Login component create it on first sign-in
+          }
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+        }
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('axiom_current_user');
       }
-    }
-    return null;
-  });
+      setAuthChecked(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLoginSuccess = (user: any) => {
     setCurrentUser(user);
     localStorage.setItem('axiom_current_user', JSON.stringify(user));
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('axiom_current_user');
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+    } catch (e) {
+      console.error("Error during log out:", e);
+    }
   };
 
   const DEFAULT_SETTINGS: AppSettings = {
@@ -171,7 +194,15 @@ export default function App() {
 
   // Firestore initial load & seed effect
   useEffect(() => {
+    if (!authChecked) return;
+
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
     async function loadData() {
+      setLoading(true);
       try {
         // Load settings
         const settingsDocs = await fetchCollectionFromFirestore<any>('settings');
@@ -233,68 +264,68 @@ export default function App() {
       }
     }
     loadData();
-  }, []);
+  }, [currentUser, authChecked]);
 
   // Synchronize changes to Firestore when states update, AFTER initial load is done!
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     saveSettingsToFirestore(settings);
-  }, [settings, loading]);
+  }, [settings, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('products', products);
-  }, [products, loading]);
+  }, [products, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('customers', customers);
-  }, [customers, loading]);
+  }, [customers, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('suppliers', suppliers);
-  }, [suppliers, loading]);
+  }, [suppliers, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('invoices', invoices);
-  }, [invoices, loading]);
+  }, [invoices, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('purchaseOrders', purchaseOrders);
-  }, [purchaseOrders, loading]);
+  }, [purchaseOrders, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('bankAccounts', bankAccounts);
-  }, [bankAccounts, loading]);
+  }, [bankAccounts, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('transactions', transactions);
-  }, [transactions, loading]);
+  }, [transactions, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('accountHeads', accountHeads);
-  }, [accountHeads, loading]);
+  }, [accountHeads, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('employees', employees);
-  }, [employees, loading]);
+  }, [employees, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('attendances', attendances);
-  }, [attendances, loading]);
+  }, [attendances, loading, currentUser]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     syncCollectionToFirestore('loanAccounts', loanAccounts);
-  }, [loanAccounts, loading]);
+  }, [loanAccounts, loading, currentUser]);
 
   // --- STATE MUTATION HANDLERS ---
 

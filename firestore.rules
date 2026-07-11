@@ -112,6 +112,13 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSignedIn();
       allow write: if isAdminOrManager();
+      allow create: if isSignedIn() && request.auth.uid == uid && (
+        (request.auth.token.email == "ronymia2022@gmail.com" && request.resource.data.role == "Administrator") ||
+        (request.auth.token.email == "tasnim@madani.com" && request.resource.data.role == "Manager") ||
+        (request.auth.token.email == "sabbir@madani.com" && request.resource.data.role == "Cashier") ||
+        (request.auth.token.email == "sumona@madani.com" && request.resource.data.role == "Sales Agent") ||
+        (!(request.auth.token.email in ["ronymia2022@gmail.com", "tasnim@madani.com", "sabbir@madani.com", "sumona@madani.com"]) && request.resource.data.role == "Sales Agent")
+      );
     }
 
 

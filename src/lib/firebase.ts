@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDocs, collection, writeBatch, deleteDoc } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0450547040",
@@ -17,6 +17,18 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore with custom databaseId
 export const db = getFirestore(app, "ai-studio-axiomerp-10deb922-6cca-497b-86d2-a80d8e1b8236");
 export const auth = getAuth(app);
+
+export function signIn(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export function signOutUser() {
+  return signOut(auth);
+}
+
+export function onAuthStateChange(callback: (user: FirebaseUser | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
 
 export enum OperationType {
   CREATE = 'create',

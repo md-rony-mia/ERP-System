@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { User, Lock, LogIn, AlertCircle, Info } from 'lucide-react';
+import { User, Lock, LogIn, AlertCircle, Info, Loader2 } from 'lucide-react';
 import { AppSettings } from '../types';
+import { db, signIn, signOutUser } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface LoginProps {
   settings: AppSettings;
@@ -12,21 +14,23 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!username.trim()) {
-      setError('Username is required.');
+    const identifier = username.trim();
+    if (!identifier) {
+      setError('Username or Email is required. / ইউজারনেম বা ইমেল প্রয়োজন।');
       return;
     }
     if (!password.trim()) {
-      setError('Password is required.');
+      setError('Password is required. / পাসওয়ার্ড প্রয়োজন।');
       return;
     }
 
-    // Find user in local settings list (or default list)
+    // Determine correct email to auth with
     const fallbackUsersList = [
       { id: '1', name: 'Rony Mia', username: 'admin_rony', email: 'ronymia2022@gmail.com', role: 'Administrator', status: 'Active', avatar: 'RM' },
       { id: '2', name: 'Tasnim Ahmed', username: 'tasnim_mgr', email: 'tasnim@madani.com', role: 'Manager', status: 'Active', avatar: 'TA' },
@@ -37,29 +41,70 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
       ? settings.usersList
       : fallbackUsersList;
 
-    const user = actualUsersList.find(
-      (u) => u.username.toLowerCase() === username.trim().toLowerCase()
-    );
-
-    if (!user) {
-      setError('Invalid username or account does not exist.');
-      return;
+    let emailToAuth = identifier;
+    if (!identifier.includes('@')) {
+      const matchedUser = actualUsersList.find(
+        (u) => u.username.toLowerCase() === identifier.toLowerCase()
+      );
+      if (matchedUser) {
+        emailToAuth = matchedUser.email;
+      } else {
+        setError('No user found with this username. Please use your registered email or username. / এই ইউজারনেম দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।');
+        return;
+      }
     }
 
-    if (user.status !== 'Active') {
-      setError('This account is currently inactive. Please contact support.');
-      return;
-    }
+    try {
+      setLoading(true);
+      const userCredential = await signIn(emailToAuth, password);
+      const fbUser = userCredential.user;
 
-    // Since we don't have explicit passwords stored, let's accept '123456', 'admin', or matching the username for convenience
-    const validPasswords = ['123456', 'admin', user.username];
-    if (!validPasswords.includes(password)) {
-      setError('Incorrect password. Use "123456" or "admin".');
-      return;
-    }
+      // Fetch or create user profile in Firestore
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
 
-    // Login success!
-    onLoginSuccess(user);
+      let profileData;
+      if (!userDocSnap.exists()) {
+        const matchedUser = actualUsersList.find(
+          (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase()
+        );
+        profileData = {
+          uid: fbUser.uid,
+          name: matchedUser ? matchedUser.name : (fbUser.displayName || fbUser.email?.split('@')[0] || 'Unknown User'),
+          email: fbUser.email || '',
+          role: matchedUser ? matchedUser.role : 'Sales Agent',
+          status: matchedUser ? matchedUser.status : 'Active'
+        };
+        await setDoc(userDocRef, profileData);
+      } else {
+        profileData = userDocSnap.data();
+      }
+
+      if (profileData.status !== 'Active') {
+        setError('This account is currently inactive. Please contact support. / এই অ্যাকাউন্টটি নিষ্ক্রিয় করা আছে। অনুগ্রহ করে এডমিনের সাথে যোগাযোগ করুন।');
+        await signOutUser();
+        return;
+      }
+
+      onLoginSuccess(profileData);
+    } catch (err: any) {
+      console.error("Auth login error:", err);
+      let errMsg = 'Login failed. Please try again. / লগইন করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        errMsg = 'Incorrect password or invalid credentials. / ভুল পাসওয়ার্ড বা তথ্য প্রদান করা হয়েছে। অনুগ্রহ করে পুনরায় পরীক্ষা করুন।';
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+        errMsg = 'No registered account found with this email. / এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট খুঁজে পাওয়া যায়নি।';
+      } else if (err.code === 'auth/network-request-failed') {
+        errMsg = 'Network error. Please check your internet connection. / নেটওয়ার্ক ত্রুটি। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগটি পরীক্ষা করুন।';
+      } else if (err.code === 'auth/too-many-requests') {
+        errMsg = 'Access temporarily disabled due to many failed login attempts. / অতিরিক্ত ভুল চেষ্টার কারণে অ্যাকাউন্টটি সাময়িকভাবে লক করা হয়েছে।';
+      } else if (err.message && err.message.includes('permission-denied')) {
+        errMsg = 'Access denied. Please check your user permissions in Firestore. / প্রবেশাধিকার প্রত্যাখ্যাত। অনুগ্রহ করে ফায়ারস্টোর পারমিশন চেক করুন।';
+      }
+      setError(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,14 +131,14 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
           {error && (
             <div id="login-error-alert" className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3.5 py-3 rounded-lg font-medium animate-shake">
               <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
-              <span>{error}</span>
+              <span className="leading-normal">{error}</span>
             </div>
           )}
 
-          {/* Username Input Field */}
+          {/* Username or Email Input Field */}
           <div id="username-field-group" className="flex flex-col gap-1.5">
             <label id="username-label" className="text-xs font-bold text-slate-700 font-sans uppercase tracking-wide">
-              Username
+              Username or Email / ইউজারনেম বা ইমেইল
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -102,10 +147,11 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
               <input
                 id="username-input"
                 type="text"
+                disabled={loading}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-800 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-400 font-medium"
+                placeholder="Enter username or email"
+                className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-800 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-400 font-medium disabled:opacity-60"
               />
             </div>
           </div>
@@ -113,7 +159,7 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
           {/* Password Input Field */}
           <div id="password-field-group" className="flex flex-col gap-1.5">
             <label id="password-label" className="text-xs font-bold text-slate-700 font-sans uppercase tracking-wide">
-              Password
+              Password / পাসওয়ার্ড
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -122,10 +168,11 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
               <input
                 id="password-input"
                 type="password"
+                disabled={loading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-800 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-400 font-medium"
+                className="w-full pl-10 pr-4 py-2.5 bg-white text-slate-800 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all placeholder:text-slate-400 font-medium disabled:opacity-60"
               />
             </div>
           </div>
@@ -134,10 +181,20 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
           <button
             id="signin-submit-btn"
             type="submit"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#3b82f6] hover:bg-blue-600 active:bg-blue-700 text-white font-bold text-sm rounded-lg transition-colors cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg focus:ring-2 focus:ring-blue-500/30 outline-none mt-2"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#3b82f6] hover:bg-blue-600 active:bg-blue-700 text-white font-bold text-sm rounded-lg transition-colors cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg focus:ring-2 focus:ring-blue-500/30 outline-none mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <LogIn className="h-4 w-4" />
-            <span>Sign In</span>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Signing In... / লগইন হচ্ছে...</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="h-4 w-4" />
+                <span>Sign In / লগইন করুন</span>
+              </>
+            )}
           </button>
         </form>
 
@@ -148,7 +205,7 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
         {showHint && (
           <div id="login-helper-box" className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 flex gap-2.5 text-xs text-blue-800/90 font-medium font-sans">
             <Info className="h-4 w-4 shrink-0 text-blue-500 mt-0.5" />
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-blue-950">Quick Sign In Credentials</span>
                 <button
