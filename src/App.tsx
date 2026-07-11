@@ -21,6 +21,7 @@ import WorkflowView from './components/WorkflowView';
 import AIView from './components/AIView';
 import IntegrationView from './components/IntegrationView';
 import FixedAssetsView from './components/FixedAssetsView';
+import { navEngine } from './lib/navigationEngine';
 
 import {
   seedCollectionIfEmpty,
@@ -690,6 +691,12 @@ export default function App() {
   const handleTabChange = (tab: string, subTab: string = '') => {
     setCurrentTab(tab);
     setCurrentSubTab(subTab);
+    
+    // Track recent navigation item visits
+    const matchedItem = navEngine.getAllItems().find(item => item.tab === tab && item.subTab === subTab);
+    if (matchedItem) {
+      navEngine.addRecent(matchedItem.id);
+    }
   };
 
   if (loading) {
@@ -740,6 +747,7 @@ export default function App() {
               suppliers={suppliers}
               onTabChange={handleTabChange}
               isVisualEditMode={isVisualEditMode}
+              activeSubTab={currentSubTab}
             />
           )}
 

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Invoice,
   Product,
   Supplier,
   Customer,
 } from '../types';
+import * as Icons from 'lucide-react';
 import {
   TrendingUp,
   FileText,
@@ -28,6 +29,7 @@ import {
   Check,
   X,
 } from 'lucide-react';
+import { navEngine, NavigationItem } from '../lib/navigationEngine';
 
 interface DashboardViewProps {
   invoices: Invoice[];
@@ -36,6 +38,7 @@ interface DashboardViewProps {
   customers: Customer[];
   onTabChange: (tab: string, subTab?: string) => void;
   isVisualEditMode?: boolean;
+  activeSubTab?: string;
 }
 
 export default function DashboardView({
@@ -45,9 +48,39 @@ export default function DashboardView({
   customers,
   onTabChange,
   isVisualEditMode = false,
+  activeSubTab = '',
 }: DashboardViewProps) {
   // Balance mask state matching the hide-reveal behavior in the image
   const [showValues, setShowValues] = useState(false);
+
+  // Navigation states for extensions
+  const [favItems, setFavItems] = useState<string[]>([]);
+  const [pinnedItems, setPinnedItems] = useState<string[]>([]);
+  const [recentItems, setRecentItems] = useState<string[]>([]);
+  const [allNavItems, setAllNavItems] = useState<NavigationItem[]>([]);
+  const [selectedFavToAdd, setSelectedFavToAdd] = useState<string>('');
+  
+  // Search and filter states
+  const [favSearchQuery, setFavSearchQuery] = useState<string>('');
+  const [pinnedSearchQuery, setPinnedSearchQuery] = useState<string>('');
+  
+  // Collapsed sections in pinned manager
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const syncExtensions = () => {
+    setFavItems(navEngine.getFavorites());
+    setPinnedItems(navEngine.getPinned());
+    setRecentItems(navEngine.getRecents());
+    setAllNavItems(navEngine.getAllItems());
+  };
+
+  useEffect(() => {
+    syncExtensions();
+    const available = navEngine.getAllItems().filter(item => !navEngine.getFavorites().includes(item.id));
+    if (available.length > 0) {
+      setSelectedFavToAdd(available[0].id);
+    }
+  }, [activeSubTab]);
 
   // Layout states customizable by user in Visual Edit Mode
   const [layoutOrder, setLayoutOrder] = useState<string[]>(() => {
@@ -249,6 +282,463 @@ export default function DashboardView({
       </div>
     );
   };
+
+  const renderDynamicIcon = (iconName: string, className = "h-5 w-5") => {
+    const IconComponent = (Icons as any)[iconName || 'Activity'];
+    if (IconComponent) {
+      return <IconComponent className={className} />;
+    }
+    return <Icons.Activity className={className} />;
+  };
+
+  const getGroupBadgeStyles = (groupId: string) => {
+    switch (groupId) {
+      case 'dashboard':
+        return 'bg-indigo-50 border-indigo-200 text-indigo-700';
+      case 'inventory':
+        return 'bg-amber-50 border-amber-200 text-amber-700';
+      case 'warehouse':
+        return 'bg-cyan-50 border-cyan-200 text-cyan-700';
+      case 'purchase':
+        return 'bg-sky-50 border-sky-200 text-sky-700';
+      case 'sales':
+        return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+      case 'accounting':
+        return 'bg-purple-50 border-purple-200 text-purple-700';
+      case 'crm':
+        return 'bg-rose-50 border-rose-200 text-rose-700';
+      case 'hr':
+        return 'bg-teal-50 border-teal-200 text-teal-700';
+      case 'projects':
+        return 'bg-blue-50 border-blue-200 text-blue-700';
+      case 'manufacturing':
+        return 'bg-orange-50 border-orange-200 text-orange-700';
+      case 'service':
+        return 'bg-violet-50 border-violet-200 text-violet-700';
+      case 'documents':
+        return 'bg-slate-50 border-slate-200 text-slate-700';
+      case 'workflow':
+        return 'bg-pink-50 border-pink-200 text-pink-700';
+      case 'reports':
+        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+      case 'ai':
+        return 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700 animate-pulse';
+      case 'integration':
+        return 'bg-lime-50 border-lime-200 text-lime-700';
+      default:
+        return 'bg-slate-50 border-slate-200 text-slate-700';
+    }
+  };
+
+  const renderFavoritesView = () => {
+    const favoritesList = allNavItems.filter(item => favItems.includes(item.id));
+    const filteredFavs = favoritesList.filter(item => 
+      item.label.toLowerCase().includes(favSearchQuery.toLowerCase())
+    );
+    const availableToFavorite = allNavItems.filter(item => !favItems.includes(item.id));
+
+    const handleAddFavorite = () => {
+      const targetId = selectedFavToAdd || (availableToFavorite[0]?.id);
+      if (targetId) {
+        navEngine.toggleFavorite(targetId);
+        syncExtensions();
+        const nextAvailable = allNavItems.filter(item => !navEngine.getFavorites().includes(item.id) && item.id !== targetId);
+        setSelectedFavToAdd(nextAvailable[0]?.id || '');
+      }
+    };
+
+    return (
+      <div className="space-y-6" id="favorites-tab-container">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-amber-50 rounded-lg text-amber-500">
+                <Icons.Star className="h-6 w-6 fill-amber-400" />
+              </span>
+              <h1 className="text-xl font-bold text-slate-900 font-display">Bookmarked Favorites</h1>
+            </div>
+            <p className="text-xs text-slate-400">
+              Your customized operational deck. Keep your most used registers, POS checkout, or stock ledgers handy for instant access.
+            </p>
+          </div>
+
+          {availableToFavorite.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedFavToAdd}
+                onChange={(e) => setSelectedFavToAdd(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              >
+                {availableToFavorite.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.label} ({item.groupId.toUpperCase()})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAddFavorite}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+              >
+                <Icons.Plus className="h-3.5 w-3.5" /> Bookmark Page
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <Icons.Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search within your bookmarked pages..."
+            value={favSearchQuery}
+            onChange={(e) => setFavSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          />
+        </div>
+
+        {filteredFavs.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-4">
+            <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+              <Icons.Star className="h-6 w-6" />
+            </div>
+            <div className="max-w-md mx-auto space-y-1">
+              <h3 className="text-sm font-bold text-slate-800">No bookmarks matched</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {favoritesList.length === 0 
+                  ? "Your favorites deck is currently empty. Use the quick selector at the top-right or browse pages to bookmark."
+                  : "Try clearing your search filters to view your bookmarks."}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredFavs.map(item => (
+              <div
+                key={item.id}
+                className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group relative"
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navEngine.toggleFavorite(item.id);
+                    syncExtensions();
+                  }}
+                  className="absolute top-3 right-3 p-1 rounded-full text-slate-300 hover:text-amber-500 hover:bg-slate-50 transition-colors cursor-pointer"
+                  title="Remove Bookmark"
+                >
+                  <Icons.Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                </button>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className={`p-2.5 rounded-xl border ${getGroupBadgeStyles(item.groupId)}`}>
+                      {renderDynamicIcon(item.icon || 'Activity', 'h-5 w-5')}
+                    </span>
+                    <div>
+                      <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${getGroupBadgeStyles(item.groupId)}`}>
+                        {item.groupId}
+                      </span>
+                      <h3 className="font-bold text-sm text-slate-800 font-display mt-1">
+                        {item.label}
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Instantly load this operational register or screen. Fully integrated with standard workflows and real-time ledger updates.
+                  </p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-300 font-mono">ID: {item.id}</span>
+                  <button
+                    onClick={() => onTabChange(item.tab, item.subTab)}
+                    className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-600 hover:text-white text-indigo-600 font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    Launch Page <Icons.ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderRecentsView = () => {
+    const recentPages = recentItems
+      .map(id => allNavItems.find(item => item.id === id))
+      .filter(Boolean) as NavigationItem[];
+
+    const handleClearRecents = () => {
+      localStorage.removeItem('axiom_nav_recents');
+      syncExtensions();
+    };
+
+    return (
+      <div className="space-y-6" id="recents-tab-container">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-indigo-50 rounded-lg text-indigo-500">
+                <Icons.Clock className="h-6 w-6" />
+              </span>
+              <h1 className="text-xl font-bold text-slate-900 font-display">Session Page History</h1>
+            </div>
+            <p className="text-xs text-slate-400">
+              Audit log of screens and registers visited during this session. Tap any line to backtrack instantly.
+            </p>
+          </div>
+
+          {recentPages.length > 0 && (
+            <button
+              onClick={handleClearRecents}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Icons.Trash2 className="h-3.5 w-3.5" /> Clear Navigation History
+            </button>
+          )}
+        </div>
+
+        {recentPages.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-4">
+            <div className="mx-auto h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+              <Icons.Clock className="h-6 w-6" />
+            </div>
+            <div className="max-w-md mx-auto space-y-1">
+              <h3 className="text-sm font-bold text-slate-800">No session visits recorded</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                As you traverse different registers, charts, and configuration menus, your session footprints will dynamically register here.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="relative border-l-2 border-slate-200 pl-6 ml-4 space-y-6">
+            {recentPages.map((item, idx) => (
+              <div key={`${item.id}-${idx}`} className="relative group">
+                <span className="absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-indigo-600 bg-white group-hover:bg-indigo-600 transition-colors z-10 shadow-xs"></span>
+                
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-indigo-200 transition-all shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className={`p-2.5 rounded-xl border ${getGroupBadgeStyles(item.groupId)}`}>
+                      {renderDynamicIcon(item.icon || 'Activity', 'h-5 w-5')}
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-slate-800 font-display">
+                          {item.label}
+                        </h3>
+                        <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${getGroupBadgeStyles(item.groupId)}`}>
+                          {item.groupId}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Route: <span className="font-mono text-slate-500">{item.tab} / {item.subTab || 'default'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <span className="text-[10px] text-slate-300 font-semibold bg-slate-50 px-2 py-1 rounded-md">
+                      {idx === 0 ? 'Active / Just Now' : `${idx * 2 + 1}m ago`}
+                    </span>
+                    <button
+                      onClick={() => onTabChange(item.tab, item.subTab)}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      Re-open <Icons.ExternalLink className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPinnedView = () => {
+    const pinnedPages = allNavItems.filter(item => pinnedItems.includes(item.id));
+    const filteredPinned = pinnedPages.filter(item => 
+      item.label.toLowerCase().includes(pinnedSearchQuery.toLowerCase())
+    );
+
+    const itemsByGroup: Record<string, NavigationItem[]> = {};
+    allNavItems.forEach(item => {
+      if (!itemsByGroup[item.groupId]) {
+        itemsByGroup[item.groupId] = [];
+      }
+      itemsByGroup[item.groupId].push(item);
+    });
+
+    const handleTogglePin = (id: string) => {
+      navEngine.togglePinned(id);
+      syncExtensions();
+    };
+
+    return (
+      <div className="space-y-8" id="pinned-tab-container">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-rose-50 rounded-lg text-rose-500">
+              <Icons.Pin className="h-6 w-6 rotate-45" />
+            </span>
+            <h1 className="text-xl font-bold text-slate-900 font-display">Pinned Actions Deck</h1>
+          </div>
+          <p className="text-xs text-slate-400">
+            Pin and construct your personalized executive actions deck. Click any card to launch immediately. Toggle pins below to modify this deck.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+            <span>⚡</span> Quick Launch Deck
+          </h2>
+
+          {filteredPinned.length === 0 ? (
+            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                No active actions pinned to your dashboard. Use the pinboards below to toggle operational pages.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {filteredPinned.map(item => (
+                <div
+                  key={item.id}
+                  onClick={() => onTabChange(item.tab, item.subTab)}
+                  className="bg-white border border-slate-200/85 hover:border-rose-400 hover:shadow-sm rounded-xl p-4 transition-all duration-300 cursor-pointer group flex flex-col justify-between h-28 relative"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTogglePin(item.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 text-slate-300 hover:text-rose-500 rounded-full hover:bg-slate-50 cursor-pointer"
+                    title="Unpin Action"
+                  >
+                    <Icons.Pin className="h-3.5 w-3.5 rotate-45 text-rose-500 fill-rose-500" />
+                  </button>
+
+                  <span className={`p-1.5 rounded-lg border w-fit ${getGroupBadgeStyles(item.groupId)}`}>
+                    {renderDynamicIcon(item.icon || 'Activity', 'h-4 w-4')}
+                  </span>
+
+                  <div>
+                    <span className="text-[8px] font-extrabold uppercase text-slate-300 block">
+                      {item.groupId}
+                    </span>
+                    <h3 className="font-extrabold text-xs text-slate-800 tracking-tight mt-0.5 group-hover:text-rose-600 transition-colors">
+                      {item.label}
+                    </h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1">
+              <span>📌</span> System Pinboard Manager
+            </h2>
+            
+            <div className="relative w-full sm:w-72">
+              <Icons.Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filter pages to pin..."
+                value={pinnedSearchQuery}
+                onChange={(e) => setPinnedSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200/80 rounded-xl text-xs focus:outline-none font-sans"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {Object.keys(itemsByGroup).map(grpId => {
+              const grpItems = itemsByGroup[grpId];
+              const filteredGrpItems = grpItems.filter(item => 
+                item.label.toLowerCase().includes(pinnedSearchQuery.toLowerCase())
+              );
+
+              if (filteredGrpItems.length === 0) return null;
+
+              const isCollapsed = collapsedGroups[grpId];
+
+              return (
+                <div key={grpId} className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
+                  <div
+                    onClick={() => setCollapsedGroups(prev => ({ ...prev, [grpId]: !prev[grpId] }))}
+                    className="px-5 py-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer select-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">
+                        {grpId} Group
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                        {filteredGrpItems.length} pages
+                      </span>
+                    </div>
+                    {isCollapsed ? (
+                      <Icons.ChevronRight className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <Icons.ChevronDown className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+
+                  {!isCollapsed && (
+                    <div className="divide-y divide-slate-100 px-5">
+                      {filteredGrpItems.map(item => {
+                        const isPinned = pinnedItems.includes(item.id);
+                        return (
+                          <div key={item.id} className="py-3 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`p-1.5 rounded-lg border ${getGroupBadgeStyles(item.groupId)}`}>
+                                {renderDynamicIcon(item.icon || 'Activity', 'h-4 w-4')}
+                              </span>
+                              <div>
+                                <h4 className="font-bold text-xs text-slate-700">{item.label}</h4>
+                                <span className="text-[9px] text-slate-400 font-mono">/ {item.tab} / {item.subTab || 'default'}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => handleTogglePin(item.id)}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                                isPinned 
+                                  ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100'
+                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200'
+                              }`}
+                            >
+                              <Icons.Pin className={`h-3 w-3 ${isPinned ? 'fill-rose-500 rotate-45' : ''}`} />
+                              {isPinned ? 'Pinned' : 'Pin Action'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (activeSubTab === 'favorites') {
+    return renderFavoritesView();
+  }
+  if (activeSubTab === 'recent') {
+    return renderRecentsView();
+  }
+  if (activeSubTab === 'pinned') {
+    return renderPinnedView();
+  }
 
   return (
     <div className="space-y-6">
