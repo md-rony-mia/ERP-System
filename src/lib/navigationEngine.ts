@@ -228,6 +228,7 @@ export const INITIAL_ITEMS: NavigationItem[] = [
   { id: 'int_graphql', label: 'GraphQL Playground', groupId: 'integration', icon: 'Layers', tab: 'integration', subTab: 'graphql', order: 4, enabled: true },
   { id: 'int_webhook', label: 'Webhook Listeners', groupId: 'integration', icon: 'Webhook', tab: 'integration', subTab: 'webhook', order: 5, enabled: true },
   { id: 'int_marketplace', label: 'Marketplace extensions', groupId: 'integration', icon: 'ShoppingBag', tab: 'integration', subTab: 'marketplace', order: 6, enabled: true },
+  { id: 'int_github', label: 'GitHub Integration', groupId: 'integration', icon: 'Github', tab: 'integration', subTab: 'github', order: 7, enabled: true },
 
   // === ADMINISTRATION GROUP ===
   { id: 'admin_users', label: 'Users & Passwords', groupId: 'administration', icon: 'UserCheck', tab: 'settings', subTab: 'users', order: 1, enabled: true },

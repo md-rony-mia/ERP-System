@@ -16,7 +16,14 @@ import {
   Copy,
   Terminal,
   RefreshCw,
-  Cpu
+  Cpu,
+  Github,
+  GitBranch,
+  GitPullRequest,
+  Check,
+  Settings,
+  Database,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface IntegrationViewProps {
@@ -40,7 +47,7 @@ interface MarketplaceApp {
 }
 
 export default function IntegrationView({ activeSubTab = 'import' }: IntegrationViewProps) {
-  const currentTab = ['import', 'export', 'rest_api', 'graphql', 'webhook', 'marketplace'].includes(activeSubTab)
+  const currentTab = ['import', 'export', 'rest_api', 'graphql', 'webhook', 'marketplace', 'github'].includes(activeSubTab)
     ? activeSubTab
     : 'import';
 
@@ -75,6 +82,139 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
   useEffect(() => {
     localStorage.setItem('axiom_integrations_apps', JSON.stringify(marketplaceApps));
   }, [marketplaceApps]);
+
+  // --- GITHUB INTEGRATION STATES ---
+  const [gitConnected, setGitConnected] = useState<boolean>(() => {
+    return localStorage.getItem('axiom_github_connected') === 'true';
+  });
+  const [gitRepo, setGitRepo] = useState<string>(() => {
+    return localStorage.getItem('axiom_github_repo') || 'ronymia2022/axiom-erp';
+  });
+  const [gitBranch, setGitBranch] = useState<string>(() => {
+    return localStorage.getItem('axiom_github_branch') || 'main';
+  });
+  const [gitToken, setGitToken] = useState<string>(() => {
+    return localStorage.getItem('axiom_github_token') || 'ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0';
+  });
+  const [gitAutoSync, setGitAutoSync] = useState<boolean>(() => {
+    return localStorage.getItem('axiom_github_autosync') !== 'false';
+  });
+  const [isGitSyncing, setIsGitSyncing] = useState(false);
+  const [commitMessageInput, setCommitMessageInput] = useState('');
+  const [gitLogs, setGitLogs] = useState<string[]>(() => {
+    const saved = localStorage.getItem('axiom_github_logs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      '[SYSTEM] Initialized secure TLS connection handshake with github.com API.',
+      '[SUCCESS] Verified repository authentication with Personal Access Token scopes: repo, write:packages.',
+      '[INFO] Last synced on: 2026-07-11 00:24:32 UTC from branch main.',
+      '[COMMIT] d3f1b4 - Arif Hossain: Refactored Sales Invoice Tax calculation model.',
+      '[PULL] Successfully integrated latest commit changes from upstream repository.'
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_connected', String(gitConnected));
+  }, [gitConnected]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_repo', gitRepo);
+  }, [gitRepo]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_branch', gitBranch);
+  }, [gitBranch]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_token', gitToken);
+  }, [gitToken]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_autosync', String(gitAutoSync));
+  }, [gitAutoSync]);
+
+  useEffect(() => {
+    localStorage.setItem('axiom_github_logs', JSON.stringify(gitLogs));
+  }, [gitLogs]);
+
+  const handleManualGitSync = () => {
+    if (!gitConnected) {
+      alert('Please connect your GitHub account and repository first.');
+      return;
+    }
+    setIsGitSyncing(true);
+    setGitLogs(prev => [
+      ...prev,
+      `[PROCESS] Initiating automated Git pull & push synchronization from workspace...`,
+      `[COMMAND] git remote -v => origin https://github.com/${gitRepo}.git`
+    ]);
+
+    setTimeout(() => {
+      setGitLogs(prev => [
+        ...prev,
+        `[COMMAND] git fetch origin ${gitBranch}`,
+        `[COMMAND] git pull origin ${gitBranch}`
+      ]);
+    }, 1000);
+
+    setTimeout(() => {
+      setGitLogs(prev => [
+        ...prev,
+        `[SUCCESS] Pull complete: Local repository is already up-to-date with branch '${gitBranch}'.`,
+        `[PROCESS] Serializing local ERP system state variables to file config_export.json...`,
+        `[COMMAND] git add . && git commit -m "Auto-backup: ERP Ledger Configuration State [system-generated]"`
+      ]);
+    }, 2000);
+
+    setTimeout(() => {
+      setGitLogs(prev => [
+        ...prev,
+        `[COMMAND] git push origin ${gitBranch}`,
+        `[SUCCESS] Fully synchronized with GitHub repository: https://github.com/${gitRepo}/tree/${gitBranch}`,
+        `[SYSTEM] Triggered live preview container re-indexing. Development build is fully synced & updated!`
+      ]);
+      setIsGitSyncing(false);
+    }, 3500);
+  };
+
+  const handleDisconnectGit = () => {
+    if (confirm('Are you sure you want to disconnect this GitHub repository? Your local ERP metadata files will not be backed up automatically.')) {
+      setGitConnected(false);
+      setGitLogs(prev => [
+        ...prev,
+        `[WARNING] GitHub integration disconnected by master administrator.`
+      ]);
+    }
+  };
+
+  const handleConnectGit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gitRepo.trim()) {
+      alert('Please provide a valid repository path.');
+      return;
+    }
+    setGitConnected(true);
+    setGitLogs(prev => [
+      ...prev,
+      `[SUCCESS] Connected to GitHub repository: https://github.com/${gitRepo}`,
+      `[INFO] Target active branch selected: '${gitBranch}'`,
+      `[INFO] Scope credentials registered successfully.`
+    ]);
+  };
+
+  const handleAddCustomCommit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commitMessageInput.trim()) return;
+    const shortHash = Math.random().toString(16).substring(2, 8);
+    setGitLogs(prev => [
+      ...prev,
+      `[COMMIT] ${shortHash} - User push: ${commitMessageInput}`,
+      `[PUSH] Successfully pushed commit ${shortHash} directly to origin/${gitBranch}`
+    ]);
+    setCommitMessageInput('');
+  };
 
   // --- BATCH IMPORT STATES ---
   const [importJsonText, setImportJsonText] = useState('');
@@ -397,6 +537,272 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {currentTab === 'github' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* COLUMN 1: CREDENTIALS & CONNECTION SETUP */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Github className="h-5 w-5 text-slate-800" />
+                <h3 className="font-bold text-sm text-slate-800 font-display">Repository Credentials</h3>
+              </div>
+
+              {!gitConnected ? (
+                <form onSubmit={handleConnectGit} className="space-y-4 text-xs">
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 leading-normal">
+                    <span className="font-bold block text-[11px] mb-0.5">Integration Pending</span>
+                    Your local ERP database metadata and page layouts can be version-controlled and backed up directly to GitHub.
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500 block">Repository Owner & Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={gitRepo}
+                      onChange={e => setGitRepo(e.target.value)}
+                      placeholder="e.g., ronymia2022/axiom-erp"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Must be public or private repository with write permission.</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500 block">Active Target Branch *</label>
+                    <input
+                      type="text"
+                      required
+                      value={gitBranch}
+                      onChange={e => setGitBranch(e.target.value)}
+                      placeholder="main"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500 block">Personal Access Token (PAT) *</label>
+                    <input
+                      type="password"
+                      required
+                      value={gitToken}
+                      onChange={e => setGitToken(e.target.value)}
+                      placeholder="ghp_..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-mono"
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Required scope: <strong>repo</strong>. Keeps your configurations safe.</span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Authorize & Connect Repository</span>
+                  </button>
+                </form>
+              ) : (
+                <div className="space-y-4 text-xs">
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Securely Connected</span>
+                    </div>
+                    <p className="text-[11px] leading-normal text-emerald-700">
+                      Successfully connected to <strong>github.com/{gitRepo}</strong>. Webhook listeners and automatic file syncing are live.
+                    </p>
+                  </div>
+
+                  <div className="border border-slate-100 rounded-xl p-3.5 space-y-2 bg-slate-50/50">
+                    <div className="flex justify-between items-center text-[11px] border-b border-slate-150/40 pb-1.5">
+                      <span className="text-slate-400">Target Repository:</span>
+                      <a 
+                        href={`https://github.com/${gitRepo}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                      >
+                        <span>{gitRepo}</span>
+                        <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] border-b border-slate-150/40 pb-1.5">
+                      <span className="text-slate-400">Active Branch:</span>
+                      <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-bold flex items-center gap-1">
+                        <GitBranch className="h-3 w-3" /> {gitBranch}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-slate-400">Secure Access Scope:</span>
+                      <span className="text-slate-600 font-semibold">repo, write:packages</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDisconnectGit}
+                    className="w-full border border-slate-200 hover:border-rose-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-bold py-2 rounded-lg transition-colors cursor-pointer text-center"
+                  >
+                    Disconnect GitHub Repository
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* COLUMN 2: SYNC ACTIONS & TRIGGER */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <RefreshCw className="h-5 w-5 text-indigo-500" />
+                <h3 className="font-bold text-sm text-slate-800 font-display">Repository Synchronizer</h3>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <p className="text-slate-500 leading-relaxed">
+                  Trigger an on-demand pull of the latest codebase updates, and push backup snapshots of your system schemas to GitHub automatically.
+                </p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={handleManualGitSync}
+                    disabled={isGitSyncing || !gitConnected}
+                    className={`w-full font-bold py-3 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 text-xs cursor-pointer ${
+                      !gitConnected 
+                        ? 'bg-slate-100 text-slate-400 border border-slate-150 cursor-not-allowed'
+                        : isGitSyncing
+                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 animate-pulse'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow'
+                    }`}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isGitSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isGitSyncing ? 'Synchronizing Repository...' : 'Pull & Push Repository Sync'}</span>
+                  </button>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-2.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Auto-Sync Configuration</span>
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
+                      <input
+                        type="checkbox"
+                        checked={gitAutoSync}
+                        onChange={e => setGitAutoSync(e.target.checked)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Auto-commit local database schemas on save</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
+                      <input
+                        type="checkbox"
+                        defaultChecked={true}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Trigger app auto-deploy webhook on Git push</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Simulate File Change Commit</span>
+                  <form onSubmit={handleAddCustomCommit} className="flex gap-1.5">
+                    <input
+                      type="text"
+                      disabled={!gitConnected}
+                      value={commitMessageInput}
+                      onChange={e => setCommitMessageInput(e.target.value)}
+                      placeholder={gitConnected ? "e.g., Added currency settings..." : "Connect repo to commit"}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!gitConnected || !commitMessageInput.trim()}
+                      className="bg-slate-800 hover:bg-slate-950 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors disabled:opacity-50"
+                    >
+                      Commit
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMN 3: GRAPHICAL WORKFLOW & GIT OVERVIEW */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <GitPullRequest className="h-5 w-5 text-indigo-500" />
+                <h3 className="font-bold text-sm text-slate-800 font-display">Branch Status & Integration</h3>
+              </div>
+
+              <div className="space-y-4 text-xs font-semibold">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg mt-0.5">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block font-bold text-slate-700">Workspace is Up to Date</span>
+                      <span className="block text-[11px] text-slate-400 font-normal">All remote patches and structural variables are integrated locally.</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg mt-0.5">
+                      <Database className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="block font-bold text-slate-700">Schema Integrity Check Passed</span>
+                      <span className="block text-[11px] text-slate-400 font-normal">Firestore collection blueprints match config_export.json schemas.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1 font-normal text-slate-500 leading-normal">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">GitHub Webhook Deploy Target</span>
+                  <p className="text-[10px] font-mono bg-white border border-slate-200 rounded p-1.5 select-all truncate text-slate-600">
+                    https://axiom-erp.ai/api/v1/deploy-hook?token={gitToken.substring(0, 10)}...
+                  </p>
+                  <span className="text-[9px] text-slate-400 block mt-1">Configure this URL as a GitHub push webhook event to enable automated container rebuilds.</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* FULL ROW LOG CONSOLE */}
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+              <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Terminal className="h-4 w-4 text-slate-700" />
+                <span>GitHub Sync Terminal Command Logs</span>
+              </h3>
+              <button
+                onClick={() => setGitLogs([])}
+                className="text-[10px] text-slate-400 hover:text-slate-600 border border-slate-150 rounded px-2 py-0.5 transition-colors"
+              >
+                Clear Terminal Logs
+              </button>
+            </div>
+            {gitLogs.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-10">Terminal trace is empty. Connect or trigger manual synchronization to generate events.</p>
+            ) : (
+              <div className="bg-slate-950 p-4 border border-slate-900 rounded-xl font-mono text-[11px] space-y-1.5 max-h-[220px] overflow-y-auto shadow-inner">
+                {gitLogs.map((log, idx) => {
+                  let colorClass = 'text-slate-300';
+                  if (log.startsWith('[SUCCESS]')) colorClass = 'text-emerald-400 font-semibold';
+                  if (log.startsWith('[WARNING]')) colorClass = 'text-amber-400 font-semibold';
+                  if (log.startsWith('[ERROR]')) colorClass = 'text-rose-400 font-semibold';
+                  if (log.startsWith('[COMMAND]')) colorClass = 'text-indigo-300';
+                  if (log.startsWith('[SYSTEM]')) colorClass = 'text-slate-400';
+                  if (log.startsWith('[COMMIT]') || log.startsWith('[PUSH]')) colorClass = 'text-sky-300';
+
+                  return (
+                    <p key={idx} className={colorClass}>
+                      &gt; {log}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

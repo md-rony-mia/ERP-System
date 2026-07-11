@@ -186,34 +186,6 @@ const getSeedDataForModule = (moduleKey: string): any[] => {
         { id: 'svc_1', ticketNo: 'SVC-2026-102', clientName: 'Baitul Mukarram Builders', productRef: 'Deformed Bar 60G', issueType: 'Micro deflections during slab pour', urgency: 'High', assignedTech: 'Engr. Kamal Hasan', costEstimate: 120000, status: 'Approved', completionStage: 'Review', isArchived: false },
         { id: 'svc_2', ticketNo: 'SVC-2026-145', clientName: 'Siam Glass Ltd', productRef: 'Portland Composite Cement', issueType: 'Fast setting time anomaly', urgency: 'Medium', assignedTech: 'Chemist Sajib Roy', costEstimate: 45000, status: 'Approved', completionStage: 'Active', isArchived: false },
       ];
-    case 'attendance':
-      return [
-        { id: 'att_1', employeeName: 'Arif Hossain', department: 'Engineering', date: '2026-07-10', attendanceStatus: 'Present', checkIn: '09:02', checkOut: '18:05', remarks: '', status: 'Approved', isArchived: false },
-        { id: 'att_2', employeeName: 'Tasnim Jahan', department: 'HR', date: '2026-07-10', attendanceStatus: 'Late', checkIn: '09:45', checkOut: '18:10', remarks: 'Traffic delay reported', status: 'Approved', isArchived: false },
-        { id: 'att_3', employeeName: 'Sajid Iqbal', department: 'Sales', date: '2026-07-10', attendanceStatus: 'On Leave', checkIn: '', checkOut: '', remarks: 'Approved casual leave', status: 'Approved', isArchived: false },
-      ];
-    case 'leave':
-      return [
-        { id: 'lv_1', employeeName: 'Sajid Iqbal', leaveType: 'Casual', fromDate: '2026-07-10', toDate: '2026-07-11', daysCount: 2, reason: 'Family function', status: 'Approved', isArchived: false },
-        { id: 'lv_2', employeeName: 'Farhan Mahmud', leaveType: 'Sick', fromDate: '2026-07-06', toDate: '2026-07-07', daysCount: 2, reason: 'Fever and recovery', status: 'Approved', isArchived: false },
-        { id: 'lv_3', employeeName: 'Tasnim Jahan', leaveType: 'Earned', fromDate: '2026-07-20', toDate: '2026-07-24', daysCount: 5, reason: 'Annual vacation', status: 'Pending Approval', isArchived: false },
-      ];
-    case 'payroll':
-      return [
-        { id: 'pay_1', employeeName: 'Arif Hossain', payMonth: 'June 2026', basicSalary: 45000, allowances: 5000, deductions: 1200, netPay: 48800, paymentStatus: 'Paid', paymentDate: '2026-07-01', status: 'Approved', isArchived: false },
-        { id: 'pay_2', employeeName: 'Tasnim Jahan', payMonth: 'June 2026', basicSalary: 38000, allowances: 4000, deductions: 900, netPay: 41100, paymentStatus: 'Paid', paymentDate: '2026-07-01', status: 'Approved', isArchived: false },
-        { id: 'pay_3', employeeName: 'Farhan Mahmud', payMonth: 'June 2026', basicSalary: 55000, allowances: 6000, deductions: 1800, netPay: 59200, paymentStatus: 'Pending', paymentDate: '', status: 'Submitted', isArchived: false },
-      ];
-    case 'recruitment':
-      return [
-        { id: 'rec_1', jobTitle: 'Senior Accounts Executive', department: 'Accounts', candidateName: 'Mehedi Hasan', applicationStage: 'Interview', expectedSalary: 42000, contactEmail: 'mehedi.h@example.com', contactPhone: '01711223344', notes: 'Strong Excel and Tally background', status: 'Submitted', isArchived: false },
-        { id: 'rec_2', jobTitle: 'Warehouse Supervisor', department: 'Logistics', candidateName: 'Ripon Sarker', applicationStage: 'Offer', expectedSalary: 30000, contactEmail: 'ripon.s@example.com', contactPhone: '01812334455', notes: 'Prior experience at cement depot', status: 'Approved', isArchived: false },
-      ];
-    case 'appraisal':
-      return [
-        { id: 'apr_1', employeeName: 'Arif Hossain', reviewPeriod: 'H1 2026', reviewer: 'Rony Mia', performanceScore: 88, strengths: 'Strong QA process discipline', improvementAreas: 'Delegation to junior staff', status: 'Approved', isArchived: false },
-        { id: 'apr_2', employeeName: 'Sajid Iqbal', reviewPeriod: 'H1 2026', reviewer: 'Tasnim Jahan', performanceScore: 74, strengths: 'Good client rapport', improvementAreas: 'Follow-up speed on quotations', status: 'Approved', isArchived: false },
-      ];
     default:
       return [];
   }
