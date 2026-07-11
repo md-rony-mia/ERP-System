@@ -12,6 +12,14 @@ import ReportsView from './components/ReportsView';
 import GridReportView from './components/GridReportView';
 import RdlReportView from './components/RdlReportView';
 import Login from './components/Login';
+import CRMView from './components/CRMView';
+import ProjectsView from './components/ProjectsView';
+import ManufacturingView from './components/ManufacturingView';
+import ServiceView from './components/ServiceView';
+import DocumentsView from './components/DocumentsView';
+import WorkflowView from './components/WorkflowView';
+import AIView from './components/AIView';
+import IntegrationView from './components/IntegrationView';
 
 import {
   seedCollectionIfEmpty,
@@ -852,8 +860,40 @@ export default function App() {
             />
           )}
 
+          {currentTab === 'crm' && (
+            <CRMView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'projects' && (
+            <ProjectsView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'manufacturing' && (
+            <ManufacturingView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'service' && (
+            <ServiceView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'documents' && (
+            <DocumentsView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'workflow' && (
+            <WorkflowView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'ai' && (
+            <AIView activeSubTab={currentSubTab} />
+          )}
+
+          {currentTab === 'integration' && (
+            <IntegrationView activeSubTab={currentSubTab} />
+          )}
+
           {/* Quick empty fallback screen for other secondary/reports links to prevent app crashes */}
-          {!['dashboard', 'inventory', 'sales', 'purchase', 'employee', 'accounting', 'banking', 'loan', 'settings', 'reports', 'gridReport', 'rdlReport'].includes(
+          {!['dashboard', 'inventory', 'sales', 'purchase', 'employee', 'accounting', 'banking', 'loan', 'settings', 'reports', 'gridReport', 'rdlReport', 'crm', 'projects', 'manufacturing', 'service', 'documents', 'workflow', 'ai', 'integration'].includes(
             currentTab
           ) && (
             <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-sm">
