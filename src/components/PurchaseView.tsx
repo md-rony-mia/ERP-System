@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { validatePositiveNumber } from '../lib/validation';
 import { Supplier, PurchaseOrder, Product, POItem, formatBoxQty } from '../types';
 import {
   ShoppingCart,
@@ -503,6 +504,7 @@ export default function PurchaseView({
   const [showPayModal, setShowPayModal] = useState(false);
 
   // --- FORM VALUES ---
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   // --- ERP ACTIVE PROCUREMENT THEME STATES ---
   const [poInvoiceNo, setPoInvoiceNo] = useState(`PO-2026-${Math.floor(1000 + Math.random() * 9000)}`);
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0]);
@@ -541,6 +543,25 @@ export default function PurchaseView({
     const p = products.find((prod) => prod.id === poProductId);
     if (!p) return;
 
+    const errors: Record<string, string> = {};
+    const qtyVal = validatePositiveNumber(poQty, 'Quantity', 'পরিমাণ', false);
+    if (!qtyVal.isValid) errors.poQty = qtyVal.message;
+
+    const costVal = validatePositiveNumber(poCost, 'Unit Cost', 'ইউনিট খরচ', true);
+    if (!costVal.isValid) errors.poCost = costVal.message;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(prev => ({ ...prev, ...errors }));
+      return;
+    }
+
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy.poQty;
+      delete copy.poCost;
+      return copy;
+    });
+
     const existingIndex = poCart.findIndex((item) => item.productId === poProductId);
     if (existingIndex > -1) {
       const newCart = [...poCart];
@@ -572,6 +593,31 @@ export default function PurchaseView({
       alert('Please select a supplier entity!');
       return;
     }
+
+    const errors: Record<string, string> = {};
+    const transportVal = validatePositiveNumber(poTransport, 'Transport Cost', 'পরিবহন খরচ', true);
+    if (!transportVal.isValid) errors.poTransport = transportVal.message;
+
+    const labourVal = validatePositiveNumber(poLabour, 'Labour Charge', 'শ্রমিক খরচ', true);
+    if (!labourVal.isValid) errors.poLabour = labourVal.message;
+
+    const discountVal = validatePositiveNumber(poDiscount, 'Negotiated Discount', 'ডিসকাউন্ট', true);
+    if (!discountVal.isValid) errors.poDiscount = discountVal.message;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(prev => ({ ...prev, ...errors }));
+      alert('Please fix overhead/discount validation errors before saving.');
+      return;
+    }
+
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy.poTransport;
+      delete copy.poLabour;
+      delete copy.poDiscount;
+      return copy;
+    });
+
     const supplier = suppliers.find((s) => s.id === selectedSupplierId);
     if (!supplier) return;
 
@@ -1037,9 +1083,12 @@ export default function PurchaseView({
                       type="number"
                       min="1"
                       value={poQty}
-                      onChange={(e) => setPoQty(parseInt(e.target.value) || 1)}
-                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      onChange={(e) => setPoQty(parseInt(e.target.value) || 0)}
+                      className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poQty ? 'border-rose-500' : 'border-slate-300'}`}
                     />
+                    {formErrors.poQty && (
+                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poQty}</span>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Base Unit Cost</label>
@@ -1047,8 +1096,11 @@ export default function PurchaseView({
                       type="number"
                       value={poCost}
                       onChange={(e) => setPoCost(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poCost ? 'border-rose-500' : 'border-slate-300'}`}
                     />
+                    {formErrors.poCost && (
+                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poCost}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1129,8 +1181,11 @@ export default function PurchaseView({
                     type="number"
                     value={poTransport}
                     onChange={(e) => setPoTransport(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-0.5 rounded-sm focus:outline-none text-[11px]"
+                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poTransport ? 'border-rose-500' : 'border-slate-300'}`}
                   />
+                  {formErrors.poTransport && (
+                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poTransport}</span>
+                  )}
                 </div>
 
                 <div>
@@ -1139,8 +1194,11 @@ export default function PurchaseView({
                     type="number"
                     value={poLabour}
                     onChange={(e) => setPoLabour(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-0.5 rounded-sm focus:outline-none text-[11px]"
+                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poLabour ? 'border-rose-500' : 'border-slate-300'}`}
                   />
+                  {formErrors.poLabour && (
+                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poLabour}</span>
+                  )}
                 </div>
 
                 <div>
@@ -1149,8 +1207,11 @@ export default function PurchaseView({
                     type="number"
                     value={poDiscount}
                     onChange={(e) => setPoDiscount(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-0.5 rounded-sm focus:outline-none text-[11px]"
+                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poDiscount ? 'border-rose-500' : 'border-slate-300'}`}
                   />
+                  {formErrors.poDiscount && (
+                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poDiscount}</span>
+                  )}
                 </div>
               </div>
 

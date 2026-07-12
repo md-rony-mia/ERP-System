@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validateRequired, validatePositiveNumber } from '../lib/validation';
 import { AccountHead, Transaction, BankAccount } from '../types';
 import {
   BookOpen,
@@ -67,6 +68,7 @@ export default function AccountingView({
   const [catModalType, setCatModalType] = useState<'income' | 'expense'>('income');
 
   // --- INPUT FIELD STATES ---
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   // Transaction Entry
   const [desc, setDesc] = useState('');
   const [txType, setTxType] = useState<'Income' | 'Expense'>('Expense');
@@ -114,7 +116,24 @@ export default function AccountingView({
   // --- SUBMIT HANDLERS ---
   const handleTxSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!desc || !amount || !accountId) return;
+
+    const errors: Record<string, string> = {};
+    const descVal = validateRequired(desc, 'Transaction Description', 'লেনদেনের বিবরণ');
+    if (!descVal.isValid) errors.desc = descVal.message;
+
+    const amountVal = validatePositiveNumber(parseFloat(amount) || 0, 'Amount', 'পরিমাণ', false);
+    if (!amountVal.isValid) errors.amount = amountVal.message;
+
+    if (!accountId) {
+      errors.accountId = 'Please select a bank account/asset (অনুগ্রহ করে ব্যাংক অ্যাকাউন্ট সিলেক্ট করুন)';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
 
     onLogTransaction({
       description: desc,
@@ -718,9 +737,12 @@ export default function AccountingView({
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Transaction description *</label>
                 <input
-                  type="text" required placeholder="e.g. Bought office computers" value={desc}
-                  onChange={(e) => setDesc(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600"
+                  type="text" placeholder="e.g. Bought office computers" value={desc}
+                  onChange={(e) => setDesc(e.target.value)} className={`w-full bg-slate-50 border rounded-lg p-2.5 text-xs focus:outline-none ${formErrors.desc ? 'border-rose-500 text-rose-600 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-600'}`}
                 />
+                {formErrors.desc && (
+                  <span className="block text-[10px] text-rose-600 font-bold mt-1 leading-tight">{formErrors.desc}</span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -759,20 +781,27 @@ export default function AccountingView({
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Settlement Account</label>
                   <select
                     value={accountId} onChange={(e) => setAccountId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer text-slate-700"
+                    className={`w-full bg-slate-50 border rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer text-slate-700 ${formErrors.accountId ? 'border-rose-500' : 'border-slate-200'}`}
                   >
+                    <option value="">-- Choose Account --</option>
                     {bankAccounts.map((b) => (
                       <option key={b.id} value={b.id}>{b.accountName} (৳{b.balance.toLocaleString()})</option>
                     ))}
                   </select>
+                  {formErrors.accountId && (
+                    <span className="block text-[9px] text-rose-600 font-bold mt-1 leading-tight">{formErrors.accountId}</span>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Amount (৳) *</label>
                   <input
-                    type="number" required min="1" placeholder="1500" value={amount}
-                    onChange={(e) => setAmount(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:border-indigo-600 font-extrabold text-indigo-600"
+                    type="number" placeholder="1500" value={amount}
+                    onChange={(e) => setAmount(e.target.value)} className={`w-full bg-slate-50 border rounded-lg p-2.5 text-xs focus:outline-none font-extrabold ${formErrors.amount ? 'border-rose-500 text-rose-600 focus:border-rose-500' : 'border-slate-200 focus:border-indigo-600 text-indigo-600'}`}
                   />
+                  {formErrors.amount && (
+                    <span className="block text-[9px] text-rose-600 font-bold mt-1 leading-tight">{formErrors.amount}</span>
+                  )}
                 </div>
               </div>
 

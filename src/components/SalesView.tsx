@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validatePositiveNumber } from '../lib/validation';
 import { Product, Customer, Invoice, SaleItem, formatBoxQty, AppSettings } from '../types';
 import {
   Search,
@@ -118,6 +119,7 @@ export default function SalesView({
   const setSalesTab = (val: any) => {};
 
   // --- POS STATES ---
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id || '');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
@@ -354,6 +356,34 @@ export default function SalesView({
       return;
     }
 
+    const errors: Record<string, string> = {};
+    const discountVal = validatePositiveNumber(discount, 'Discount', 'ডিসকাউন্ট', true);
+    if (!discountVal.isValid) errors.discount = discountVal.message;
+
+    const labourVal = validatePositiveNumber(labourCost, 'Labour Cost', 'শ্রমিক খরচ', true);
+    if (!labourVal.isValid) errors.labourCost = labourVal.message;
+
+    const transportVal = validatePositiveNumber(transportCost, 'Transport Cost', 'পরিবহন খরচ', true);
+    if (!transportVal.isValid) errors.transportCost = transportVal.message;
+
+    const nowPayVal = validatePositiveNumber(nowPayInput, 'Now Pay Amount', 'পরিশোধের পরিমাণ', true);
+    if (!nowPayVal.isValid) errors.nowPayInput = nowPayVal.message;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(prev => ({ ...prev, ...errors }));
+      alert('Please fix overhead/discount validation errors before proceeding.');
+      return;
+    }
+
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy.discount;
+      delete copy.labourCost;
+      delete copy.transportCost;
+      delete copy.nowPayInput;
+      return copy;
+    });
+
     const activeCustomer = customers.find((c) => c.id === selectedCustomerId);
     if (!activeCustomer) return;
 
@@ -415,10 +445,28 @@ export default function SalesView({
       return;
     }
 
-    if (pcsInput <= 0) {
-      alert('Please enter a valid quantity.');
+    const errors: Record<string, string> = {};
+    const pcsVal = validatePositiveNumber(pcsInput, 'Quantity (Pcs)', 'পরিমাণ (পিস)', false);
+    if (!pcsVal.isValid) errors.pcsInput = pcsVal.message;
+
+    const rateDisVal = validatePositiveNumber(rateDisInput, 'Rate Discount', 'রেট ডিসকাউন্ট', true);
+    if (!rateDisVal.isValid) errors.rateDisInput = rateDisVal.message;
+
+    const rateVal = validatePositiveNumber(rateInput, 'Rate', 'দর (রেট)', true);
+    if (!rateVal.isValid) errors.rateInput = rateVal.message;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(prev => ({ ...prev, ...errors }));
       return;
     }
+
+    setFormErrors(prev => {
+      const copy = { ...prev };
+      delete copy.pcsInput;
+      delete copy.rateDisInput;
+      delete copy.rateInput;
+      return copy;
+    });
 
     if (pcsInput > p.stock) {
       alert(`Only ${p.stock} units are in stock.`);
@@ -661,9 +709,12 @@ export default function SalesView({
                       type="number"
                       min="1"
                       value={pcsInput}
-                      onChange={(e) => setPcsInput(parseInt(e.target.value) || 1)}
-                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      onChange={(e) => setPcsInput(parseInt(e.target.value) || 0)}
+                      className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.pcsInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
+                    {formErrors.pcsInput && (
+                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.pcsInput}</span>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate Dis</label>
@@ -673,8 +724,11 @@ export default function SalesView({
                       value={rateDisInput}
                       onChange={(e) => setRateDisInput(parseFloat(e.target.value) || 0)}
                       placeholder="0"
-                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.rateDisInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
+                    {formErrors.rateDisInput && (
+                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.rateDisInput}</span>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate</label>
@@ -683,8 +737,11 @@ export default function SalesView({
                       min="0"
                       value={rateInput}
                       onChange={(e) => setRateInput(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.rateInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
+                    {formErrors.rateInput && (
+                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.rateInput}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -817,8 +874,11 @@ export default function SalesView({
                           value={discount || ''}
                           onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          className="w-full text-right text-[10px] bg-white border border-slate-200 p-0.5 text-slate-800 focus:outline-none"
+                          className={`w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none ${formErrors.discount ? 'border-rose-500' : 'border-slate-200'}`}
                         />
+                        {formErrors.discount && (
+                          <span className="block text-right text-[8px] text-rose-600 font-bold mt-0.5 px-1 leading-tight">{formErrors.discount}</span>
+                        )}
                       </td>
                     </tr>
                     <tr className="border-b border-slate-200">
@@ -838,8 +898,11 @@ export default function SalesView({
                           value={labourCost || ''}
                           onChange={(e) => setLabourCost(parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          className="w-full text-right text-[10px] bg-white border border-slate-200 p-0.5 text-slate-800 focus:outline-none"
+                          className={`w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none ${formErrors.labourCost ? 'border-rose-500' : 'border-slate-200'}`}
                         />
+                        {formErrors.labourCost && (
+                          <span className="block text-right text-[8px] text-rose-600 font-bold mt-0.5 px-1 leading-tight">{formErrors.labourCost}</span>
+                        )}
                       </td>
                     </tr>
                     <tr>
@@ -859,8 +922,11 @@ export default function SalesView({
                           value={transportCost || ''}
                           onChange={(e) => setTransportCost(parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          className="w-full text-right text-[10px] bg-white border border-slate-200 p-0.5 text-slate-800 focus:outline-none"
+                          className={`w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none ${formErrors.transportCost ? 'border-rose-500' : 'border-slate-200'}`}
                         />
+                        {formErrors.transportCost && (
+                          <span className="block text-right text-[8px] text-rose-600 font-bold mt-0.5 px-1 leading-tight">{formErrors.transportCost}</span>
+                        )}
                       </td>
                     </tr>
                   </tbody>
@@ -893,8 +959,11 @@ export default function SalesView({
                     value={nowPayInput || ''}
                     onChange={(e) => setNowPayInput(parseFloat(e.target.value) || 0)}
                     placeholder="Enter payment"
-                    className="w-full bg-white text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
+                    className={`w-full bg-white text-slate-800 font-bold border px-2 py-1 rounded-sm text-right focus:outline-none text-xs ${formErrors.nowPayInput ? 'border-rose-500 text-rose-600' : 'border-slate-300'}`}
                   />
+                  {formErrors.nowPayInput && (
+                    <span className="block text-right text-[8px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.nowPayInput}</span>
+                  )}
                 </div>
 
                 {/* Balance (Due) */}
