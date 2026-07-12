@@ -1378,7 +1378,7 @@ export default function InventoryView({
                                     </span>
                                   )}
                                 </div>
-                                {isLow && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" title="Low stock alert" />}
+                                {isLow && <span title="Low stock alert"><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>}
                               </div>
                             </td>
                           )}

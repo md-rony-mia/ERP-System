@@ -519,7 +519,7 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
             </span>
           </>
         ) : (
-          <Icons.Cpu className="h-4 w-4 text-emerald-700" title="APEXION NAV ENGINE v2.0" />
+          <span title="APEXION NAV ENGINE v2.0"><Icons.Cpu className="h-4 w-4 text-emerald-700" /></span>
         )}
       </div>
     </aside>

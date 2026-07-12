@@ -126,7 +126,7 @@ export function ZonesTab({ warehouses }: WarehouseExtensionsProps) {
 // ----------------------------------------------------
 // 2. AISLES ALLOCATOR TAB
 // ----------------------------------------------------
-export function AislesTab() {
+export function AislesTab(_props?: any) {
   const [aisles, setAisles] = useLocalStorage('axiom_wh_aisles', [
     { id: 'a1', code: 'AISLE-01', zone: 'Cold Storage Zone', shelfCount: 5, rackCount: 3, status: 'Active' },
     { id: 'a2', code: 'AISLE-02', zone: 'Bulk Materials Yard', shelfCount: 12, rackCount: 6, status: 'Active' },
@@ -203,7 +203,7 @@ export function AislesTab() {
 // ----------------------------------------------------
 // 3. RACKS DIRECTORY TAB
 // ----------------------------------------------------
-export function RacksTab() {
+export function RacksTab(_props?: any) {
   const [racks, setRacks] = useLocalStorage('axiom_wh_racks', [
     { id: 'r1', code: 'RC-01-A', aisle: 'AISLE-01', levels: 4, weightCapacity: '1.5 Tons', status: 'Active' },
     { id: 'r2', code: 'RC-01-B', aisle: 'AISLE-01', levels: 4, weightCapacity: '1.5 Tons', status: 'Active' },
@@ -292,7 +292,7 @@ export function RacksTab() {
 // ----------------------------------------------------
 // 4. SHELVES BINNING TAB
 // ----------------------------------------------------
-export function ShelvesTab() {
+export function ShelvesTab(_props?: any) {
   const [shelves, setShelves] = useLocalStorage('axiom_wh_shelves', [
     { id: 'sh1', code: 'SH-01-L1', rack: 'RC-01-A', level: 1, utilization: '80%', status: 'Active' },
     { id: 'sh2', code: 'SH-01-L2', rack: 'RC-01-A', level: 2, utilization: '10%', status: 'Active' },
@@ -381,7 +381,7 @@ export function ShelvesTab() {
 // ----------------------------------------------------
 // 5. BINS CONTROL TAB
 // ----------------------------------------------------
-export function BinsTab() {
+export function BinsTab(_props?: any) {
   const [bins, setBins] = useLocalStorage('axiom_wh_bins', [
     { id: 'b1', code: 'BIN-101', shelf: 'SH-01-L1', capacity: '150 Liters', status: 'Allocated' },
     { id: 'b2', code: 'BIN-102', shelf: 'SH-01-L1', capacity: '150 Liters', status: 'Empty' },
@@ -1006,7 +1006,7 @@ export function SerialTab({ products }: WarehouseExtensionsProps) {
 // ----------------------------------------------------
 // 11. EXPIRY ALERTS TAB
 // ----------------------------------------------------
-export function ExpiryTab() {
+export function ExpiryTab(_props?: any) {
   const [alerts] = useState([
     { id: 'exp1', product: 'Standard Premium cement', batch: 'BAT-202607-001', expiryDate: '2026-08-11', daysLeft: 31, status: 'Critical Action' },
     { id: 'exp2', product: 'Chemical Admixtures C1', batch: 'BAT-202604-099', expiryDate: '2026-07-01', daysLeft: -10, status: 'Expired' },

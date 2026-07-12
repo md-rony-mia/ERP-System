@@ -1,6 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDocs, collection, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, User as FirebaseUser } from 'firebase/auth';
+import { AppSettings } from '../types';
 
 const firebaseConfig = {
   projectId: "gen-lang-client-0450547040",
@@ -130,7 +131,7 @@ export async function saveDocToFirestore<T extends { id: string }>(
 /**
  * Saves settings to a single document 'app' in settings collection
  */
-export async function saveSettingsToFirestore(settings: any) {
+export async function saveSettingsToFirestore(settings: AppSettings) {
   try {
     const docRef = doc(db, 'settings', 'app');
     await setDoc(docRef, settings);

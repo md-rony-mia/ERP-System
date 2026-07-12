@@ -13,11 +13,13 @@ service cloud.firestore {
     // If not set, it performs a fallback check against the '/users/{uid}' document in Firestore.
     // Possible roles: 'Administrator', 'Manager', 'Cashier', 'Sales Agent' (matching the system's defined roles).
     function getUserRole() {
-      return request.auth.token.role != null 
-        ? request.auth.token.role 
-        : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-            : null);
+      return (isSignedIn() && request.auth.token.email == 'ronymia2022@gmail.com')
+        ? 'Administrator'
+        : (request.auth.token.role != null 
+            ? request.auth.token.role 
+            : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+                : null));
     }
 
     // Helper check to verify if the authenticated user has either 'Administrator' or 'Manager' clearance level.
