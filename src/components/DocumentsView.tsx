@@ -35,6 +35,8 @@ interface ERPDocument {
   date: string;
   size: string;
   version: string;
+  isArchived?: boolean;
+  archivedDate?: string;
 }
 
 interface SignatureContract {
@@ -174,9 +176,24 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
   };
 
   const handleDeleteDoc = (id: string) => {
-    if (confirm('Are you sure you want to delete this document?')) {
+    if (confirm('Are you sure you want to permanently delete this document? This cannot be undone.')) {
       setDocuments(documents.filter(d => d.id !== id));
     }
+  };
+
+  const handleArchiveDoc = (id: string) => {
+    setDocuments(documents.map(d => d.id === id ? {
+      ...d,
+      isArchived: true,
+      archivedDate: new Date().toISOString().split('T')[0]
+    } : d));
+  };
+
+  const handleRestoreDoc = (id: string) => {
+    setDocuments(documents.map(d => d.id === id ? {
+      ...d,
+      isArchived: false
+    } : d));
   };
 
   // --- OCR TRIGGER ---
@@ -204,11 +221,14 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
 
   // --- FILTERS ---
   const filteredDocs = documents.filter(d => {
+    if (d.isArchived) return false;
     const matchesSearch = d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.uploadedBy.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'All' || d.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const archivedDocs = documents.filter(d => d.isArchived);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
@@ -315,11 +335,11 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
                           <Download className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteDoc(d.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                          title="Archive File"
+                          onClick={() => handleArchiveDoc(d.id)}
+                          className="p-1 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                          title="Archive Document"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Archive className="h-4 w-4" />
                         </button>
                       </td>
                     </tr>
@@ -462,12 +482,75 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
       )}
 
       {currentTab === 'archive' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 text-center py-12 space-y-3">
-          <Archive className="h-10 w-10 text-indigo-600 mx-auto" />
-          <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Audit Archive Logs</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Retention and compliance audits archive operational documents after 7 fiscal years. Legal holds can be enforced within system administration panels.
-          </p>
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-4">
+          <div className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-800">Operational Audit Archive Logs</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Documents moved to cold storage. Retained for corporate governance and regulatory compliance.</p>
+            </div>
+            <span className="text-[10px] bg-amber-50 text-amber-700 font-extrabold border border-amber-100 px-2.5 py-1 rounded-full shrink-0 self-start sm:self-center">
+              Total Archived: {archivedDocs.length}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
+                  <th className="py-2.5 px-4">Document File Name</th>
+                  <th className="py-2.5 px-4">Vault Folder</th>
+                  <th className="py-2.5 px-4">Original Date</th>
+                  <th className="py-2.5 px-4">Archived Date</th>
+                  <th className="py-2.5 px-4 text-right">File Size</th>
+                  <th className="py-2.5 px-4 text-right">Operational Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivedDocs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-xs text-slate-400">
+                      <Archive className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      No archived documents in cold storage.
+                    </td>
+                  </tr>
+                ) : (
+                  archivedDocs.map(d => (
+                    <tr key={d.id} className="border-b border-slate-100/60 hover:bg-slate-50/50 text-xs text-slate-600 bg-slate-50/10">
+                      <td className="py-3 px-4 font-semibold text-slate-500 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                        <span className="line-through">{d.name}</span>
+                        <span className="text-[9px] bg-slate-100 text-slate-400 font-bold px-1 rounded">{d.version}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-medium">
+                          {d.category} Folder
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-400">{d.date}</td>
+                      <td className="py-3 px-4 font-mono text-slate-400 font-bold">{d.archivedDate || d.date}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-400">{d.size}</td>
+                      <td className="py-3 px-4 text-right space-x-2">
+                        <button
+                          onClick={() => handleRestoreDoc(d.id)}
+                          className="px-2.5 py-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded-lg cursor-pointer transition-colors"
+                          title="Restore to Document Center"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDoc(d.id)}
+                          className="px-2.5 py-1 text-[10px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold rounded-lg cursor-pointer transition-colors"
+                          title="Delete Permanently"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

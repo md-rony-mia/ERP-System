@@ -15,12 +15,24 @@ import {
   Settings,
   UserCheck,
   TrendingUp,
-  FileText
+  FileText,
+  ArrowUp,
+  ArrowDown,
+  Edit,
+  Shield
 } from 'lucide-react';
 import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
 
 interface WorkflowViewProps {
   activeSubTab?: string;
+}
+
+interface WorkflowStage {
+  id: string;
+  name: string;
+  role: string;
+  minAmount: number;
+  description: string;
 }
 
 interface ApprovalRule {
@@ -60,6 +72,7 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
   const [approvalRules, setApprovalRules] = useState<ApprovalRule[]>([]);
   const [automationRules, setAutomationRules] = useState<AutomationRule[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [workflowStages, setWorkflowStages] = useState<WorkflowStage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,6 +124,23 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         if (legacyPending) {
           localStorage.removeItem('axiom_wf_pending');
         }
+
+        // 4. workflowStages (Designer)
+        const legacyStages = localStorage.getItem('axiom_wf_stages');
+        let initialStages = [
+          { id: 'st1', name: 'Purchase Request Initiation', role: 'Department Executive', minAmount: 0, description: 'Procurement is initiated and budget code is logged.' },
+          { id: 'st2', name: 'Division Manager Clearance', role: 'Manager', minAmount: 10000, description: 'Assesses cost necessity and team resource availability.' },
+          { id: 'st3', name: 'Commercial CFO Auditing', role: 'CFO', minAmount: 200000, description: 'Checks cash flow capacity and tax deductibles.' },
+          { id: 'st4', name: 'Board Executive Approval', role: 'Managing Director', minAmount: 1000000, description: 'Ensures board covenants are followed for large expenditures.' }
+        ];
+        if (legacyStages) {
+          try { initialStages = JSON.parse(legacyStages); } catch (e) {}
+        }
+        const seededStages = await seedCollectionIfEmpty('wfStages', initialStages);
+        setWorkflowStages(seededStages || []);
+        if (legacyStages) {
+          localStorage.removeItem('axiom_wf_stages');
+        }
       } catch (err) {
         console.error("Workflow migration failed", err);
       } finally {
@@ -135,6 +165,11 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
     syncCollectionToFirestore('wfPending', pendingApprovals);
   }, [pendingApprovals, loading]);
 
+  useEffect(() => {
+    if (loading) return;
+    syncCollectionToFirestore('wfStages', workflowStages);
+  }, [workflowStages, loading]);
+
   // --- MODALS FORM STATES ---
   const [showApprovalRuleModal, setShowApprovalRuleModal] = useState(false);
   const [approvalRuleForm, setApprovalRuleForm] = useState({
@@ -145,6 +180,12 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
   const [automationRuleForm, setAutomationRuleForm] = useState({
     name: '', eventTrigger: 'Stock Alert' as AutomationRule['eventTrigger'], actionChannel: 'Email' as AutomationRule['actionChannel']
   });
+
+  const [showStageModal, setShowStageModal] = useState(false);
+  const [stageForm, setStageForm] = useState({
+    name: '', role: 'Manager', minAmount: '', description: ''
+  });
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
 
   // --- ACTIONS ---
   const handleCreateApprovalRule = (e: React.FormEvent) => {
@@ -194,6 +235,59 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
     setAutomationRules(automationRules.map(a => a.id === id ? { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' } : a));
   };
 
+  const handleCreateOrUpdateStage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stageForm.name) return;
+
+    if (editingStageId) {
+      setWorkflowStages(workflowStages.map(s => s.id === editingStageId ? {
+        ...s,
+        name: stageForm.name,
+        role: stageForm.role,
+        minAmount: parseFloat(stageForm.minAmount) || 0,
+        description: stageForm.description
+      } : s));
+      setEditingStageId(null);
+    } else {
+      const newStage: WorkflowStage = {
+        id: `st_${Date.now()}`,
+        name: stageForm.name,
+        role: stageForm.role,
+        minAmount: parseFloat(stageForm.minAmount) || 0,
+        description: stageForm.description
+      };
+      setWorkflowStages([...workflowStages, newStage]);
+    }
+    setStageForm({ name: '', role: 'Manager', minAmount: '', description: '' });
+    setShowStageModal(false);
+  };
+
+  const handleMoveStage = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= workflowStages.length) return;
+    
+    const updated = [...workflowStages];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setWorkflowStages(updated);
+  };
+
+  const handleDeleteStage = (id: string) => {
+    setWorkflowStages(workflowStages.filter(s => s.id !== id));
+  };
+
+  const handleEditStage = (stage: WorkflowStage) => {
+    setEditingStageId(stage.id);
+    setStageForm({
+      name: stage.name,
+      role: stage.role,
+      minAmount: stage.minAmount.toString(),
+      description: stage.description
+    });
+    setShowStageModal(true);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* HEADER */}
@@ -203,6 +297,19 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
           <p className="text-xs text-slate-400 mt-1">Nurture and customize multi-phase document sign-off pathways, configure triggers, and approve active corporate expenses.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {currentTab === 'designer' && (
+            <button
+              onClick={() => {
+                setEditingStageId(null);
+                setStageForm({ name: '', role: 'Manager', minAmount: '', description: '' });
+                setShowStageModal(true);
+              }}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Create Workflow Stage</span>
+            </button>
+          )}
           {currentTab === 'approval_rules' && (
             <button
               onClick={() => setShowApprovalRuleModal(true)}
@@ -269,12 +376,100 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
       )}
 
       {currentTab === 'designer' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 text-center py-12 space-y-3">
-          <GitBranch className="h-10 w-10 text-indigo-600 mx-auto" />
-          <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Approval Workflow Designer</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Drag and drop workflow stages (CFO Auditing, MD Overrides, Vault Archiving) to customize transaction pathways. Requires structural administration tokens configured in settings.
-          </p>
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4 mb-6">
+              <div>
+                <h3 className="font-bold text-sm text-slate-800">Visual Transaction Pathway Sequence</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Define multi-phase verification levels. Transactions dynamically route through active sign-off channels.</p>
+              </div>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-extrabold border border-emerald-100 px-3 py-1 rounded-full flex items-center gap-1 mt-2 md:mt-0">
+                <CheckCircle className="h-3 w-3 text-emerald-600" /> Sequence Active & Live
+              </span>
+            </div>
+
+            <div className="flex flex-col items-center space-y-4 max-w-2xl mx-auto relative">
+              {workflowStages.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs bg-slate-50 border border-dashed border-slate-200 rounded-xl w-full">
+                  No workflow stages defined yet. Click "Create Workflow Stage" to get started.
+                </div>
+              ) : (
+                workflowStages.map((stage, index) => (
+                  <React.Fragment key={stage.id}>
+                    {/* Visual Stage Card */}
+                    <div className="w-full bg-white border border-slate-200 hover:border-indigo-500 shadow-sm rounded-2xl p-5 relative group transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      {/* Left Block: Index & Icon */}
+                      <div className="flex items-start gap-4">
+                        <div className="h-9 w-9 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold flex items-center justify-center text-sm shrink-0">
+                          {index + 1}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-slate-800 text-sm">{stage.name}</h4>
+                            <span className="bg-indigo-50 border border-indigo-150 text-indigo-700 text-[9px] font-black px-2 py-0.5 rounded uppercase">
+                              {stage.role}
+                            </span>
+                            {stage.minAmount > 0 ? (
+                              <span className="bg-amber-50 border border-amber-150 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded">
+                                Min: ৳{stage.minAmount.toLocaleString()} BDT
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 text-slate-500 text-[9px] font-semibold px-2 py-0.5 rounded">
+                                No Minimum
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-md">{stage.description}</p>
+                        </div>
+                      </div>
+
+                      {/* Right Block: Actions */}
+                      <div className="flex items-center gap-2 sm:self-center">
+                        <button
+                          disabled={index === 0}
+                          onClick={() => handleMoveStage(index, 'up')}
+                          className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-800 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                          title="Move Stage Up"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          disabled={index === workflowStages.length - 1}
+                          onClick={() => handleMoveStage(index, 'down')}
+                          className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-800 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors"
+                          title="Move Stage Down"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditStage(stage)}
+                          className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-indigo-600 cursor-pointer transition-colors"
+                          title="Edit Stage Parameters"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStage(stage.id)}
+                          className="p-1.5 rounded border border-slate-200 hover:bg-rose-50 text-rose-500 cursor-pointer transition-colors"
+                          title="Delete Stage"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Connector Arrow (unless it's the last stage) */}
+                    {index < workflowStages.length - 1 && (
+                      <div className="flex flex-col items-center py-1">
+                        <div className="w-0.5 h-6 bg-slate-200" />
+                        <div className="w-2 h-2 rounded-full bg-indigo-500 -mt-1" />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -485,6 +680,84 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded cursor-pointer"
               >
                 Save Automation
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* CREATE/EDIT WORKFLOW STAGE MODAL */}
+      {showStageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-100">
+          <form onSubmit={handleCreateOrUpdateStage} className="bg-white border border-slate-200 rounded-xl p-5 w-full max-w-sm shadow-lg space-y-4 animate-in zoom-in-95 duration-100">
+            <h3 className="font-bold text-sm text-slate-800 border-b border-slate-100 pb-2">
+              {editingStageId ? 'Edit Workflow Stage' : 'Create Workflow Stage'}
+            </h3>
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">Stage Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={stageForm.name}
+                  onChange={e => setStageForm({ ...stageForm, name: e.target.value })}
+                  placeholder="e.g., Regional CFO Clearance"
+                  className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Approver Role</label>
+                  <select
+                    value={stageForm.role}
+                    onChange={e => setStageForm({ ...stageForm, role: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-2 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="Manager">Department Manager</option>
+                    <option value="CFO">Chief Financial Officer (CFO)</option>
+                    <option value="Managing Director">Managing Director</option>
+                    <option value="Auditor">Compliance Auditor</option>
+                    <option value="Board Member">Board of Directors</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Min Amount Trigger (BDT)</label>
+                  <input
+                    type="number"
+                    value={stageForm.minAmount}
+                    onChange={e => setStageForm({ ...stageForm, minAmount: e.target.value })}
+                    placeholder="e.g., 50000 (0 for always)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-2 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">SLA or Step Guidelines</label>
+                <textarea
+                  rows={3}
+                  value={stageForm.description}
+                  onChange={e => setStageForm({ ...stageForm, description: e.target.value })}
+                  placeholder="Summarize standard operating procedures, authorization rules, or regulatory checkpoints for this step..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded px-2.5 py-2 focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 text-xs pt-2">
+              <button
+                type="button"
+                onClick={() => setShowStageModal(false)}
+                className="px-4 py-2 border border-slate-200 rounded text-slate-500 hover:bg-slate-50 cursor-pointer font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded cursor-pointer"
+              >
+                {editingStageId ? 'Update Stage' : 'Add Stage'}
               </button>
             </div>
           </form>
