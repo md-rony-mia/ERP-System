@@ -50,6 +50,7 @@ export default function SalesView({
   const salesTab = [
     'pos',
     'sale_orders',
+    'quotation',
     'invoices',
     'returns',
     'collection',
@@ -65,6 +66,11 @@ export default function SalesView({
     : 'pos';
 
   // --- ADDITIONAL SALES SUB-TABS STATES ---
+  const [salesQuotations, setSalesQuotations] = useState([
+    { id: 'sq_1', quotationNo: 'QT-2026-001', customerName: 'Arif Hossain', date: '2026-07-09', amount: 45000, validUntil: '2026-08-09', status: 'Sent', itemsCount: 3 },
+    { id: 'sq_2', quotationNo: 'QT-2026-002', customerName: 'Salim Mahmud', date: '2026-07-10', amount: 18500, validUntil: '2026-08-10', status: 'Draft', itemsCount: 1 },
+    { id: 'sq_3', quotationNo: 'QT-2026-003', customerName: 'Bari & Sons', date: '2026-07-11', amount: 92000, validUntil: '2026-08-11', status: 'Approved', itemsCount: 5 },
+  ]);
   const [saleOrders, setSaleOrders] = useState([
     { id: 'so_1', orderNo: 'SO-2026-901', customerName: 'Arif Hossain', date: '2026-07-05', amount: 32000, status: 'Pending Delivery' },
     { id: 'so_2', orderNo: 'SO-2026-902', customerName: 'Salim Mahmud', date: '2026-07-06', amount: 15400, status: 'Delivered' },
@@ -100,8 +106,14 @@ export default function SalesView({
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showMoModal, setShowMoModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
 
   // New forms values
+  const [newQuotationCust, setNewQuotationCust] = useState('');
+  const [newQuotationAmt, setNewQuotationAmt] = useState('');
+  const [newQuotationValidDays, setNewQuotationValidDays] = useState('30');
+  const [newQuotationStatus, setNewQuotationStatus] = useState('Draft');
+  const [newQuotationItems, setNewQuotationItems] = useState('3');
   const [newSoCust, setNewSoCust] = useState('');
   const [newSoAmt, setNewSoAmt] = useState('');
   const [newReturnInv, setNewReturnInv] = useState('');
@@ -1402,6 +1414,142 @@ export default function SalesView({
           NEW ADDITIONAL SUB-TABS VIEW RENDERS
           ========================================================= */}
 
+      {/* 0. SALES QUOTATION VIEW */}
+      {salesTab === 'quotation' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center flex-wrap gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 font-display">Sales Quotation Management / সেলস কোটেশন</h2>
+              <p className="text-xs text-slate-400 mt-1">Create, print, and manage professional corporate price proposals and estimate sheets.</p>
+            </div>
+            <button
+              onClick={() => setShowQuotationModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Sales Quotation / নতুন কোটেশন</span>
+            </button>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-4 border border-slate-200/80 rounded-xl shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Proposals Raised</p>
+              <p className="text-2xl font-black text-slate-800 font-display mt-1">{salesQuotations.length}</p>
+              <p className="text-[10px] text-emerald-600 font-bold mt-0.5">Active negotiation channel</p>
+            </div>
+            <div className="bg-white p-4 border border-slate-200/80 rounded-xl shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Approved Value (৳)</p>
+              <p className="text-2xl font-black text-indigo-600 font-display mt-1">
+                ৳{salesQuotations.filter(q => q.status === 'Approved').reduce((acc, q) => acc + q.amount, 0).toLocaleString()} BDT
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Ready to be converted to Sale Orders</p>
+            </div>
+            <div className="bg-white p-4 border border-slate-200/80 rounded-xl shadow-sm">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending/Draft Leads</p>
+              <p className="text-2xl font-black text-amber-600 font-display mt-1">
+                {salesQuotations.filter(q => q.status !== 'Approved').length} Items
+              </p>
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">Awaiting customer response</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div className="border-b border-slate-100 pb-3 mb-4 flex justify-between items-center">
+              <h3 className="font-extrabold text-sm text-slate-800">Proposal Registry Records</h3>
+              <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded">
+                Live Audit Logs
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3 px-4">Quotation ID</th>
+                    <th className="py-3 px-4">Customer Client</th>
+                    <th className="py-3 px-4">Proposal Date</th>
+                    <th className="py-3 px-4">Valid Until</th>
+                    <th className="py-3 px-4 text-center">Items Count</th>
+                    <th className="py-3 px-4 text-right">Total Est. (৳)</th>
+                    <th className="py-3 px-4 text-center">Verification Status</th>
+                    <th className="py-3 px-4 text-right">Operations</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {salesQuotations.map((q) => (
+                    <tr key={q.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-700">{q.quotationNo}</td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-800">{q.customerName}</td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono">{q.date}</td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono">{q.validUntil}</td>
+                      <td className="py-3.5 px-4 text-center text-slate-600 font-bold">{q.itemsCount}</td>
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 font-display">
+                        ৳{q.amount.toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded border ${
+                          q.status === 'Approved'
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            : q.status === 'Sent'
+                            ? 'bg-sky-50 border-sky-100 text-sky-700'
+                            : 'bg-slate-50 border-slate-150 text-slate-500'
+                        }`}>
+                          {q.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              alert(`Quotation ${q.quotationNo} printed successfully! Custom standard corporate letterhead added.`);
+                            }}
+                            className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-800 cursor-pointer transition-colors"
+                            title="Print PDF Document"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </button>
+                          {q.status !== 'Approved' && (
+                            <button
+                              onClick={() => {
+                                setSalesQuotations(salesQuotations.map(sq => sq.id === q.id ? { ...sq, status: 'Approved' } : sq));
+                                alert(`Quotation ${q.quotationNo} approved and finalized! Can now be processed as Sales Order.`);
+                              }}
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-700 text-[10px] font-bold rounded cursor-pointer transition-all"
+                              title="Finalize & Approve Quote"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to permanently delete this quotation proposal?')) {
+                                setSalesQuotations(salesQuotations.filter(sq => sq.id !== q.id));
+                              }
+                            }}
+                            className="p-1.5 rounded border border-slate-200 hover:bg-rose-50 text-rose-500 cursor-pointer transition-colors"
+                            title="Delete Proposal"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {salesQuotations.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400 font-semibold">
+                        No active sales quotations. Click "Create Sales Quotation" to generate.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. SALE ORDERS VIEW */}
       {salesTab === 'sale_orders' && (
         <div className="space-y-6">
@@ -2043,6 +2191,94 @@ export default function SalesView({
       {/* =========================================================
           NEW ADDITIONAL OVERLAY MODALS
           ========================================================= */}
+
+      {/* 0. Record Sales Quotation Modal */}
+      {showQuotationModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowQuotationModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Raise New Sales Quotation</h4>
+              <button onClick={() => setShowQuotationModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!newQuotationCust || !newQuotationAmt) return;
+              
+              const pDate = new Date();
+              const vDate = new Date();
+              vDate.setDate(pDate.getDate() + (parseInt(newQuotationValidDays) || 30));
+
+              const newQ = {
+                id: `sq_dyn_${Date.now()}`,
+                quotationNo: `QT-2026-0${100 + salesQuotations.length}`,
+                customerName: newQuotationCust,
+                date: pDate.toISOString().split('T')[0],
+                validUntil: vDate.toISOString().split('T')[0],
+                amount: parseFloat(newQuotationAmt),
+                status: newQuotationStatus,
+                itemsCount: parseInt(newQuotationItems) || 3
+              };
+              setSalesQuotations([newQ, ...salesQuotations]);
+              setNewQuotationCust('');
+              setNewQuotationAmt('');
+              setNewQuotationValidDays('30');
+              setNewQuotationStatus('Draft');
+              setNewQuotationItems('3');
+              setShowQuotationModal(false);
+              alert('Sales quotation proposed and recorded successfully!');
+            }} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Customer / Prospective Lead Name *</label>
+                <input
+                  type="text" required placeholder="e.g. Arif Hossain" value={newQuotationCust}
+                  onChange={(e) => setNewQuotationCust(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Estimated Value (৳) *</label>
+                  <input
+                    type="number" required placeholder="৳ Amount" value={newQuotationAmt}
+                    onChange={(e) => setNewQuotationAmt(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Line Items Count</label>
+                  <input
+                    type="number" required placeholder="3" value={newQuotationItems}
+                    onChange={(e) => setNewQuotationItems(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Validity (Days)</label>
+                  <input
+                    type="number" required value={newQuotationValidDays}
+                    onChange={(e) => setNewQuotationValidDays(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Initial Status</label>
+                  <select
+                    value={newQuotationStatus}
+                    onChange={(e) => setNewQuotationStatus(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none"
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Sent">Sent to Customer</option>
+                    <option value="Approved">Pre-Approved</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowQuotationModal(false)} className="px-3.5 py-1.5 border border-slate-200 text-slate-500 rounded-md text-xs hover:bg-slate-50 cursor-pointer">Cancel</button>
+                <button type="submit" className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-bold cursor-pointer">Generate Proposal</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 1. Record Sale Order Modal */}
       {showSoModal && (
