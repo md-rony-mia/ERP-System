@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
 import { Product, Customer, Invoice, SaleItem, formatBoxQty, AppSettings } from '../types';
+import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   Search,
   ShoppingCart,
@@ -28,6 +29,7 @@ interface SalesViewProps {
   invoices: Invoice[];
   onAddInvoice: (invoice: Invoice) => void;
   onAddCustomer: (customer: Omit<Customer, 'id' | 'outstandingBalance'>) => void;
+  onUpdateCustomers?: (customers: Customer[]) => void;
   onRecordCollection: (customerId: string, amount: number) => void;
   activeSubTab?: string;
   settings?: AppSettings;
@@ -39,6 +41,7 @@ export default function SalesView({
   invoices,
   onAddInvoice,
   onAddCustomer,
+  onUpdateCustomers,
   onRecordCollection,
   activeSubTab = 'pos',
   settings,
@@ -117,6 +120,7 @@ export default function SalesView({
 
   // Dummy state to fulfill any leftover setSalesTab calls safely
   const setSalesTab = (val: any) => {};
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // --- POS STATES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -1327,13 +1331,23 @@ export default function SalesView({
               <h3 className="text-sm font-bold text-slate-800 font-display">Customer Ledger</h3>
               <p className="text-xs text-slate-400 mt-0.5">Manage customer list, credit ceilings, and collect payments.</p>
             </div>
-            <button
-              onClick={() => setShowCustModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3 py-2 rounded-lg shadow-sm cursor-pointer"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>New Customer</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-lg shadow-sm cursor-pointer transition-all"
+                title="Bulk import customers from Excel/CSV / এক্সেল/সিএসভি থেকে গ্রাহক বাল্ক ইমপোর্ট করুন"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Import from Excel / ইমপোর্ট</span>
+              </button>
+              <button
+                onClick={() => setShowCustModal(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3.5 py-2.5 rounded-lg shadow-sm cursor-pointer transition-all"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>New Customer</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -3041,6 +3055,29 @@ export default function SalesView({
           </div>
         );
       })()}
+      {/* Reusable Excel/CSV Bulk Import Modal */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        schema={[
+          { key: 'name', labelEn: 'Customer Name', labelBn: 'গ্রাহকের নাম', type: 'string', required: true },
+          { key: 'phone', labelEn: 'Phone Number', labelBn: 'ফোন নম্বর', type: 'string', required: true, validationType: 'phone' },
+          { key: 'email', labelEn: 'Email Address', labelBn: 'ইমেল ঠিকানা', type: 'string', required: false, validationType: 'email' },
+          { key: 'group', labelEn: 'Group Classification', labelBn: 'গ্রুপ শ্রেণীবিভাগ', type: 'string', required: false },
+          { key: 'outstandingBalance', labelEn: 'Outstanding Balance (৳)', labelBn: 'বকেয়া ব্যালেন্স', type: 'number', required: false, validationType: 'positiveNumber' },
+        ]}
+        existingData={customers}
+        uniqueKey="phone" // Let's use phone as unique identifier for customers
+        collectionNameEn="Customers"
+        collectionNameBn="গ্রাহক"
+        onSave={(updatedCustomers) => {
+          if (onUpdateCustomers) {
+            onUpdateCustomers(updatedCustomers);
+          }
+          setIsImportModalOpen(false);
+        }}
+      />
+
     </div>
   );
 }

@@ -47,6 +47,7 @@ import {
   ProductEnterpriseTabs,
   BulkEditBar,
 } from './ProductEnterpriseEngine';
+import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 
 import { useMetadata } from '../metadata/hooks';
 import { DynamicFormRenderer } from '../metadata/renderer';
@@ -129,6 +130,7 @@ export default function InventoryView({
   // Form states for Add Product
   const [addFormData, setAddFormData] = useState<Record<string, any>>({});
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Form states for Edit Product
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
@@ -1151,6 +1153,14 @@ export default function InventoryView({
               >
                 <Settings className="h-3.5 w-3.5 text-indigo-600" />
                 <span>Manage Custom Fields</span>
+              </button>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md shadow-emerald-600/10 cursor-pointer transition-all self-start sm:self-center"
+                title="Bulk import products from Excel/CSV / এক্সেল/সিএসভি থেকে পণ্য বাল্ক ইমপোর্ট করুন"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Import from Excel / ইমপোর্ট</span>
               </button>
               <button
                 onClick={handleOpenAddModal}
@@ -4278,6 +4288,34 @@ export default function InventoryView({
           }}
         />
       )}
+
+      {/* Reusable Excel/CSV Bulk Import Modal */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        schema={[
+          { key: 'sku', labelEn: 'SKU', labelBn: 'এসকিউ', type: 'string', required: true },
+          { key: 'name', labelEn: 'Product Name', labelBn: 'পণ্যের নাম', type: 'string', required: true },
+          { key: 'category', labelEn: 'Category', labelBn: 'ক্যাটাগরি', type: 'string', required: true },
+          { key: 'unit', labelEn: 'Unit', labelBn: 'ইউনিট', type: 'string', required: true },
+          { key: 'warehouse', labelEn: 'Warehouse', labelBn: 'গুদাম', type: 'string', required: true },
+          { key: 'price', labelEn: 'Selling Price (৳)', labelBn: 'বিক্রয় মূল্য', type: 'number', required: true, validationType: 'positiveNumber' },
+          { key: 'cost', labelEn: 'Cost Price (৳)', labelBn: 'ক্রয় মূল্য', type: 'number', required: true, validationType: 'positiveNumber' },
+          { key: 'stock', labelEn: 'Stock Level', labelBn: 'স্টক সংখ্যা', type: 'number', required: true, validationType: 'positiveNumber' },
+          { key: 'alertQty', labelEn: 'Alert Quantity', labelBn: 'সতর্কতা পরিমাণ', type: 'number', required: true, validationType: 'positiveNumber' },
+          { key: 'pcsPerBox', labelEn: 'Pcs Per Box', labelBn: 'বক্স প্রতি পিস', type: 'number', required: false, validationType: 'positiveNumberNonZero' },
+        ]}
+        existingData={products}
+        uniqueKey="sku"
+        collectionNameEn="Products"
+        collectionNameBn="পণ্য"
+        onSave={(updatedProducts) => {
+          if (onUpdateProducts) {
+            onUpdateProducts(updatedProducts);
+          }
+          setIsImportModalOpen(false);
+        }}
+      />
 
     </div>
   );

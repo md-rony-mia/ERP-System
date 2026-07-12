@@ -811,6 +811,7 @@ export default function App() {
                 invoices={invoices}
                 onAddInvoice={handleAddInvoice}
                 onAddCustomer={handleAddCustomer}
+                onUpdateCustomers={setCustomers}
                 onRecordCollection={handleRecordCollection}
                 activeSubTab={currentSubTab}
                 settings={settings}
@@ -825,6 +826,7 @@ export default function App() {
                 purchaseOrders={purchaseOrders}
                 products={products}
                 onAddSupplier={handleAddSupplier}
+                onUpdateSuppliers={setSuppliers}
                 onAddPurchaseOrder={handleAddPurchaseOrder}
                 onReceivePurchaseOrder={handleReceivePurchaseOrder}
                 activeSubTab={currentSubTab}

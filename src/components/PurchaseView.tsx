@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
 import { Supplier, PurchaseOrder, Product, POItem, formatBoxQty } from '../types';
+import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   ShoppingCart,
   Search,
@@ -32,6 +33,7 @@ interface PurchaseViewProps {
   purchaseOrders: PurchaseOrder[];
   products: Product[];
   onAddSupplier: (supplier: Omit<Supplier, 'id' | 'outstandingBalance'>) => void;
+  onUpdateSuppliers?: (suppliers: Supplier[]) => void;
   onAddPurchaseOrder: (po: PurchaseOrder) => void;
   onReceivePurchaseOrder: (poId: string) => void;
   activeSubTab?: string;
@@ -43,6 +45,7 @@ export default function PurchaseView({
   purchaseOrders,
   products,
   onAddSupplier,
+  onUpdateSuppliers,
   onAddPurchaseOrder,
   onReceivePurchaseOrder,
   activeSubTab = 'purchase_orders',
@@ -502,6 +505,7 @@ export default function PurchaseView({
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // --- FORM VALUES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -888,13 +892,23 @@ export default function PurchaseView({
               <h2 className="text-xl font-bold text-slate-800 font-display">Suppliers Directory</h2>
               <p className="text-xs text-slate-400 mt-1">Review verified supplier contact lines, corporate entities, and groups.</p>
             </div>
-            <button
-              onClick={() => setShowSupModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Register Supplier</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer transition-all"
+                title="Bulk import suppliers from Excel/CSV / এক্সেল/সিএসভি থেকে সরবরাহকারী বাল্ক ইমপোর্ট করুন"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Import from Excel / ইমপোর্ট</span>
+              </button>
+              <button
+                onClick={() => setShowSupModal(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-md cursor-pointer transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Register Supplier</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
@@ -2836,6 +2850,30 @@ export default function PurchaseView({
           </div>
         </div>
       )}
+
+      {/* Reusable Excel/CSV Bulk Import Modal */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        schema={[
+          { key: 'name', labelEn: 'Supplier Representative Name', labelBn: 'সরবরাহকারী প্রতিনিধির নাম', type: 'string', required: true },
+          { key: 'companyName', labelEn: 'Company Entity', labelBn: 'প্রতিষ্ঠানের নাম', type: 'string', required: true },
+          { key: 'group', labelEn: 'Supplier Segment', labelBn: 'সরবরাহকারী গ্রুপ', type: 'string', required: true },
+          { key: 'phone', labelEn: 'Phone Number', labelBn: 'ফোন নম্বর', type: 'string', required: true, validationType: 'phone' },
+          { key: 'email', labelEn: 'Email Address', labelBn: 'ইমেল ঠিকানা', type: 'string', required: false, validationType: 'email' },
+          { key: 'outstandingBalance', labelEn: 'Outstanding Balance (৳)', labelBn: 'বকেয়া ব্যালেন্স', type: 'number', required: false, validationType: 'positiveNumber' },
+        ]}
+        existingData={suppliers}
+        uniqueKey="phone" // Let's use phone as unique identifier for suppliers too
+        collectionNameEn="Suppliers"
+        collectionNameBn="সরবরাহকারী"
+        onSave={(updatedSuppliers) => {
+          if (onUpdateSuppliers) {
+            onUpdateSuppliers(updatedSuppliers);
+          }
+          setIsImportModalOpen(false);
+        }}
+      />
 
     </div>
   );
