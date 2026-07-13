@@ -272,12 +272,12 @@ export class NavigationEngineService {
   }
 
   private loadFromStorage() {
-    const savedItems = localStorage.getItem('axiom_nav_items');
-    const savedGroups = localStorage.getItem('axiom_nav_groups');
-    const savedFavs = localStorage.getItem('axiom_nav_favorites');
-    const savedPinned = localStorage.getItem('axiom_nav_pinned');
-    const savedRecents = localStorage.getItem('axiom_nav_recents');
-    const savedLang = localStorage.getItem('axiom_nav_language');
+    const savedItems = localStorage.getItem('nexova_nav_items');
+    const savedGroups = localStorage.getItem('nexova_nav_groups');
+    const savedFavs = localStorage.getItem('nexova_nav_favorites');
+    const savedPinned = localStorage.getItem('nexova_nav_pinned');
+    const savedRecents = localStorage.getItem('nexova_nav_recents');
+    const savedLang = localStorage.getItem('nexova_nav_language');
 
     if (savedItems) {
       try { this.items = JSON.parse(savedItems); } catch { this.items = INITIAL_ITEMS; }
@@ -306,23 +306,23 @@ export class NavigationEngineService {
   }
 
   private saveItems() {
-    localStorage.setItem('axiom_nav_items', JSON.stringify(this.items));
+    localStorage.setItem('nexova_nav_items', JSON.stringify(this.items));
   }
 
   private saveGroups() {
-    localStorage.setItem('axiom_nav_groups', JSON.stringify(this.groups));
+    localStorage.setItem('nexova_nav_groups', JSON.stringify(this.groups));
   }
 
   private saveFavorites() {
-    localStorage.setItem('axiom_nav_favorites', JSON.stringify(this.favorites));
+    localStorage.setItem('nexova_nav_favorites', JSON.stringify(this.favorites));
   }
 
   private savePinned() {
-    localStorage.setItem('axiom_nav_pinned', JSON.stringify(this.pinned));
+    localStorage.setItem('nexova_nav_pinned', JSON.stringify(this.pinned));
   }
 
   private saveRecents() {
-    localStorage.setItem('axiom_nav_recents', JSON.stringify(this.recents));
+    localStorage.setItem('nexova_nav_recents', JSON.stringify(this.recents));
   }
 
   public getGroups(): NavigationGroup[] {
@@ -347,7 +347,7 @@ export class NavigationEngineService {
 
   public setLanguage(lang: string) {
     this.activeLanguage = lang;
-    localStorage.setItem('axiom_nav_language', lang);
+    localStorage.setItem('nexova_nav_language', lang);
   }
 
   // Group Operations

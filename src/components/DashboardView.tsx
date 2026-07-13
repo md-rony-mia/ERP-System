@@ -471,7 +471,7 @@ export default function DashboardView({
       .filter(Boolean) as NavigationItem[];
 
     const handleClearRecents = () => {
-      localStorage.removeItem('axiom_nav_recents');
+      localStorage.removeItem('nexova_nav_recents');
       syncExtensions();
     };
 

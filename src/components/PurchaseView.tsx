@@ -81,7 +81,7 @@ export default function PurchaseView({
 
   // --- SAP PR-TO-PO WORKFLOW STATES ---
   const [requisitions, setRequisitions] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_purchase_requisitions');
+    const saved = localStorage.getItem('nexova_purchase_requisitions');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -132,7 +132,7 @@ export default function PurchaseView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_purchase_requisitions', JSON.stringify(requisitions));
+    localStorage.setItem('nexova_purchase_requisitions', JSON.stringify(requisitions));
   }, [requisitions]);
 
   const [showPrModal, setShowPrModal] = useState(false);
@@ -145,7 +145,7 @@ export default function PurchaseView({
 
   // --- SAP RFQ WORKFLOW STATES ---
   const [rfqs, setRfqs] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_sourcing_rfqs');
+    const saved = localStorage.getItem('nexova_sourcing_rfqs');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -182,7 +182,7 @@ export default function PurchaseView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_sourcing_rfqs', JSON.stringify(rfqs));
+    localStorage.setItem('nexova_sourcing_rfqs', JSON.stringify(rfqs));
   }, [rfqs]);
 
   const [showRfqModal, setShowRfqModal] = useState(false);
@@ -193,7 +193,7 @@ export default function PurchaseView({
 
   // --- SAP 3-WAY MATCHING STATES ---
   const [matchingRecords, setMatchingRecords] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_3way_matching');
+    const saved = localStorage.getItem('nexova_3way_matching');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -259,7 +259,7 @@ export default function PurchaseView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_3way_matching', JSON.stringify(matchingRecords));
+    localStorage.setItem('nexova_3way_matching', JSON.stringify(matchingRecords));
   }, [matchingRecords]);
 
   const [selectedMatchForResolve, setSelectedMatchForResolve] = useState<any>(null);
@@ -269,7 +269,7 @@ export default function PurchaseView({
 
   // --- SUPPLIER PERFORMANCE RATINGS STATE ---
   const [supplierRatings, setSupplierRatings] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_supplier_ratings');
+    const saved = localStorage.getItem('nexova_supplier_ratings');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -318,7 +318,7 @@ export default function PurchaseView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_supplier_ratings', JSON.stringify(supplierRatings));
+    localStorage.setItem('nexova_supplier_ratings', JSON.stringify(supplierRatings));
   }, [supplierRatings]);
 
   // Advisor product category states

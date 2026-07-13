@@ -64,7 +64,7 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
         setLoading(true);
 
         // 1. Documents
-        const legacyDocs = localStorage.getItem('axiom_docs');
+        const legacyDocs = localStorage.getItem('nexova_docs');
         let initialDocs: ERPDocument[] = [
           { id: 'doc1', name: 'Raw Steel Supply Agreement 2026.pdf', category: 'Legal', type: 'PDF', uploadedBy: 'Farhana Yasmin', date: '2026-07-01', size: '2.4 MB', version: 'v1.2' },
           { id: 'doc2', name: 'Q2 Financial Balance Audit Spreadsheet.xlsx', category: 'Finance', type: 'XLSX', uploadedBy: 'Sabbir Rahman', date: '2026-07-04', size: '14.1 MB', version: 'v2.0' },
@@ -76,14 +76,14 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
         const seededDocs = await seedCollectionIfEmpty('documents', initialDocs);
         setDocuments(seededDocs || []);
         if (legacyDocs) {
-          localStorage.removeItem('axiom_docs');
+          localStorage.removeItem('nexova_docs');
         }
 
         // 2. Contracts
-        const legacyContracts = localStorage.getItem('axiom_doc_contracts');
+        const legacyContracts = localStorage.getItem('nexova_doc_contracts');
         let initialContracts: SignatureContract[] = [
           { id: 'ct1', title: 'Cement Bulk Distribution Indemnity Deed', clientName: 'Purbachal Housing Ltd', dateSent: '2026-07-02', status: 'Pending Signature' },
-          { id: 'ct2', title: 'Narayanganj Yard Leasing Contract', clientName: 'Axiom Logistics', dateSent: '2026-06-25', status: 'Signed', signedTimestamp: '2026-06-26 10:45 AM' }
+          { id: 'ct2', title: 'Narayanganj Yard Leasing Contract', clientName: 'Nexova Logistics', dateSent: '2026-06-25', status: 'Signed', signedTimestamp: '2026-06-26 10:45 AM' }
         ];
         if (legacyContracts) {
           try { initialContracts = JSON.parse(legacyContracts); } catch (e) {}
@@ -91,7 +91,7 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
         const seededContracts = await seedCollectionIfEmpty('docContracts', initialContracts);
         setContracts(seededContracts || []);
         if (legacyContracts) {
-          localStorage.removeItem('axiom_doc_contracts');
+          localStorage.removeItem('nexova_doc_contracts');
         }
       } catch (err) {
         console.error("Documents migration failed", err);

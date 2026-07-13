@@ -56,7 +56,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [marketplaceApps, setMarketplaceApps] = useState<MarketplaceApp[]>([]);
   const [gitConnected, setGitConnected] = useState<boolean>(false);
-  const [gitRepo, setGitRepo] = useState<string>('ronymia2022/axiom-erp');
+  const [gitRepo, setGitRepo] = useState<string>('ronymia2022/nexova-erp');
   const [gitBranch, setGitBranch] = useState<string>('main');
   const [gitToken, setGitToken] = useState<string>('ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0');
   const [gitAutoSync, setGitAutoSync] = useState<boolean>(true);
@@ -71,7 +71,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         setLoading(true);
 
         // 1. Webhooks
-        const legacyWebhooks = localStorage.getItem('axiom_integrations_webhooks');
+        const legacyWebhooks = localStorage.getItem('nexova_integrations_webhooks');
         let initialWebhooks = [
           { id: 'wh1', name: 'Invoice Paid Event Stream', url: 'https://api.yourcompany.com/webhooks/invoice-paid', triggerEvent: 'Invoice Paid', status: 'Active' as const },
           { id: 'wh2', name: 'Low Stock Slack Alert', url: 'https://hooks.slack.com/services/T00/B00/X00', triggerEvent: 'Inventory Low Stock', status: 'Active' as const }
@@ -82,11 +82,11 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         const seededWebhooks = await seedCollectionIfEmpty('integrationsWebhooks', initialWebhooks);
         setWebhooks(seededWebhooks || []);
         if (legacyWebhooks) {
-          localStorage.removeItem('axiom_integrations_webhooks');
+          localStorage.removeItem('nexova_integrations_webhooks');
         }
 
         // 2. Marketplace Apps
-        const legacyApps = localStorage.getItem('axiom_integrations_apps');
+        const legacyApps = localStorage.getItem('nexova_integrations_apps');
         let initialApps = [
           { id: 'app1', name: 'Stripe Payment Gateway', description: 'Reconcile invoice payments instantly via secure credit cards.', category: 'Fintech', connected: true },
           { id: 'app2', name: 'Twilio SMS Broadcaster', description: 'Send low stock and employee pay slip notifications.', category: 'Telecom', connected: false },
@@ -98,15 +98,15 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         const seededApps = await seedCollectionIfEmpty('integrationsApps', initialApps);
         setMarketplaceApps(seededApps || []);
         if (legacyApps) {
-          localStorage.removeItem('axiom_integrations_apps');
+          localStorage.removeItem('nexova_integrations_apps');
         }
 
         // 3. Github Config
-        const legacyConnected = localStorage.getItem('axiom_github_connected') === 'true';
-        const legacyRepo = localStorage.getItem('axiom_github_repo') || 'ronymia2022/axiom-erp';
-        const legacyBranch = localStorage.getItem('axiom_github_branch') || 'main';
-        const legacyToken = localStorage.getItem('axiom_github_token') || 'ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0';
-        const legacyAutoSync = localStorage.getItem('axiom_github_autosync') !== 'false';
+        const legacyConnected = localStorage.getItem('nexova_github_connected') === 'true';
+        const legacyRepo = localStorage.getItem('nexova_github_repo') || 'ronymia2022/nexova-erp';
+        const legacyBranch = localStorage.getItem('nexova_github_branch') || 'main';
+        const legacyToken = localStorage.getItem('nexova_github_token') || 'ghp_8sD92n7F9aK2mL0pW3qRtY5uIvXz7bV1c9m0';
+        const legacyAutoSync = localStorage.getItem('nexova_github_autosync') !== 'false';
 
         const defaultGithubConfig = [{
           id: 'config',
@@ -126,14 +126,14 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         setGitAutoSync(githubConfig.autoSync);
 
         // Clear legacy Github config
-        localStorage.removeItem('axiom_github_connected');
-        localStorage.removeItem('axiom_github_repo');
-        localStorage.removeItem('axiom_github_branch');
-        localStorage.removeItem('axiom_github_token');
-        localStorage.removeItem('axiom_github_autosync');
+        localStorage.removeItem('nexova_github_connected');
+        localStorage.removeItem('nexova_github_repo');
+        localStorage.removeItem('nexova_github_branch');
+        localStorage.removeItem('nexova_github_token');
+        localStorage.removeItem('nexova_github_autosync');
 
         // 4. Github Logs
-        const legacyLogs = localStorage.getItem('axiom_github_logs');
+        const legacyLogs = localStorage.getItem('nexova_github_logs');
         let initialLogs = [
           '[SYSTEM] Initialized secure TLS connection handshake with github.com API.',
           '[SUCCESS] Verified repository authentication with Personal Access Token scopes: repo, write:packages.',
@@ -147,7 +147,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         const seededLogs = await seedCollectionIfEmpty('integrationGithubLogs', [{ id: 'logs', entries: initialLogs }]);
         setGitLogs(seededLogs?.[0]?.entries || initialLogs);
         if (legacyLogs) {
-          localStorage.removeItem('axiom_github_logs');
+          localStorage.removeItem('nexova_github_logs');
         }
 
       } catch (err) {
@@ -301,14 +301,14 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
           'Starting batch import job...',
           `Validating schema for ${parsed.length} raw data records...`,
           'Validation complete! Insertion into local database successful.',
-          `Successfully synchronized ${parsed.length} items with Axiom ERP ledger.`
+          `Successfully synchronized ${parsed.length} items with Nexova ERP ledger.`
         ]);
         // Merge into corresponding local storage based on dummy keys inside items
         if (parsed[0] && parsed[0].name && parsed[0].sku) {
           // If product
-          const existing = JSON.parse(localStorage.getItem('axiom_products') || '[]');
+          const existing = JSON.parse(localStorage.getItem('nexova_products') || '[]');
           const updated = [...parsed, ...existing];
-          localStorage.setItem('axiom_products', JSON.stringify(updated));
+          localStorage.setItem('nexova_products', JSON.stringify(updated));
         }
       } catch (err: any) {
         setImportStatus('completed');
@@ -477,7 +477,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
             <div className="bg-slate-950 p-3.5 border border-slate-900 rounded-xl space-y-1">
               <span className="text-[10px] text-slate-400 font-mono font-bold block mb-1">CURL COMMAND LINE</span>
               <p className="font-mono text-[10px] text-emerald-400 select-all leading-normal">
-                curl -H "Authorization: Bearer test_token_xyz" https://axiom-erp.ai{selectedEndpoint.split(' ')[1]}
+                curl -H "Authorization: Bearer test_token_xyz" https://nexova-erp.ai{selectedEndpoint.split(' ')[1]}
               </p>
             </div>
 
@@ -616,7 +616,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
                       required
                       value={gitRepo}
                       onChange={e => setGitRepo(e.target.value)}
-                      placeholder="e.g., ronymia2022/axiom-erp"
+                      placeholder="e.g., ronymia2022/nexova-erp"
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                     />
                     <span className="text-[10px] text-slate-400 block mt-0.5">Must be public or private repository with write permission.</span>
@@ -809,7 +809,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
                 <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1 font-normal text-slate-500 leading-normal">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">GitHub Webhook Deploy Target</span>
                   <p className="text-[10px] font-mono bg-white border border-slate-200 rounded p-1.5 select-all truncate text-slate-600">
-                    https://axiom-erp.ai/api/v1/deploy-hook?token={gitToken.substring(0, 10)}...
+                    https://nexova-erp.ai/api/v1/deploy-hook?token={gitToken.substring(0, 10)}...
                   </p>
                   <span className="text-[9px] text-slate-400 block mt-1">Configure this URL as a GitHub push webhook event to enable automated container rebuilds.</span>
                 </div>

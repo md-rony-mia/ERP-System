@@ -134,7 +134,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
     try {
       setLoading(true);
       // 1. Warranties
-      const legacyWar = localStorage.getItem('axiom_service_warranties');
+      const legacyWar = localStorage.getItem('nexova_service_warranties');
       let initialWar = DEFAULT_WARRANTIES;
       if (legacyWar) {
         try { initialWar = JSON.parse(legacyWar); } catch (e) {}
@@ -142,11 +142,11 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       const parsedWar = await seedCollectionIfEmpty('serviceWarranties', initialWar);
       setWarranties(parsedWar || []);
       if (legacyWar) {
-        localStorage.removeItem('axiom_service_warranties');
+        localStorage.removeItem('nexova_service_warranties');
       }
 
       // 2. Repairs
-      const legacyRep = localStorage.getItem('axiom_service_repairs');
+      const legacyRep = localStorage.getItem('nexova_service_repairs');
       let initialRep = DEFAULT_REPAIRS;
       if (legacyRep) {
         try { initialRep = JSON.parse(legacyRep); } catch (e) {}
@@ -154,11 +154,11 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       const parsedRep = await seedCollectionIfEmpty('serviceRepairs', initialRep);
       setRepairs(parsedRep || []);
       if (legacyRep) {
-        localStorage.removeItem('axiom_service_repairs');
+        localStorage.removeItem('nexova_service_repairs');
       }
 
       // 3. Complaints
-      const legacyComp = localStorage.getItem('axiom_service_complaints');
+      const legacyComp = localStorage.getItem('nexova_service_complaints');
       let initialComp = DEFAULT_COMPLAINTS;
       if (legacyComp) {
         try { initialComp = JSON.parse(legacyComp); } catch (e) {}
@@ -166,11 +166,11 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       const parsedComp = await seedCollectionIfEmpty('serviceComplaints', initialComp);
       setComplaints(parsedComp || []);
       if (legacyComp) {
-        localStorage.removeItem('axiom_service_complaints');
+        localStorage.removeItem('nexova_service_complaints');
       }
 
       // 4. Technicians
-      const legacyTech = localStorage.getItem('axiom_service_technicians');
+      const legacyTech = localStorage.getItem('nexova_service_technicians');
       let initialTech = DEFAULT_TECHNICIANS;
       if (legacyTech) {
         try { initialTech = JSON.parse(legacyTech); } catch (e) {}
@@ -178,11 +178,11 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       const parsedTech = await seedCollectionIfEmpty('serviceTechnicians', initialTech);
       setTechnicians(parsedTech || []);
       if (legacyTech) {
-        localStorage.removeItem('axiom_service_technicians');
+        localStorage.removeItem('nexova_service_technicians');
       }
 
       // 5. AMCs
-      const legacyAmc = localStorage.getItem('axiom_service_amcs');
+      const legacyAmc = localStorage.getItem('nexova_service_amcs');
       let initialAmc = DEFAULT_AMCS;
       if (legacyAmc) {
         try { initialAmc = JSON.parse(legacyAmc); } catch (e) {}
@@ -190,7 +190,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       const parsedAmc = await seedCollectionIfEmpty('serviceAmcs', initialAmc);
       setAmcs(parsedAmc || []);
       if (legacyAmc) {
-        localStorage.removeItem('axiom_service_amcs');
+        localStorage.removeItem('nexova_service_amcs');
       }
 
       // Calculations for metrics
@@ -461,7 +461,7 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager', 'Sales Agent']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'Aftermarket Services', active: true },
       ]}
     >

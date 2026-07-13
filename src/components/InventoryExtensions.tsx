@@ -43,7 +43,7 @@ interface TabProps {
 // ==========================================
 export function TemplatesTab({ products }: TabProps) {
   const [templates, setTemplates] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_templates');
+    const saved = localStorage.getItem('nexova_inventory_templates');
     if (saved) return JSON.parse(saved);
     return [
       { id: 't1', name: 'Electronics Gadget Base', category: 'Electronics', defaultCost: 150, defaultPrice: 249, defaultUnit: 'pcs', defaultWarehouse: 'Main Warehouse', alertQty: 5, taxRate: 15 },
@@ -53,7 +53,7 @@ export function TemplatesTab({ products }: TabProps) {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_templates', JSON.stringify(templates));
+    localStorage.setItem('nexova_inventory_templates', JSON.stringify(templates));
   }, [templates]);
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -265,7 +265,7 @@ export function TemplatesTab({ products }: TabProps) {
 // ==========================================
 export function VariantsTab({ products, onUpdateProducts }: TabProps) {
   const [variants, setVariants] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_variants');
+    const saved = localStorage.getItem('nexova_inventory_variants');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'v1', parentName: 'Enterprise Laptop Pro', sku: 'LAP-PRO-S-BLK', attributes: 'Size: 14", Color: Jet Black', pricePremium: 0, costAdjustment: 0, stock: 15 },
@@ -275,7 +275,7 @@ export function VariantsTab({ products, onUpdateProducts }: TabProps) {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_variants', JSON.stringify(variants));
+    localStorage.setItem('nexova_inventory_variants', JSON.stringify(variants));
   }, [variants]);
 
   const [showGenerator, setShowGenerator] = useState(false);
@@ -525,7 +525,7 @@ export function VariantsTab({ products, onUpdateProducts }: TabProps) {
 // ==========================================
 export function MetadataTab() {
   const [metadata, setMetadata] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_metadata');
+    const saved = localStorage.getItem('nexova_inventory_metadata');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'm1', key: 'hsn_code', displayName: 'HSN / Harmonized Code', type: 'String', entity: 'products', regex: '^\\d{4,8}$', isRequired: false, isSearchable: true },
@@ -536,7 +536,7 @@ export function MetadataTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_metadata', JSON.stringify(metadata));
+    localStorage.setItem('nexova_inventory_metadata', JSON.stringify(metadata));
   }, [metadata]);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -944,7 +944,7 @@ export function CustomFieldsTab({ customFields = [], setCustomFields }: TabProps
 // ==========================================
 export function LayoutBuilderTab() {
   const [layouts, setLayouts] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_layouts');
+    const saved = localStorage.getItem('nexova_inventory_layouts');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'l1', sectionName: 'General Information Block', tabAssignment: 'general', order: 1, columns: 'Half', visible: true },
@@ -955,7 +955,7 @@ export function LayoutBuilderTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_layouts', JSON.stringify(layouts));
+    localStorage.setItem('nexova_inventory_layouts', JSON.stringify(layouts));
   }, [layouts]);
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
@@ -1070,7 +1070,7 @@ export function LayoutBuilderTab() {
 // ==========================================
 export function AttributesTab() {
   const [attributes, setAttributes] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_attributes');
+    const saved = localStorage.getItem('nexova_inventory_attributes');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'a1', code: 'opt_size', label: 'Size Dimensions', type: 'Select', values: 'S, M, L, XL, XXL' },
@@ -1081,7 +1081,7 @@ export function AttributesTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_attributes', JSON.stringify(attributes));
+    localStorage.setItem('nexova_inventory_attributes', JSON.stringify(attributes));
   }, [attributes]);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -1235,7 +1235,7 @@ export function AttributesTab() {
 // ==========================================
 export function BrandsTab() {
   const [brands, setBrands] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_brands');
+    const saved = localStorage.getItem('nexova_inventory_brands');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'b1', name: 'Nexova Tech', code: 'BR-NXV', country: 'United States', productsCount: 45, status: 'Active', bg: 'bg-indigo-500 text-white' },
@@ -1245,7 +1245,7 @@ export function BrandsTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_brands', JSON.stringify(brands));
+    localStorage.setItem('nexova_inventory_brands', JSON.stringify(brands));
   }, [brands]);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -1429,7 +1429,7 @@ export function BrandsTab() {
 // ==========================================
 export function ManufacturersTab() {
   const [manufacturers, setManufacturers] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_manufacturers');
+    const saved = localStorage.getItem('nexova_inventory_manufacturers');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'mf1', name: 'AeroSpace Global Corp', country: 'United States', rating: 5, contact: 'ops@aerospace.com', phone: '+1 (555) 489-0012', status: 'Approved' },
@@ -1439,7 +1439,7 @@ export function ManufacturersTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_manufacturers', JSON.stringify(manufacturers));
+    localStorage.setItem('nexova_inventory_manufacturers', JSON.stringify(manufacturers));
   }, [manufacturers]);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -1622,7 +1622,7 @@ export function ManufacturersTab() {
 // ==========================================
 export function PricingEngineTab({ products, onUpdateProducts }: TabProps) {
   const [markupRules, setMarkupRules] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_pricing_rules');
+    const saved = localStorage.getItem('nexova_inventory_pricing_rules');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'p1', category: 'Electronics', standardMarkup: 30, discountLimit: 10, roundingRule: 'Round up to nearest 0.99' },
@@ -1632,7 +1632,7 @@ export function PricingEngineTab({ products, onUpdateProducts }: TabProps) {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_pricing_rules', JSON.stringify(markupRules));
+    localStorage.setItem('nexova_inventory_pricing_rules', JSON.stringify(markupRules));
   }, [markupRules]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(products[0] || null);
@@ -1776,7 +1776,7 @@ export function PricingEngineTab({ products, onUpdateProducts }: TabProps) {
 // ==========================================
 export function DiscountMatrixTab() {
   const [matrix, setMatrix] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_discount_matrix');
+    const saved = localStorage.getItem('nexova_inventory_discount_matrix');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'dm1', tier: 'Wholesale Buyer', category: 'Electronics', minQty: 10, type: 'Percentage', value: 10, validity: 'Dec 2026' },
@@ -1787,7 +1787,7 @@ export function DiscountMatrixTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_discount_matrix', JSON.stringify(matrix));
+    localStorage.setItem('nexova_inventory_discount_matrix', JSON.stringify(matrix));
   }, [matrix]);
 
   const [showAdd, setShowAdd] = useState(false);
@@ -1968,7 +1968,7 @@ export function DiscountMatrixTab() {
 // ==========================================
 export function PromotionManagerTab() {
   const [promos, setPromos] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_promotions');
+    const saved = localStorage.getItem('nexova_inventory_promotions');
     if (saved) return JSON.parse(saved);
     return [
       { id: 'pr1', name: 'Summer Carnival Deal', code: 'SUMMER30', type: 'Flat Percentage', value: 30, active: true },
@@ -1977,7 +1977,7 @@ export function PromotionManagerTab() {
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_promotions', JSON.stringify(promos));
+    localStorage.setItem('nexova_inventory_promotions', JSON.stringify(promos));
   }, [promos]);
 
   const [showAdd, setShowAdd] = useState(false);

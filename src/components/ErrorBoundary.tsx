@@ -33,7 +33,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log the error with full diagnostic details to the console
     console.error("==========================================");
-    console.error("AXIOM ERP ERROR BOUNDARY CAUGHT A CRASH!");
+    console.error("NEXOVA ERP ERROR BOUNDARY CAUGHT A CRASH!");
     console.error(`Component Context: ${this.props.sectionName || 'Top-Level App'}`);
     console.error("Error Message:", error.message);
     console.error("Error Details:", error);
@@ -73,7 +73,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       // Determine active language from local storage
-      const activeLanguage = (typeof window !== 'undefined' && localStorage.getItem('axiom_nav_language')) || 'en';
+      const activeLanguage = (typeof window !== 'undefined' && localStorage.getItem('nexova_nav_language')) || 'en';
       const isBn = activeLanguage === 'bn';
 
       // Smart environment detection (Localhost or AI Studio development/preview containers)
@@ -168,10 +168,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
                 </h2>
                 <div className="text-xs text-slate-300 leading-relaxed max-w-md space-y-3">
                   <p>
-                    We apologize for the inconvenience. An unexpected error occurred while executing the Axiom ERP cloud core engine.
+                    We apologize for the inconvenience. An unexpected error occurred while executing the Nexova ERP cloud core engine.
                   </p>
                   <p className="text-slate-400 font-bengali">
-                    সাময়িক অসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত। Axiom ERP ক্লাউড ইঞ্জিন চালানোর সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।
+                    সাময়িক অসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত। Nexova ERP ক্লাউড ইঞ্জিন চালানোর সময় একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।
                   </p>
                 </div>
               </div>

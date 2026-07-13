@@ -78,29 +78,29 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
   const loadData = () => {
     try {
       // Load Leads
-      const rawLeads = localStorage.getItem('axiom_crud_leads');
+      const rawLeads = localStorage.getItem('nexova_crud_leads');
       let parsedLeads = [];
       if (rawLeads) {
         parsedLeads = JSON.parse(rawLeads);
       } else {
         parsedLeads = DEFAULT_LEADS;
-        localStorage.setItem('axiom_crud_leads', JSON.stringify(DEFAULT_LEADS));
+        localStorage.setItem('nexova_crud_leads', JSON.stringify(DEFAULT_LEADS));
       }
       setLeads(parsedLeads);
 
       // Load Activities
-      const rawActivities = localStorage.getItem('axiom_crm_activities');
+      const rawActivities = localStorage.getItem('nexova_crm_activities');
       let parsedActivities = [];
       if (rawActivities) {
         parsedActivities = JSON.parse(rawActivities);
       } else {
         parsedActivities = DEFAULT_ACTIVITIES;
-        localStorage.setItem('axiom_crm_activities', JSON.stringify(DEFAULT_ACTIVITIES));
+        localStorage.setItem('nexova_crm_activities', JSON.stringify(DEFAULT_ACTIVITIES));
       }
       setActivities(parsedActivities);
 
       // Load Campaigns
-      const rawCampaigns = localStorage.getItem('axiom_crud_campaigns');
+      const rawCampaigns = localStorage.getItem('nexova_crud_campaigns');
       const campaigns = rawCampaigns ? JSON.parse(rawCampaigns) : [];
 
       // Calculate Metrics
@@ -138,7 +138,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
       return l;
     });
     setLeads(updated);
-    localStorage.setItem('axiom_crud_leads', JSON.stringify(updated));
+    localStorage.setItem('nexova_crud_leads', JSON.stringify(updated));
     loadData();
     
     // Log auto-activity for stage update
@@ -155,7 +155,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
       };
       const updatedActs = [autoAct, ...activities];
       setActivities(updatedActs);
-      localStorage.setItem('axiom_crm_activities', JSON.stringify(updatedActs));
+      localStorage.setItem('nexova_crm_activities', JSON.stringify(updatedActs));
     }
   };
 
@@ -170,7 +170,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
       return l;
     });
     setLeads(updated);
-    localStorage.setItem('axiom_crud_leads', JSON.stringify(updated));
+    localStorage.setItem('nexova_crud_leads', JSON.stringify(updated));
     loadData();
   };
 
@@ -201,7 +201,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
 
     const updated = [newAct, ...activities];
     setActivities(updated);
-    localStorage.setItem('axiom_crm_activities', JSON.stringify(updated));
+    localStorage.setItem('nexova_crm_activities', JSON.stringify(updated));
     setShowActivityModal(false);
     setActivityForm({
       subject: '',
@@ -216,7 +216,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
     if (confirm('Delete this sales interaction activity from audit history?')) {
       const updated = activities.filter(a => a.id !== id);
       setActivities(updated);
-      localStorage.setItem('axiom_crm_activities', JSON.stringify(updated));
+      localStorage.setItem('nexova_crm_activities', JSON.stringify(updated));
     }
   };
 
@@ -248,7 +248,7 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager', 'Sales Agent']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'CRM Module', active: true },
       ]}
     >

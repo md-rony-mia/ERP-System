@@ -119,7 +119,7 @@ export default function EmployeeView({
   // --- INITIAL SEEDING & LOADING CONTROLLERS ---
   const loadAllData = () => {
     // 1. Employees Directory
-    const rawEmps = localStorage.getItem('axiom_crud_employees');
+    const rawEmps = localStorage.getItem('nexova_crud_employees');
     let emps: any[] = [];
     if (rawEmps) {
       try { emps = JSON.parse(rawEmps); } catch (e) { emps = []; }
@@ -127,17 +127,17 @@ export default function EmployeeView({
     // If empty, generate standard demo set to support user testing instantly
     if (emps.length === 0) {
       emps = [
-        { id: 'emp_1', name: 'Arif Hossain', department: 'Engineering', designation: 'Senior Software Engineer', salary: 125000, email: 'arif@axiomerp.com', phone: '01712345678', workStatus: 'Active', joiningDate: '2023-04-10' },
-        { id: 'emp_2', name: 'Shamima Nasrin', department: 'HR', designation: 'HR & Operations Lead', salary: 85000, email: 'shamima@axiomerp.com', phone: '01812345678', workStatus: 'Active', joiningDate: '2024-01-15' },
-        { id: 'emp_3', name: 'Zahid Hasan', department: 'Sales', designation: 'Regional Sales Manager', salary: 65000, email: 'zahid@axiomerp.com', phone: '01912345678', workStatus: 'Active', joiningDate: '2024-11-01' },
-        { id: 'emp_4', name: 'Mominul Islam', department: 'Logistics', designation: 'Warehouse Supervisor', salary: 60000, email: 'mominul@axiomerp.com', phone: '01512345678', workStatus: 'Active', joiningDate: '2025-02-20' }
+        { id: 'emp_1', name: 'Arif Hossain', department: 'Engineering', designation: 'Senior Software Engineer', salary: 125000, email: 'arif@nexovaerp.com', phone: '01712345678', workStatus: 'Active', joiningDate: '2023-04-10' },
+        { id: 'emp_2', name: 'Shamima Nasrin', department: 'HR', designation: 'HR & Operations Lead', salary: 85000, email: 'shamima@nexovaerp.com', phone: '01812345678', workStatus: 'Active', joiningDate: '2024-01-15' },
+        { id: 'emp_3', name: 'Zahid Hasan', department: 'Sales', designation: 'Regional Sales Manager', salary: 65000, email: 'zahid@nexovaerp.com', phone: '01912345678', workStatus: 'Active', joiningDate: '2024-11-01' },
+        { id: 'emp_4', name: 'Mominul Islam', department: 'Logistics', designation: 'Warehouse Supervisor', salary: 60000, email: 'mominul@nexovaerp.com', phone: '01512345678', workStatus: 'Active', joiningDate: '2025-02-20' }
       ];
-      localStorage.setItem('axiom_crud_employees', JSON.stringify(emps));
+      localStorage.setItem('nexova_crud_employees', JSON.stringify(emps));
     }
     setEmployeesList(emps);
 
     // 2. Attendance database
-    const rawAtt = localStorage.getItem('axiom_hr_attendance');
+    const rawAtt = localStorage.getItem('nexova_hr_attendance');
     let attLogs: any[] = [];
     if (rawAtt) {
       try { attLogs = JSON.parse(rawAtt); } catch (e) {}
@@ -151,12 +151,12 @@ export default function EmployeeView({
         { id: 'att_5', employeeId: 'emp_1', employeeName: 'Arif Hossain', date: '2026-07-10', status: 'Present', checkIn: '08:55 AM', checkOut: '05:10 PM' },
         { id: 'att_6', employeeId: 'emp_2', employeeName: 'Shamima Nasrin', date: '2026-07-10', status: 'Present', checkIn: '08:45 AM', checkOut: '05:00 PM' }
       ];
-      localStorage.setItem('axiom_hr_attendance', JSON.stringify(attLogs));
+      localStorage.setItem('nexova_hr_attendance', JSON.stringify(attLogs));
     }
     setAttendanceLogs(attLogs);
 
     // 3. Leave Register database
-    const rawLeave = localStorage.getItem('axiom_hr_leaves');
+    const rawLeave = localStorage.getItem('nexova_hr_leaves');
     let leaves: any[] = [];
     if (rawLeave) {
       try { leaves = JSON.parse(rawLeave); } catch (e) {}
@@ -167,12 +167,12 @@ export default function EmployeeView({
         { id: 'lv_2', employeeId: 'emp_4', employeeName: 'Mominul Islam', leaveType: 'Annual Leave', startDate: '2026-08-01', endDate: '2026-08-07', reason: 'Annual holiday trip', status: 'Approved' },
         { id: 'lv_3', employeeId: 'emp_3', employeeName: 'Zahid Hasan', leaveType: 'Sick Leave', startDate: '2026-07-01', endDate: '2026-07-02', reason: 'High fever', status: 'Approved' }
       ];
-      localStorage.setItem('axiom_hr_leaves', JSON.stringify(leaves));
+      localStorage.setItem('nexova_hr_leaves', JSON.stringify(leaves));
     }
     setLeaveRequests(leaves);
 
     // 4. Job Openings
-    const rawJobs = localStorage.getItem('axiom_hr_jobs');
+    const rawJobs = localStorage.getItem('nexova_hr_jobs');
     let jobs: any[] = [];
     if (rawJobs) {
       try { jobs = JSON.parse(rawJobs); } catch (e) {}
@@ -183,12 +183,12 @@ export default function EmployeeView({
         { id: 'job_2', title: 'Corporate Relations Executive', department: 'Sales', salaryRange: '৳45,000 - ৳60,000', openings: '3', status: 'Open' },
         { id: 'job_3', title: 'Lead Ledger Accountant', department: 'Accounts', salaryRange: '৳80,000 - ৳1,00,000', openings: '1', status: 'Filled' }
       ];
-      localStorage.setItem('axiom_hr_jobs', JSON.stringify(jobs));
+      localStorage.setItem('nexova_hr_jobs', JSON.stringify(jobs));
     }
     setJobPostings(jobs);
 
     // 5. Candidates
-    const rawCand = localStorage.getItem('axiom_hr_candidates');
+    const rawCand = localStorage.getItem('nexova_hr_candidates');
     let candidates: any[] = [];
     if (rawCand) {
       try { candidates = JSON.parse(rawCand); } catch (e) {}
@@ -199,12 +199,12 @@ export default function EmployeeView({
         { id: 'cand_2', name: 'Sabrina Jahan', email: 'sabrina.j@gmail.com', phone: '01899887766', jobId: 'job_2', jobTitle: 'Corporate Relations Executive', expectedSalary: '50000', experienceYears: '3', notes: 'Good communications skills, corporate client portfolio from fintech background.', stage: 'Offered' },
         { id: 'cand_3', name: 'Abdur Rahim', email: 'rahim.audit@gmail.com', phone: '01955443322', jobId: 'job_3', jobTitle: 'Lead Ledger Accountant', expectedSalary: '90000', experienceYears: '8', notes: 'CA intermediate passed. Joined last week.', stage: 'Hired' }
       ];
-      localStorage.setItem('axiom_hr_candidates', JSON.stringify(candidates));
+      localStorage.setItem('nexova_hr_candidates', JSON.stringify(candidates));
     }
     setRecruitmentCandidates(candidates);
 
     // 6. Appraisal Ratings
-    const rawApp = localStorage.getItem('axiom_hr_appraisals');
+    const rawApp = localStorage.getItem('nexova_hr_appraisals');
     let appraisals: any[] = [];
     if (rawApp) {
       try { appraisals = JSON.parse(rawApp); } catch (e) {}
@@ -214,7 +214,7 @@ export default function EmployeeView({
         { id: 'ap_1', employeeId: 'emp_1', employeeName: 'Arif Hossain', workQuality: 5, attendanceRating: 5, teamwork: 4, initiative: 5, average: 4.75, kpiTarget: 'Launch V2.0 of Ledger Core and setup offline cache.', comments: 'Outstanding performance. Highly technical and helpful lead.', reviewDate: '2026-06-30' },
         { id: 'ap_2', employeeId: 'emp_2', employeeName: 'Shamima Nasrin', workQuality: 4, attendanceRating: 5, teamwork: 5, initiative: 4, average: 4.5, kpiTarget: 'Streamline campus recruitment pipeline and reduce onboarding time.', comments: 'Extremely dependable HR Lead. Drives compliance flawlessly.', reviewDate: '2026-06-28' }
       ];
-      localStorage.setItem('axiom_hr_appraisals', JSON.stringify(appraisals));
+      localStorage.setItem('nexova_hr_appraisals', JSON.stringify(appraisals));
     }
     setAppraisalLogs(appraisals);
 
@@ -273,7 +273,7 @@ export default function EmployeeView({
       updated.unshift(record);
     }
 
-    localStorage.setItem('axiom_hr_attendance', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_attendance', JSON.stringify(updated));
     setAttendanceLogs(updated);
 
     // Trigger update handler prop if it exists
@@ -290,7 +290,7 @@ export default function EmployeeView({
     const matchIdx = updated.findIndex(log => log.employeeId === employeeId && log.date === attendanceDate);
     if (matchIdx !== -1) {
       updated[matchIdx] = { ...updated[matchIdx], [field]: val };
-      localStorage.setItem('axiom_hr_attendance', JSON.stringify(updated));
+      localStorage.setItem('nexova_hr_attendance', JSON.stringify(updated));
       setAttendanceLogs(updated);
     }
   };
@@ -302,14 +302,14 @@ export default function EmployeeView({
         // If approved, optionally shift employee work status
         if (status === 'Approved') {
           const emps = employeesList.map(e => e.id === req.employeeId ? { ...e, workStatus: 'On Leave' } : e);
-          localStorage.setItem('axiom_crud_employees', JSON.stringify(emps));
+          localStorage.setItem('nexova_crud_employees', JSON.stringify(emps));
           setEmployeesList(emps);
         }
         return { ...req, status };
       }
       return req;
     });
-    localStorage.setItem('axiom_hr_leaves', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_leaves', JSON.stringify(updated));
     setLeaveRequests(updated);
     loadAllData();
   };
@@ -335,7 +335,7 @@ export default function EmployeeView({
     };
 
     const updated = [newReq, ...leaveRequests];
-    localStorage.setItem('axiom_hr_leaves', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_leaves', JSON.stringify(updated));
     setLeaveRequests(updated);
     setShowLeaveModal(false);
     setLeaveForm({ employeeId: '', leaveType: 'Annual Leave', startDate: '2026-07-15', endDate: '2026-07-20', reason: '' });
@@ -344,7 +344,7 @@ export default function EmployeeView({
 
   // --- PAYROLL ACTIONS ---
   const [payrollStatus, setPayrollStatus] = useState<Record<string, 'Paid' | 'Unpaid' | 'Processing'>>(() => {
-    const saved = localStorage.getItem('axiom_hr_payroll_status');
+    const saved = localStorage.getItem('nexova_hr_payroll_status');
     return saved ? JSON.parse(saved) : { emp_1: 'Paid', emp_2: 'Paid', emp_3: 'Unpaid', emp_4: 'Unpaid' };
   });
 
@@ -356,18 +356,18 @@ export default function EmployeeView({
     employeesList.forEach(e => {
       updatedStatus[e.id] = 'Paid';
     });
-    localStorage.setItem('axiom_hr_payroll_status', JSON.stringify(updatedStatus));
+    localStorage.setItem('nexova_hr_payroll_status', JSON.stringify(updatedStatus));
     setPayrollStatus(updatedStatus);
 
     // Save transactional audit log automatically in banking history if possible
-    const accountsRaw = localStorage.getItem('axiom_accounts') || '[]';
+    const accountsRaw = localStorage.getItem('nexova_accounts') || '[]';
     // Add success feedback and refresh
     alert('৳' + metrics.payroll.toLocaleString() + ' disbursed successfully to staff accounts. Corporate Payslips have been prepared!');
   };
 
   const handlePayIndividual = (id: string) => {
     const updated = { ...payrollStatus, [id]: 'Paid' as const };
-    localStorage.setItem('axiom_hr_payroll_status', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_payroll_status', JSON.stringify(updated));
     setPayrollStatus(updated);
   };
 
@@ -381,7 +381,7 @@ export default function EmployeeView({
       ...jobForm
     };
     const updated = [newJob, ...jobPostings];
-    localStorage.setItem('axiom_hr_jobs', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_jobs', JSON.stringify(updated));
     setJobPostings(updated);
     setShowJobModal(false);
     setJobForm({ title: '', department: 'Engineering', salaryRange: '৳80,000 - ৳1,20,000', openings: '1', status: 'Open' });
@@ -408,7 +408,7 @@ export default function EmployeeView({
     };
 
     const updated = [newCandidate, ...recruitmentCandidates];
-    localStorage.setItem('axiom_hr_candidates', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_candidates', JSON.stringify(updated));
     setRecruitmentCandidates(updated);
     setShowCandidateModal(false);
     setCandidateForm({ name: '', email: '', phone: '', jobId: '', expectedSalary: '', experienceYears: '', notes: '' });
@@ -420,7 +420,7 @@ export default function EmployeeView({
         // If hired, prompt manager to convert candidate to employee directly!
         if (nextStage === 'Hired') {
           const matchedJob = jobPostings.find(j => j.id === c.jobId);
-          const confirmAdd = confirm(`Would you like to add ${c.name} directly to the Axiom Active Employee Directory now?`);
+          const confirmAdd = confirm(`Would you like to add ${c.name} directly to the Nexova Active Employee Directory now?`);
           if (confirmAdd) {
             const newEmp = {
               id: `emp_${Date.now()}`,
@@ -434,13 +434,13 @@ export default function EmployeeView({
               joiningDate: '2026-07-11'
             };
             const updatedEmps = [...employeesList, newEmp];
-            localStorage.setItem('axiom_crud_employees', JSON.stringify(updatedEmps));
+            localStorage.setItem('nexova_crud_employees', JSON.stringify(updatedEmps));
             setEmployeesList(updatedEmps);
             
             // Mark job as filled
             if (matchedJob) {
               const updatedJobs = jobPostings.map(j => j.id === matchedJob.id ? { ...j, status: 'Filled' } : j);
-              localStorage.setItem('axiom_hr_jobs', JSON.stringify(updatedJobs));
+              localStorage.setItem('nexova_hr_jobs', JSON.stringify(updatedJobs));
               setJobPostings(updatedJobs);
             }
           }
@@ -449,7 +449,7 @@ export default function EmployeeView({
       }
       return c;
     });
-    localStorage.setItem('axiom_hr_candidates', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_candidates', JSON.stringify(updated));
     setRecruitmentCandidates(updated);
     loadAllData();
   };
@@ -482,7 +482,7 @@ export default function EmployeeView({
     };
 
     const updated = [newApp, ...appraisalLogs];
-    localStorage.setItem('axiom_hr_appraisals', JSON.stringify(updated));
+    localStorage.setItem('nexova_hr_appraisals', JSON.stringify(updated));
     setAppraisalLogs(updated);
     setShowAppraisalModal(false);
     setAppraisalForm({ employeeId: '', workQuality: 5, attendanceRating: 5, teamwork: 5, initiative: 5, kpiTarget: '', comments: '' });
@@ -498,7 +498,7 @@ export default function EmployeeView({
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'Employee Ledger', active: true },
       ]}
     >
@@ -1426,12 +1426,12 @@ export default function EmployeeView({
             
             {/* Stamp branding background decoration */}
             <div className="absolute top-12 right-6 opacity-[0.03] select-none pointer-events-none transform rotate-12">
-              <div className="border-[8px] border-indigo-700 rounded-full h-32 w-32 flex items-center justify-center font-bold text-2xl">AXIOM ERP</div>
+              <div className="border-[8px] border-indigo-700 rounded-full h-32 w-32 flex items-center justify-center font-bold text-2xl">NEXOVA ERP</div>
             </div>
 
             <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Axiom Corporate Group Ltd</h4>
+                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest font-display">Nexova Corporate Group Ltd</h4>
                 <p className="text-[10px] text-slate-400 font-sans mt-0.5">Corporate Headquarters, Dhaka, Bangladesh</p>
               </div>
               <span className="text-[11px] font-mono text-slate-400 bg-slate-50 border border-slate-150 rounded px-2.5 py-1">

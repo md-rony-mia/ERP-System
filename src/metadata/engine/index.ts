@@ -167,7 +167,7 @@ export const DEFAULT_FIELDS: FieldDefinition[] = [
     id: 'f_qrCode',
     fieldKey: 'qrCode',
     displayName: 'Product QR Code',
-    placeholder: 'e.g. https://axiom.erp/cement-pc-001',
+    placeholder: 'e.g. https://nexova.erp/cement-pc-001',
     fieldType: 'QR Code',
     tab: 'general',
     section: 'sec_gen_media',

@@ -148,10 +148,10 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
         setLoading(true);
 
         // Read legacy local storage data if present
-        const legacyBoms = localStorage.getItem('axiom_mfg_boms');
-        const legacyWorkcenters = localStorage.getItem('axiom_mfg_workcenters');
-        const legacyOrders = localStorage.getItem('axiom_mfg_production_orders');
-        const legacyInspections = localStorage.getItem('axiom_mfg_inspections');
+        const legacyBoms = localStorage.getItem('nexova_mfg_boms');
+        const legacyWorkcenters = localStorage.getItem('nexova_mfg_workcenters');
+        const legacyOrders = localStorage.getItem('nexova_mfg_production_orders');
+        const legacyInspections = localStorage.getItem('nexova_mfg_inspections');
 
         let initialBoms = DEFAULT_BOMS;
         let initialWorkcenters = DEFAULT_WORKCENTERS;
@@ -185,11 +185,11 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
         setQualityInspections(seededInspections || []);
 
         // Clean up legacy localStorage item so it doesn't run again
-        localStorage.setItem('axiom_mfg_migrated', 'true');
-        localStorage.removeItem('axiom_mfg_boms');
-        localStorage.removeItem('axiom_mfg_workcenters');
-        localStorage.removeItem('axiom_mfg_production_orders');
-        localStorage.removeItem('axiom_mfg_inspections');
+        localStorage.setItem('nexova_mfg_migrated', 'true');
+        localStorage.removeItem('nexova_mfg_boms');
+        localStorage.removeItem('nexova_mfg_workcenters');
+        localStorage.removeItem('nexova_mfg_production_orders');
+        localStorage.removeItem('nexova_mfg_inspections');
 
       } catch (err) {
         console.error("Manufacturing data fetch/migration failed:", err);
@@ -361,7 +361,7 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager', 'Production Supervisor']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'Manufacturing & MRP', active: true },
       ]}
     >

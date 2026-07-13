@@ -114,7 +114,7 @@ export default function BankingAndLoanView({
 
   // --- DYNAMIC SUBSYSTEM STATES FOR UNHANDLED SETTINGS ---
   const [branches, setBranches] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_branches');
+    const saved = localStorage.getItem('nexova_branches');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -126,7 +126,7 @@ export default function BankingAndLoanView({
   });
 
   const [fiscalYears, setFiscalYears] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_fiscal_years');
+    const saved = localStorage.getItem('nexova_fiscal_years');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -137,7 +137,7 @@ export default function BankingAndLoanView({
   });
 
   const [currencies, setCurrencies] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_currencies');
+    const saved = localStorage.getItem('nexova_currencies');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -149,19 +149,19 @@ export default function BankingAndLoanView({
   });
 
   const [outboxQueue, setOutboxQueue] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_outbox_queue');
+    const saved = localStorage.getItem('nexova_outbox_queue');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
     return [
       { id: 'q1', type: 'Email', recipient: 'buyer@purbachal.com', subject: 'Invoice INV-2026-0412 Released', status: 'Sent', sentTime: '2026-07-10 11:45 AM' },
-      { id: 'q2', type: 'SMS', recipient: '+8801712345678', subject: 'Axiom Low Stock Alert: Steel Girders', status: 'Pending', sentTime: '-' },
+      { id: 'q2', type: 'SMS', recipient: '+8801712345678', subject: 'Nexova Low Stock Alert: Steel Girders', status: 'Pending', sentTime: '-' },
       { id: 'q3', type: 'Email', recipient: 'supervisor@apexion.com', subject: 'Workflow Approval Req PO-2026-9021', status: 'Failed', sentTime: '-' }
     ];
   });
 
   const [cronJobs, setCronJobs] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_cron_jobs');
+    const saved = localStorage.getItem('nexova_cron_jobs');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -174,23 +174,23 @@ export default function BankingAndLoanView({
 
   // Persisting updates
   React.useEffect(() => {
-    localStorage.setItem('axiom_branches', JSON.stringify(branches));
+    localStorage.setItem('nexova_branches', JSON.stringify(branches));
   }, [branches]);
 
   React.useEffect(() => {
-    localStorage.setItem('axiom_fiscal_years', JSON.stringify(fiscalYears));
+    localStorage.setItem('nexova_fiscal_years', JSON.stringify(fiscalYears));
   }, [fiscalYears]);
 
   React.useEffect(() => {
-    localStorage.setItem('axiom_currencies', JSON.stringify(currencies));
+    localStorage.setItem('nexova_currencies', JSON.stringify(currencies));
   }, [currencies]);
 
   React.useEffect(() => {
-    localStorage.setItem('axiom_outbox_queue', JSON.stringify(outboxQueue));
+    localStorage.setItem('nexova_outbox_queue', JSON.stringify(outboxQueue));
   }, [outboxQueue]);
 
   React.useEffect(() => {
-    localStorage.setItem('axiom_cron_jobs', JSON.stringify(cronJobs));
+    localStorage.setItem('nexova_cron_jobs', JSON.stringify(cronJobs));
   }, [cronJobs]);
 
   // --- ENTERPRISE NAVIGATION BUILDER STATE MANAGEMENT ---
@@ -706,7 +706,7 @@ export default function BankingAndLoanView({
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(systemData, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `axiom_erp_backup_${new Date().toISOString().split('T')[0]}.json`);
+    downloadAnchor.setAttribute("download", `nexova_erp_backup_${new Date().toISOString().split('T')[0]}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -1683,14 +1683,14 @@ export default function BankingAndLoanView({
       )}
 
       {/* ========================================================
-          Axiom SYSTEM CONFIG SETTINGS (POLISHED TABBED VERSION)
+          Nexova SYSTEM CONFIG SETTINGS (POLISHED TABBED VERSION)
           ======================================================== */}
       {currentTab === 'settings' && (
         <div className="max-w-6xl mx-auto bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden flex flex-col lg:flex-row min-h-[600px]">
           {/* Scrollable Sidebar Tabs */}
           <div className="w-full lg:w-72 bg-slate-50 border-r border-slate-200/80 p-5 flex flex-col shrink-0">
             <div className="mb-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Axiom Settings Portal</h3>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nexova Settings Portal</h3>
               <p className="text-[10px] text-slate-400 mt-0.5">Configure and calibrate your ERP environment</p>
             </div>
 
@@ -2772,7 +2772,7 @@ export default function BankingAndLoanView({
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800 font-display">Axiom Enterprise Core Settings</h4>
+                    <h4 className="text-sm font-bold text-slate-800 font-display">Nexova Enterprise Core Settings</h4>
                     <p className="text-xs text-slate-400 mt-0.5">Control company identity, multi-tab POS billing, and databases.</p>
                   </div>
                   {/* Internal Tab Selection Buttons */}
@@ -4117,11 +4117,11 @@ export default function BankingAndLoanView({
                       {selectedSettingsTab === 'role_matrix' || selectedSettingsTab === 'permissions' ? 'Enterprise Role Permission Matrix' : humanizeTab(selectedSettingsTab)}
                     </h4>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      System-level administration and automated calibration module. Fully integrated with Axiom Core engines.
+                      System-level administration and automated calibration module. Fully integrated with Nexova Core engines.
                     </p>
                   </div>
                   <span className="text-[10px] bg-indigo-50 text-indigo-600 font-mono font-bold px-2.5 py-1 rounded-md uppercase border border-indigo-100">
-                    Axiom Subsystem: {selectedSettingsTab}
+                    Nexova Subsystem: {selectedSettingsTab}
                   </span>
                 </div>
 
@@ -4492,7 +4492,7 @@ export default function BankingAndLoanView({
                   <div className="space-y-4 text-xs">
                     <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-xl">
                       <div className="space-y-0.5">
-                        <span className="block font-bold text-slate-700">Axiom Multi-language Dictionary Mapping</span>
+                        <span className="block font-bold text-slate-700">Nexova Multi-language Dictionary Mapping</span>
                         <span className="block text-[10px] text-slate-400">Current Active Locale: <strong>English (US)</strong>. Supplementary locale: <strong>Bengali (BD)</strong>.</span>
                       </div>
                       <button
@@ -4642,7 +4642,7 @@ export default function BankingAndLoanView({
                         <button
                           type="button"
                           onClick={() => {
-                            const blob = new Blob([localStorage.getItem('axiom_nav_items') || '[]'], { type: 'application/json' });
+                            const blob = new Blob([localStorage.getItem('nexova_nav_items') || '[]'], { type: 'application/json' });
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
@@ -4729,7 +4729,7 @@ export default function BankingAndLoanView({
                           type="button"
                           onClick={() => {
                             setOutboxQueue([
-                              { id: 'q_' + Date.now(), type: 'Email', recipient: 'finance@axiom-erp.com', subject: 'Tax calibration log compiled', status: 'Pending', sentTime: '-' },
+                              { id: 'q_' + Date.now(), type: 'Email', recipient: 'finance@nexova-erp.com', subject: 'Tax calibration log compiled', status: 'Pending', sentTime: '-' },
                               ...outboxQueue
                             ]);
                           }}
@@ -4795,7 +4795,7 @@ export default function BankingAndLoanView({
                   <div className="space-y-4 text-xs animate-in fade-in duration-150">
                     <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <span className="block font-bold text-slate-700">Axiom Daemon Scheduler Manager</span>
+                        <span className="block font-bold text-slate-700">Nexova Daemon Scheduler Manager</span>
                         <span className="block text-[10px] text-slate-400">Processes repetitive background procedures using standard 5-field cron notation.</span>
                       </div>
                       <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold uppercase tracking-wide">Deamon Core Online</span>

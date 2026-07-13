@@ -81,7 +81,7 @@ export default function App() {
           if (userDocSnap.exists()) {
             const profile = userDocSnap.data();
             setCurrentUser(profile);
-            localStorage.setItem('axiom_current_user', JSON.stringify(profile));
+            localStorage.setItem('nexova_current_user', JSON.stringify(profile));
           } else {
             // Profile doc doesn't exist yet, we'll let Login component create it on first sign-in
           }
@@ -90,7 +90,7 @@ export default function App() {
         }
       } else {
         setCurrentUser(null);
-        localStorage.removeItem('axiom_current_user');
+        localStorage.removeItem('nexova_current_user');
       }
       setAuthChecked(true);
     });
@@ -99,7 +99,7 @@ export default function App() {
 
   const handleLoginSuccess = (user: any) => {
     setCurrentUser(user);
-    localStorage.setItem('axiom_current_user', JSON.stringify(user));
+    localStorage.setItem('nexova_current_user', JSON.stringify(user));
   };
 
   const handleLogout = async () => {
@@ -120,7 +120,7 @@ export default function App() {
     defaultVatRate: 5,
     defaultDiscountRate: 0,
     baseCurrency: '৳',
-    receiptFooterMessage: 'Thank you for choosing Axiom ERP! Please visit again.',
+    receiptFooterMessage: 'Thank you for choosing Nexova ERP! Please visit again.',
     autoPrintReceipt: true,
     enableSmsNotification: false,
     defaultWarehouse: 'Main Depot, Dhaka',
@@ -149,7 +149,7 @@ export default function App() {
   };
 
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('axiom_app_settings');
+    const saved = localStorage.getItem('nexova_app_settings');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -162,7 +162,7 @@ export default function App() {
 
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
-    localStorage.setItem('axiom_app_settings', JSON.stringify(newSettings));
+    localStorage.setItem('nexova_app_settings', JSON.stringify(newSettings));
     try {
       await saveSettingsToFirestore(newSettings);
     } catch (e) {
@@ -184,11 +184,11 @@ export default function App() {
   const [loanAccounts, setLoanAccounts] = useState<LoanAccount[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_products_count', String(products.length));
+    localStorage.setItem('nexova_products_count', String(products.length));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('axiom_invoices_count', String(invoices.length));
+    localStorage.setItem('nexova_invoices_count', String(invoices.length));
   }, [invoices]);
 
   const [loading, setLoading] = useState(true);
@@ -676,7 +676,7 @@ export default function App() {
       setAttendances(INITIAL_ATTENDANCE);
       setLoanAccounts(INITIAL_LOANS);
       setSettings(DEFAULT_SETTINGS);
-      localStorage.removeItem('axiom_app_settings');
+      localStorage.removeItem('nexova_app_settings');
       alert('Database successfully reset to demo defaults!');
     }
   };
@@ -696,7 +696,7 @@ export default function App() {
       if (importedData.loanAccounts) setLoanAccounts(importedData.loanAccounts);
       if (importedData.settings) {
         setSettings(importedData.settings);
-        localStorage.setItem('axiom_app_settings', JSON.stringify(importedData.settings));
+        localStorage.setItem('nexova_app_settings', JSON.stringify(importedData.settings));
       }
       alert('System Database imported successfully!');
     } catch (err) {

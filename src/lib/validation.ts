@@ -1,5 +1,5 @@
 /**
- * Shared validation rules for the Axiom ERP core engine.
+ * Shared validation rules for the Nexova ERP core engine.
  * Supports bilingual error message generation.
  */
 

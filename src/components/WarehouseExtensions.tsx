@@ -33,7 +33,7 @@ const useLocalStorage = <T,>(key: string, initialValue: T): [T, (val: T) => void
 // 1. ZONES MANAGEMENT TAB
 // ----------------------------------------------------
 export function ZonesTab({ warehouses }: WarehouseExtensionsProps) {
-  const [zones, setZones] = useLocalStorage('axiom_wh_zones', [
+  const [zones, setZones] = useLocalStorage('nexova_wh_zones', [
     { id: 'z1', name: 'Cold Storage Zone', code: 'Z-COLD', warehouse: 'Main Warehouse', type: 'Refrigerated', capacity: '80%', status: 'Active' },
     { id: 'z2', name: 'Bulk Materials Yard', code: 'Z-BULK', warehouse: 'Yard A', type: 'Open Space', capacity: '45%', status: 'Active' },
     { id: 'z3', name: 'Hazardous Materials Shelter', code: 'Z-HAZ', warehouse: 'Yard B', type: 'Secured/Climate', capacity: '12%', status: 'Active' },
@@ -127,7 +127,7 @@ export function ZonesTab({ warehouses }: WarehouseExtensionsProps) {
 // 2. AISLES ALLOCATOR TAB
 // ----------------------------------------------------
 export function AislesTab(_props?: any) {
-  const [aisles, setAisles] = useLocalStorage('axiom_wh_aisles', [
+  const [aisles, setAisles] = useLocalStorage('nexova_wh_aisles', [
     { id: 'a1', code: 'AISLE-01', zone: 'Cold Storage Zone', shelfCount: 5, rackCount: 3, status: 'Active' },
     { id: 'a2', code: 'AISLE-02', zone: 'Bulk Materials Yard', shelfCount: 12, rackCount: 6, status: 'Active' },
     { id: 'a3', code: 'AISLE-03', zone: 'Hazardous Materials Shelter', shelfCount: 2, rackCount: 1, status: 'Active' },
@@ -204,7 +204,7 @@ export function AislesTab(_props?: any) {
 // 3. RACKS DIRECTORY TAB
 // ----------------------------------------------------
 export function RacksTab(_props?: any) {
-  const [racks, setRacks] = useLocalStorage('axiom_wh_racks', [
+  const [racks, setRacks] = useLocalStorage('nexova_wh_racks', [
     { id: 'r1', code: 'RC-01-A', aisle: 'AISLE-01', levels: 4, weightCapacity: '1.5 Tons', status: 'Active' },
     { id: 'r2', code: 'RC-01-B', aisle: 'AISLE-01', levels: 4, weightCapacity: '1.5 Tons', status: 'Active' },
     { id: 'r3', code: 'RC-02-A', aisle: 'AISLE-02', levels: 3, weightCapacity: '3.0 Tons', status: 'Active' },
@@ -293,7 +293,7 @@ export function RacksTab(_props?: any) {
 // 4. SHELVES BINNING TAB
 // ----------------------------------------------------
 export function ShelvesTab(_props?: any) {
-  const [shelves, setShelves] = useLocalStorage('axiom_wh_shelves', [
+  const [shelves, setShelves] = useLocalStorage('nexova_wh_shelves', [
     { id: 'sh1', code: 'SH-01-L1', rack: 'RC-01-A', level: 1, utilization: '80%', status: 'Active' },
     { id: 'sh2', code: 'SH-01-L2', rack: 'RC-01-A', level: 2, utilization: '10%', status: 'Active' },
     { id: 'sh3', code: 'SH-02-L1', rack: 'RC-02-A', level: 1, utilization: '45%', status: 'Active' },
@@ -382,7 +382,7 @@ export function ShelvesTab(_props?: any) {
 // 5. BINS CONTROL TAB
 // ----------------------------------------------------
 export function BinsTab(_props?: any) {
-  const [bins, setBins] = useLocalStorage('axiom_wh_bins', [
+  const [bins, setBins] = useLocalStorage('nexova_wh_bins', [
     { id: 'b1', code: 'BIN-101', shelf: 'SH-01-L1', capacity: '150 Liters', status: 'Allocated' },
     { id: 'b2', code: 'BIN-102', shelf: 'SH-01-L1', capacity: '150 Liters', status: 'Empty' },
     { id: 'b3', code: 'BIN-204', shelf: 'SH-02-L1', capacity: '300 Liters', status: 'Allocated' },
@@ -468,7 +468,7 @@ export function BinsTab(_props?: any) {
 // 6. ADJUSTMENT ENTRY TAB
 // ----------------------------------------------------
 export function AdjustmentTab({ products, onUpdateProducts }: WarehouseExtensionsProps) {
-  const [logs, setLogs] = useLocalStorage<any[]>('axiom_stock_adjustments', [
+  const [logs, setLogs] = useLocalStorage<any[]>('nexova_stock_adjustments', [
     { id: 'adj1', date: '2026-07-08', product: 'Standard Premium cement', qty: -5, reason: 'Moisture Damage', operator: 'Rashedul Islam' },
     { id: 'adj2', date: '2026-07-10', product: 'Super Strength rebar', qty: 12, reason: 'Audit Reconciliation Surplus', operator: 'Farhana Yasmin' },
   ]);
@@ -589,7 +589,7 @@ export function AdjustmentTab({ products, onUpdateProducts }: WarehouseExtension
 // 7. RESERVATION REGISTER TAB
 // ----------------------------------------------------
 export function ReservationTab({ products, onUpdateProducts }: WarehouseExtensionsProps) {
-  const [reservations, setReservations] = useLocalStorage<any[]>('axiom_stock_reservations', [
+  const [reservations, setReservations] = useLocalStorage<any[]>('nexova_stock_reservations', [
     { id: 'res1', code: 'RES-9011', product: 'Standard Premium cement', qty: 50, customer: 'BuildCon Builders Ltd.', status: 'Active', expiry: '2026-08-11' },
     { id: 'res2', code: 'RES-4033', product: 'Super Strength rebar', qty: 200, customer: 'Lafarge Enterprise', status: 'Released', expiry: '2026-07-01' },
   ]);
@@ -733,7 +733,7 @@ export function ReservationTab({ products, onUpdateProducts }: WarehouseExtensio
 // 8. BATCH CONTROL TAB
 // ----------------------------------------------------
 export function BatchTab({ products }: WarehouseExtensionsProps) {
-  const [batches, setBatches] = useLocalStorage<any[]>('axiom_stock_batches', [
+  const [batches, setBatches] = useLocalStorage<any[]>('nexova_stock_batches', [
     { id: 'bch1', code: 'BAT-202607-001', product: 'Standard Premium cement', qty: 850, mfgDate: '2026-07-01', expiryDate: '2026-10-01', status: 'Approved' },
     { id: 'bch2', code: 'BAT-202607-002', product: 'Super Strength rebar', qty: 1200, mfgDate: '2026-07-05', expiryDate: '2031-07-05', status: 'Approved' },
   ]);
@@ -829,7 +829,7 @@ export function BatchTab({ products }: WarehouseExtensionsProps) {
 // 9. LOT ALLOCATIONS TAB
 // ----------------------------------------------------
 export function LotTab({ products }: WarehouseExtensionsProps) {
-  const [lots, setLots] = useLocalStorage<any[]>('axiom_stock_lots', [
+  const [lots, setLots] = useLocalStorage<any[]>('nexova_stock_lots', [
     { id: 'lot1', code: 'LOT-2026-A', product: 'Standard Premium cement', origin: 'Heidelberg Materials', cost: '$4,200', date: '2026-07-02', status: 'Allocated' },
     { id: 'lot2', code: 'LOT-2026-B', product: 'Super Strength rebar', origin: 'Siam Steel Corp', cost: '$18,500', date: '2026-07-06', status: 'In Transit' },
   ]);
@@ -915,7 +915,7 @@ export function LotTab({ products }: WarehouseExtensionsProps) {
 // 10. SERIAL TRACKERS TAB
 // ----------------------------------------------------
 export function SerialTab({ products }: WarehouseExtensionsProps) {
-  const [serials, setSerials] = useLocalStorage<any[]>('axiom_stock_serials', [
+  const [serials, setSerials] = useLocalStorage<any[]>('nexova_stock_serials', [
     { id: 's1', serialNo: 'SN-MX9001-A901', product: 'Super Strength rebar', warehouse: 'Main Warehouse', status: 'In Stock' },
     { id: 's2', serialNo: 'SN-MX9001-A902', product: 'Super Strength rebar', warehouse: 'Main Warehouse', status: 'Sold' },
     { id: 's3', serialNo: 'SN-CEM80-AA01', product: 'Standard Premium cement', warehouse: 'Yard A', status: 'In Stock' },
@@ -1125,7 +1125,7 @@ export function QrGeneratorTab({ products }: WarehouseExtensionsProps) {
         <div className="lg:col-span-2 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 p-8">
           {activeProduct ? (
             <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center space-y-4 shadow-sm w-80">
-              <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 font-mono">AXIOM RFID MASTER</span>
+              <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 font-mono">NEXOVA RFID MASTER</span>
               <div className="mx-auto flex items-center justify-center border-4 rounded-xl p-4" style={{ borderColor: labelColor }}>
                 <svg className="w-36 h-36 text-slate-800" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M3 3h6v6H3V3zm2 2v2h2V5H5zm8-2h6v6h-6V3zm2 2v2h2V5h-2M3 15h6v6H3v-6zm2 2v2h2v-2H5zm13-2h3v2h-3v-2zm-3 3h3v3h-3v-3zm3 0h3v3h-3v-3zM13 13h2v2h-2v-2zm4 0h3v2h-3v-2zm-2 4h2v2h-2v-2zm-4 2h2v2h-2v-2z" />

@@ -69,7 +69,7 @@ export interface FieldDef {
   // Advanced fields config
   dependsOn?: { field: string; value: any; operator?: 'equals' | 'contains' | 'notEquals' };
   formula?: string; // e.g. "qty * price" or "budget - cost"
-  lookupTable?: string; // localStorage key to lookup from (e.g. "axiom_crud_suppliers")
+  lookupTable?: string; // localStorage key to lookup from (e.g. "nexova_crud_suppliers")
   lookupField?: string; // field to pull (e.g. "name")
   autocompletePresets?: string[];
   
@@ -696,7 +696,7 @@ export default function MetadataFormEngine({
                     <button
                       type="button"
                       onClick={() => {
-                        setFormData({ ...formData, [activeQrKey]: 'https://axiom.erp.bd/verify/' + Math.floor(1000 + Math.random() * 9000) });
+                        setFormData({ ...formData, [activeQrKey]: 'https://nexova.erp.bd/verify/' + Math.floor(1000 + Math.random() * 9000) });
                         setQrScanOpen(false);
                       }}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg cursor-pointer"

@@ -81,7 +81,7 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         setLoading(true);
 
         // 1. approvalRules
-        const legacyRules = localStorage.getItem('axiom_wf_rules');
+        const legacyRules = localStorage.getItem('nexova_wf_rules');
         let initialRules = [
           { id: 'ar1', name: 'High Value PO Overrides', triggerEvent: 'Purchase Order Total', conditionThreshold: 500000, approverRole: 'Managing Director', status: 'Active' as const },
           { id: 'ar2', name: 'Credit Sale Authorization', triggerEvent: 'Credit Invoice Total', conditionThreshold: 200000, approverRole: 'CFO', status: 'Active' as const }
@@ -92,11 +92,11 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         const seededRules = await seedCollectionIfEmpty('wfRules', initialRules);
         setApprovalRules(seededRules || []);
         if (legacyRules) {
-          localStorage.removeItem('axiom_wf_rules');
+          localStorage.removeItem('nexova_wf_rules');
         }
 
         // 2. automationRules
-        const legacyAutos = localStorage.getItem('axiom_wf_automations');
+        const legacyAutos = localStorage.getItem('nexova_wf_automations');
         let initialAutos = [
           { id: 'atr1', name: 'Low Stock Supervisor Email Alert', eventTrigger: 'Stock Alert' as const, actionChannel: 'Email' as const, status: 'Active' as const },
           { id: 'atr2', name: 'Sales Lead Webhook Payload', eventTrigger: 'New Lead' as const, actionChannel: 'Webhook' as const, status: 'Inactive' as const }
@@ -107,11 +107,11 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         const seededAutos = await seedCollectionIfEmpty('wfAutomations', initialAutos);
         setAutomationRules(seededAutos || []);
         if (legacyAutos) {
-          localStorage.removeItem('axiom_wf_automations');
+          localStorage.removeItem('nexova_wf_automations');
         }
 
         // 3. pendingApprovals
-        const legacyPending = localStorage.getItem('axiom_wf_pending');
+        const legacyPending = localStorage.getItem('nexova_wf_pending');
         let initialPending = [
           { id: 'pa1', documentNo: 'PO-2026-9021', documentType: 'Purchase Order' as const, amount: 820000, requestedBy: 'Tasnim Ahmed', dateRequested: '2026-07-08', status: 'Awaiting Sign-off' as const },
           { id: 'pa2', documentNo: 'INV-2026-0412', documentType: 'Invoice' as const, amount: 450000, requestedBy: 'Rony Mia', dateRequested: '2026-07-09', status: 'Awaiting Sign-off' as const }
@@ -122,11 +122,11 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         const seededPending = await seedCollectionIfEmpty('wfPending', initialPending);
         setPendingApprovals(seededPending || []);
         if (legacyPending) {
-          localStorage.removeItem('axiom_wf_pending');
+          localStorage.removeItem('nexova_wf_pending');
         }
 
         // 4. workflowStages (Designer)
-        const legacyStages = localStorage.getItem('axiom_wf_stages');
+        const legacyStages = localStorage.getItem('nexova_wf_stages');
         let initialStages = [
           { id: 'st1', name: 'Purchase Request Initiation', role: 'Department Executive', minAmount: 0, description: 'Procurement is initiated and budget code is logged.' },
           { id: 'st2', name: 'Division Manager Clearance', role: 'Manager', minAmount: 10000, description: 'Assesses cost necessity and team resource availability.' },
@@ -139,7 +139,7 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
         const seededStages = await seedCollectionIfEmpty('wfStages', initialStages);
         setWorkflowStages(seededStages || []);
         if (legacyStages) {
-          localStorage.removeItem('axiom_wf_stages');
+          localStorage.removeItem('nexova_wf_stages');
         }
       } catch (err) {
         console.error("Workflow migration failed", err);

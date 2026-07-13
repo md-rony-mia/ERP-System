@@ -29,7 +29,7 @@ export default function FixedAssetsView({ activeSubTab = 'assets', currentUser }
 
   const loadMetrics = () => {
     try {
-      const raw = localStorage.getItem('axiom_crud_assets');
+      const raw = localStorage.getItem('nexova_crud_assets');
       const assets = raw ? JSON.parse(raw) : [];
 
       const totalValue = assets.reduce((sum: number, a: any) => sum + (Number(a.purchasePrice) || 0), 0) || 12500000;
@@ -63,7 +63,7 @@ export default function FixedAssetsView({ activeSubTab = 'assets', currentUser }
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'Asset & Capital Ledger', active: true },
       ]}
     >

@@ -116,7 +116,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
     try {
       setLoading(true);
       // 1. Projects
-      const legacyProjs = localStorage.getItem('axiom_crud_projects');
+      const legacyProjs = localStorage.getItem('nexova_crud_projects');
       let initialProjs = DEFAULT_PROJECTS;
       if (legacyProjs) {
         try { initialProjs = JSON.parse(legacyProjs); } catch (e) {}
@@ -124,11 +124,11 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       const parsedProjs = await seedCollectionIfEmpty('projects', initialProjs);
       setProjects(parsedProjs || []);
       if (legacyProjs) {
-        localStorage.removeItem('axiom_crud_projects');
+        localStorage.removeItem('nexova_crud_projects');
       }
 
       // 2. Tasks
-      const legacyTasks = localStorage.getItem('axiom_project_tasks');
+      const legacyTasks = localStorage.getItem('nexova_project_tasks');
       let initialTasks = DEFAULT_TASKS;
       if (legacyTasks) {
         try { initialTasks = JSON.parse(legacyTasks); } catch (e) {}
@@ -136,11 +136,11 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       const parsedTasks = await seedCollectionIfEmpty('projectTasks', initialTasks);
       setTasks(parsedTasks || []);
       if (legacyTasks) {
-        localStorage.removeItem('axiom_project_tasks');
+        localStorage.removeItem('nexova_project_tasks');
       }
 
       // 3. Milestones
-      const legacyMiles = localStorage.getItem('axiom_project_milestones');
+      const legacyMiles = localStorage.getItem('nexova_project_milestones');
       let initialMiles = DEFAULT_MILESTONES;
       if (legacyMiles) {
         try { initialMiles = JSON.parse(legacyMiles); } catch (e) {}
@@ -148,11 +148,11 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       const parsedMiles = await seedCollectionIfEmpty('projectMilestones', initialMiles);
       setMilestones(parsedMiles || []);
       if (legacyMiles) {
-        localStorage.removeItem('axiom_project_milestones');
+        localStorage.removeItem('nexova_project_milestones');
       }
 
       // 4. Timesheets
-      const legacyTimes = localStorage.getItem('axiom_project_timesheets');
+      const legacyTimes = localStorage.getItem('nexova_project_timesheets');
       let initialTimes = DEFAULT_TIMESHEETS;
       if (legacyTimes) {
         try { initialTimes = JSON.parse(legacyTimes); } catch (e) {}
@@ -160,7 +160,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       const parsedTimes = await seedCollectionIfEmpty('projectTimesheets', initialTimes);
       setTimesheets(parsedTimes || []);
       if (legacyTimes) {
-        localStorage.removeItem('axiom_project_timesheets');
+        localStorage.removeItem('nexova_project_timesheets');
       }
 
       // Calculations for metrics
@@ -425,7 +425,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
       currentUser={currentUser}
       permissionRoles={['Administrator', 'Manager', 'Sales Agent']}
       breadcrumbs={[
-        { label: 'Axiom ERP', onClick: () => {} },
+        { label: 'Nexova ERP', onClick: () => {} },
         { label: 'Project Portfolios', active: true },
       ]}
     >

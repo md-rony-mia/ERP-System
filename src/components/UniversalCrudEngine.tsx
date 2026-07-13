@@ -164,10 +164,10 @@ const getSeedDataForModule = (moduleKey: string): any[] => {
       ];
     case 'employees':
       return [
-        { id: 'emp_1', name: 'Arif Hossain', department: 'Engineering', designation: 'Lead QA Officer', salary: 45000, email: 'arif@axiomerp.com', phone: '01712999888', status: 'Approved', workStatus: 'Active', joiningDate: '2024-03-01', isArchived: false },
-        { id: 'emp_2', name: 'Tasnim Jahan', department: 'HR', designation: 'Senior Talent Acquisition', salary: 38000, email: 'tasnim@axiomerp.com', phone: '01815123456', status: 'Approved', workStatus: 'Active', joiningDate: '2025-01-15', isArchived: false },
-        { id: 'emp_3', name: 'Sajid Iqbal', department: 'Sales', designation: 'Accounts representative', salary: 32000, email: 'sajid@axiomerp.com', phone: '01912334455', status: 'Approved', workStatus: 'Active', joiningDate: '2025-06-01', isArchived: false },
-        { id: 'emp_4', name: 'Farhan Mahmud', department: 'Accounts', designation: 'Finance Executive', salary: 55000, email: 'farhan@axiomerp.com', phone: '01616778899', status: 'Pending Approval', workStatus: 'Active', joiningDate: '2026-05-10', isArchived: false },
+        { id: 'emp_1', name: 'Arif Hossain', department: 'Engineering', designation: 'Lead QA Officer', salary: 45000, email: 'arif@nexovaerp.com', phone: '01712999888', status: 'Approved', workStatus: 'Active', joiningDate: '2024-03-01', isArchived: false },
+        { id: 'emp_2', name: 'Tasnim Jahan', department: 'HR', designation: 'Senior Talent Acquisition', salary: 38000, email: 'tasnim@nexovaerp.com', phone: '01815123456', status: 'Approved', workStatus: 'Active', joiningDate: '2025-01-15', isArchived: false },
+        { id: 'emp_3', name: 'Sajid Iqbal', department: 'Sales', designation: 'Accounts representative', salary: 32000, email: 'sajid@nexovaerp.com', phone: '01912334455', status: 'Approved', workStatus: 'Active', joiningDate: '2025-06-01', isArchived: false },
+        { id: 'emp_4', name: 'Farhan Mahmud', department: 'Accounts', designation: 'Finance Executive', salary: 55000, email: 'farhan@nexovaerp.com', phone: '01616778899', status: 'Pending Approval', workStatus: 'Active', joiningDate: '2026-05-10', isArchived: false },
       ];
     case 'assets':
       return [
@@ -265,7 +265,7 @@ export default function UniversalCrudEngine({
       try {
         setLoading(true);
         if (isMigrated) {
-          const legacyData = localStorage.getItem(`axiom_crud_${moduleKey}`);
+          const legacyData = localStorage.getItem(`nexova_crud_${moduleKey}`);
           let initialData = initialSeedData || getSeedDataForModule(moduleKey);
           if (legacyData) {
             try { initialData = JSON.parse(legacyData); } catch (e) { console.error(e); }
@@ -274,10 +274,10 @@ export default function UniversalCrudEngine({
           setData(seeded || []);
           
           // Clear legacy so we don't migrate again
-          localStorage.setItem(`axiom_crud_${moduleKey}_migrated`, 'true');
-          localStorage.removeItem(`axiom_crud_${moduleKey}`);
+          localStorage.setItem(`nexova_crud_${moduleKey}_migrated`, 'true');
+          localStorage.removeItem(`nexova_crud_${moduleKey}`);
         } else {
-          const savedData = localStorage.getItem(`axiom_crud_${moduleKey}`);
+          const savedData = localStorage.getItem(`nexova_crud_${moduleKey}`);
           if (savedData) {
             try {
               setData(JSON.parse(savedData));
@@ -287,7 +287,7 @@ export default function UniversalCrudEngine({
           } else {
             const seed = initialSeedData || getSeedDataForModule(moduleKey);
             setData(seed);
-            localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(seed));
+            localStorage.setItem(`nexova_crud_${moduleKey}`, JSON.stringify(seed));
           }
         }
       } catch (err) {
@@ -300,13 +300,13 @@ export default function UniversalCrudEngine({
     loadAndMigrate();
 
     // Load Audit Logs
-    const savedAudits = localStorage.getItem(`axiom_crud_audit_${moduleKey}`);
+    const savedAudits = localStorage.getItem(`nexova_crud_audit_${moduleKey}`);
     if (savedAudits) {
       try { setAuditLogs(JSON.parse(savedAudits)); } catch (e) {}
     }
 
     // Load Revisions
-    const savedRevs = localStorage.getItem(`axiom_crud_revs_${moduleKey}`);
+    const savedRevs = localStorage.getItem(`nexova_crud_revs_${moduleKey}`);
     if (savedRevs) {
       try { setRevisions(JSON.parse(savedRevs)); } catch (e) {}
     }
@@ -322,7 +322,7 @@ export default function UniversalCrudEngine({
   const syncAndSave = (updatedData: any[]) => {
     setData(updatedData);
     if (!isMigrated) {
-      localStorage.setItem(`axiom_crud_${moduleKey}`, JSON.stringify(updatedData));
+      localStorage.setItem(`nexova_crud_${moduleKey}`, JSON.stringify(updatedData));
     } else {
       syncCollectionToFirestore(moduleKey, updatedData);
     }
@@ -333,12 +333,12 @@ export default function UniversalCrudEngine({
 
   const syncAuditLogs = (updatedAudits: AuditEntry[]) => {
     setAuditLogs(updatedAudits);
-    localStorage.setItem(`axiom_crud_audit_${moduleKey}`, JSON.stringify(updatedAudits));
+    localStorage.setItem(`nexova_crud_audit_${moduleKey}`, JSON.stringify(updatedAudits));
   };
 
   const syncRevisions = (updatedRevs: RevisionHistory[]) => {
     setRevisions(updatedRevs);
-    localStorage.setItem(`axiom_crud_revs_${moduleKey}`, JSON.stringify(updatedRevs));
+    localStorage.setItem(`nexova_crud_revs_${moduleKey}`, JSON.stringify(updatedRevs));
   };
 
   // --- LOG AUDIT ENTRY ---
@@ -534,7 +534,7 @@ export default function UniversalCrudEngine({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Axiom_ERP_${moduleKey}_export_${Date.now()}.csv`);
+    link.setAttribute('download', `Nexova_ERP_${moduleKey}_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -561,7 +561,7 @@ export default function UniversalCrudEngine({
           </style>
         </head>
         <body>
-          <div class="title">Axiom Enterprise ERP — ${moduleName} Dataset</div>
+          <div class="title">Nexova Enterprise ERP — ${moduleName} Dataset</div>
           <table>
             <thead>
               <tr>
@@ -596,7 +596,7 @@ export default function UniversalCrudEngine({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Axiom_ERP_${moduleKey}_excel_${Date.now()}.xls`;
+    link.download = `Nexova_ERP_${moduleKey}_excel_${Date.now()}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -631,7 +631,7 @@ export default function UniversalCrudEngine({
           </style>
         </head>
         <body>
-          <h1>AXIOM ENTERPRISE ERP</h1>
+          <h1>NEXOVA ENTERPRISE ERP</h1>
           <h2>DYNAMIC OPERATIONS REGISTER: ${moduleName.toUpperCase()}</h2>
           <table>
             <thead>

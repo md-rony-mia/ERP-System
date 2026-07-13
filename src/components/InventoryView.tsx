@@ -288,7 +288,7 @@ export default function InventoryView({
   ]);
 
   const [transfers, setTransfers] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_transfers');
+    const saved = localStorage.getItem('nexova_transfers');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -305,7 +305,7 @@ export default function InventoryView({
         to: 'Yard A',
         status: 'Completed',
         batchNo: 'B-CEM-902',
-        carrierName: 'Axiom Cargo Logistics',
+        carrierName: 'Nexova Cargo Logistics',
         vehicleNo: 'Dhaka Metro-U-11-2092',
         driverPhone: '01827391029',
         sealNo: 'S-99120',
@@ -335,12 +335,12 @@ export default function InventoryView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_transfers', JSON.stringify(transfers));
+    localStorage.setItem('nexova_transfers', JSON.stringify(transfers));
   }, [transfers]);
 
   // --- BATCH & LOTS STATE ---
   const [batches, setBatches] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_batches');
+    const saved = localStorage.getItem('nexova_batches');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -354,12 +354,12 @@ export default function InventoryView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_batches', JSON.stringify(batches));
+    localStorage.setItem('nexova_batches', JSON.stringify(batches));
   }, [batches]);
 
   // --- SERIAL NUMBERS STATE ---
   const [serials, setSerials] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_serials');
+    const saved = localStorage.getItem('nexova_serials');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -371,7 +371,7 @@ export default function InventoryView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_serials', JSON.stringify(serials));
+    localStorage.setItem('nexova_serials', JSON.stringify(serials));
   }, [serials]);
 
   // --- SCANNER STATE ---
@@ -380,12 +380,12 @@ export default function InventoryView({
 
   // --- VALUATION METHOD STATE ---
   const [valuationMethod, setValuationMethod] = useState<'WAC' | 'FIFO' | 'LIFO' | 'Standard Cost'>(() => {
-    const saved = localStorage.getItem('axiom_valuation_method');
+    const saved = localStorage.getItem('nexova_valuation_method');
     return (saved as 'WAC' | 'FIFO' | 'LIFO' | 'Standard Cost') || 'WAC';
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_valuation_method', valuationMethod);
+    localStorage.setItem('nexova_valuation_method', valuationMethod);
   }, [valuationMethod]);
 
   // --- ENTERPRISE INVENTORY STATE CORES ---
@@ -411,7 +411,7 @@ export default function InventoryView({
   const [allocReorderQty, setAllocReorderQty] = useState('500');
 
   const [snapshots, setSnapshots] = useState<any[]>(() => {
-    const saved = localStorage.getItem('axiom_inventory_snapshots');
+    const saved = localStorage.getItem('nexova_inventory_snapshots');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -425,7 +425,7 @@ export default function InventoryView({
   });
 
   useEffect(() => {
-    localStorage.setItem('axiom_inventory_snapshots', JSON.stringify(snapshots));
+    localStorage.setItem('nexova_inventory_snapshots', JSON.stringify(snapshots));
   }, [snapshots]);
 
   // --- LOT MODAL STATE ---
@@ -1007,7 +1007,7 @@ export default function InventoryView({
       to: transferTo,
       status: transferStatus, // Draft | Requested | Approved | Shipped | Completed
       batchNo: transferBatchNo || 'N/A',
-      carrierName: carrierName || 'Axiom Fleet Services',
+      carrierName: carrierName || 'Nexova Fleet Services',
       vehicleNo: vehicleNo || 'Dhaka Metro-HA-11-5520',
       driverPhone: driverPhone || '01700000000',
       sealNo: sealNo || 'S-TEMP',
@@ -2137,7 +2137,7 @@ export default function InventoryView({
                   </div>
                   <h1 className="text-2xl font-black tracking-tight font-display flex items-center gap-2.5">
                     <Boxes className="h-7 w-7 text-indigo-400 shrink-0" />
-                    <span>Axiom Enterprise Inventory Engine</span>
+                    <span>Nexova Enterprise Inventory Engine</span>
                   </h1>
                   <p className="text-xs text-slate-300 max-w-xl">
                     Real-time valuation layered auditing, MRP stock safety planning, automated purchase generation, cycle-count physical adjustments, and multi-location logistics tracing.

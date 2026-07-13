@@ -38,8 +38,8 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
     setActiveLanguage(navEngine.getLanguage());
 
     // Fetch live statistics safely from local storage
-    const storedProductsCount = localStorage.getItem('axiom_products_count');
-    const storedInvoicesCount = localStorage.getItem('axiom_invoices_count');
+    const storedProductsCount = localStorage.getItem('nexova_products_count');
+    const storedInvoicesCount = localStorage.getItem('nexova_invoices_count');
     if (storedProductsCount) {
       // Calculate fake low-stock based on products
       setLowStockCount(Math.max(2, Math.floor(Number(storedProductsCount) / 8)));

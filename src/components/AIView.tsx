@@ -55,7 +55,7 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
 
   // --- LOCAL PERSISTED / MOCK STATES ---
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'assistant', text: 'Adu-bismillah! I am Axiom ERP AI assistant. How can I optimize your manufacturing operations, predict supply shortages, or scan financial deflections today?', timestamp: '10:00 AM' }
+    { id: '1', sender: 'assistant', text: 'Adu-bismillah! I am Nexova ERP AI assistant. How can I optimize your manufacturing operations, predict supply shortages, or scan financial deflections today?', timestamp: '10:00 AM' }
   ]);
   const [inputText, setInputText] = useState('');
 
@@ -149,7 +149,7 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
             <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-indigo-600" />
-                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Axiom ERP Copilot Terminal</span>
+                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Nexova ERP Copilot Terminal</span>
               </div>
               <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Offline AI Model Active
@@ -223,7 +223,7 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
               <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Intelligent Capabilities</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Axiom AI scans raw material specifications in Warehouse registries and ledger margins in Accounting daily to detect system bottlenecks automatically.
+                Nexova AI scans raw material specifications in Warehouse registries and ledger margins in Accounting daily to detect system bottlenecks automatically.
               </p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-2">
