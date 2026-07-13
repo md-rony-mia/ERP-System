@@ -14,7 +14,7 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     dashboard: true,
     inventory: false,
-    sales: true, // Default open sales to show high visual fidelity
+    sales: false, // Default open sales to show high visual fidelity
   });
 
   const [activeLanguage, setActiveLanguage] = useState(navEngine.getLanguage());
