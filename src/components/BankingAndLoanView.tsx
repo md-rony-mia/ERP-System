@@ -156,7 +156,7 @@ export default function BankingAndLoanView({
     return [
       { id: 'q1', type: 'Email', recipient: 'buyer@purbachal.com', subject: 'Invoice INV-2026-0412 Released', status: 'Sent', sentTime: '2026-07-10 11:45 AM' },
       { id: 'q2', type: 'SMS', recipient: '+8801712345678', subject: 'Nexova Low Stock Alert: Steel Girders', status: 'Pending', sentTime: '-' },
-      { id: 'q3', type: 'Email', recipient: 'supervisor@apexion.com', subject: 'Workflow Approval Req PO-2026-9021', status: 'Failed', sentTime: '-' }
+      { id: 'q3', type: 'Email', recipient: 'supervisor@nexova.com', subject: 'Workflow Approval Req PO-2026-9021', status: 'Failed', sentTime: '-' }
     ];
   });
 
@@ -4646,7 +4646,7 @@ export default function BankingAndLoanView({
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = `APEXION_ERP_METADATA_SNAPSHOT_${Date.now()}.json`;
+                            a.download = `NEXOVA_ERP_METADATA_SNAPSHOT_${Date.now()}.json`;
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);

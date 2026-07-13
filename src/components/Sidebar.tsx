@@ -166,10 +166,10 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
         {!isCollapsed && (
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <span className="font-display font-bold text-white text-lg tracking-wider">A</span>
+              <span className="font-display font-bold text-white text-lg tracking-wider">N</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-display font-bold text-white text-md tracking-wide">APEXION</span>
+              <span className="font-display font-bold text-white text-md tracking-wide">NEXOVA</span>
               <span className="text-[9px] text-emerald-500/80 font-bold tracking-widest uppercase">ERP Software</span>
             </div>
           </div>
@@ -177,7 +177,7 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
 
         {isCollapsed && (
           <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
-            <span className="font-display font-bold text-white text-md tracking-wider">A</span>
+            <span className="font-display font-bold text-white text-md tracking-wider">N</span>
           </div>
         )}
 
@@ -513,13 +513,13 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
       <div className="p-3.5 border-t border-emerald-950/50 bg-emerald-950/40 text-center flex flex-col items-center">
         {!isCollapsed ? (
           <>
-            <span className="text-[10px] text-emerald-600/90 font-bold tracking-wider">APEXION NAV ENGINE v2.0</span>
+            <span className="text-[10px] text-emerald-600/90 font-bold tracking-wider">NEXOVA NAV ENGINE v2.0</span>
             <span className="text-[9px] text-emerald-700 font-semibold mt-0.5">
               Role: <span className="text-emerald-500">Administrator</span>
             </span>
           </>
         ) : (
-          <span title="APEXION NAV ENGINE v2.0"><Icons.Cpu className="h-4 w-4 text-emerald-700" /></span>
+          <span title="NEXOVA NAV ENGINE v2.0"><Icons.Cpu className="h-4 w-4 text-emerald-700" /></span>
         )}
       </div>
     </aside>

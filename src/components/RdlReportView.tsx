@@ -477,7 +477,7 @@ export default function RdlReportView({
         <div className="space-y-6">
           <div className="bg-emerald-950/20 border border-emerald-900/30 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-emerald-800 font-display">Apexion RDL Report Categories</h2>
+              <h2 className="text-base font-bold text-emerald-800 font-display">Nexova RDL Report Categories</h2>
               <p className="text-xs text-slate-500 mt-1">Select a reporting category schema to inspect corresponding RDL XML report files.</p>
             </div>
             <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
@@ -532,7 +532,7 @@ export default function RdlReportView({
         <div className="space-y-6">
           <div className="bg-emerald-950/20 border border-emerald-900/30 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-emerald-800 font-display">Apexion RDL Report Subcategories</h2>
+              <h2 className="text-base font-bold text-emerald-800 font-display">Nexova RDL Report Subcategories</h2>
               <p className="text-xs text-slate-500 mt-1">Drill down into highly specific analytical sub-segments of ERP ledger databases.</p>
             </div>
             <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">

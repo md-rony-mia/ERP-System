@@ -1,7 +1,7 @@
-# APEXION ERP Software - Navigation Completion Report
+# NEXOVA ERP Software - Navigation Completion Report
 
 ## Executive Summary
-This report documents the exhaustive ERP audit and system completion of APEXION ERP. Every single sidebar group, main menu, submenu, and nested settings sub-tab has been audited, mapped, and brought to 100% operational status. 
+This report documents the exhaustive ERP audit and system completion of NEXOVA ERP. Every single sidebar group, main menu, submenu, and nested settings sub-tab has been audited, mapped, and brought to 100% operational status. 
 
 There are **zero placeholders**, **zero empty pages**, and **zero UI-only skeletons**. All subsystems now contain active business logic, real state management, live validation, and production-ready interactive controls.
 
@@ -19,7 +19,7 @@ The application routing operates on a highly decoupled and modular architecture:
 
 | Sidebar Group | Main Menu / View Component | Submenu / Tab | Implementation Status | Functional Business Logic Details |
 | :--- | :--- | :--- | :--- | :--- |
-| **Axiom Core** | `Banking & Loans` <br> `BankingAndLoanView` | Bank Accounts | **Fully Functional** | Manage accounts, add balances, type categorization, live interest calculation. |
+| **Nexova Core** | `Banking & Loans` <br> `BankingAndLoanView` | Bank Accounts | **Fully Functional** | Manage accounts, add balances, type categorization, live interest calculation. |
 | | | Loan Accounts | **Fully Functional** | Create loans, calculate outstanding interest/principal, record payments. |
 | | | Transaction Ledger | **Fully Functional** | Full searchable/filterable audit logs with CSV/Excel export simulations. |
 | | | Analytics | **Fully Functional** | Dynamic loan-to-asset charts, liquidity gauges, and loan distribution rings. |
@@ -93,7 +93,7 @@ The application routing operates on a highly decoupled and modular architecture:
 
 ---
 
-## 3. Settings Sub-Tab Completion (The Axiom Core Settings Audit)
+## 3. Settings Sub-Tab Completion (The Nexova Core Settings Audit)
 Previously, the "Settings" tab in `BankingAndLoanView` contained numerous empty slots and non-functional templates. We have completely overhauled the settings router by building an active dynamic configuration panel.
 
 * **Enterprise Role Permission Matrix (`role_matrix` / `permissions`)**: Implemented a comprehensive, visual security matrix. System administrators can toggle granular scopes (Create, Read, Update, Delete, Export) across multiple enterprise roles (Administrator, Finance Director, Compliance Auditor, Support Manager, Dev Operator). State is fully interactive and saves live.

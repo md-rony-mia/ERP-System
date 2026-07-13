@@ -549,7 +549,7 @@ export default function GridReportView({
         <div className="space-y-6">
           <div className="bg-emerald-950/20 border border-emerald-900/30 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-emerald-800 font-display">Apexion Grid Report Catalog</h2>
+              <h2 className="text-base font-bold text-emerald-800 font-display">Nexova Grid Report Catalog</h2>
               <p className="text-xs text-slate-500 mt-1">Browse and load ledger entries categorized by business operational streams.</p>
             </div>
             <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
