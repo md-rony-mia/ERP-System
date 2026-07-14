@@ -2939,28 +2939,83 @@ export default function SalesView({
             {/* Custom Print Style Injection */}
             <style dangerouslySetInnerHTML={{__html: `
               @media print {
+                /* Preserve background colors, border styles and exact styling */
+                *, *::before, *::after {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                
+                /* Hide everything in the body by default */
                 body * {
                   visibility: hidden;
                 }
+                
+                /* Make our printable container and all its descendants visible */
                 #printable-area-container, #printable-area-container * {
-                  visibility: visible;
+                  visibility: visible !important;
                 }
-                #printable-area-container {
-                  position: absolute;
-                  left: 0;
-                  top: 0;
-                  width: 100%;
+                
+                /* Reset html and body layouts for print page */
+                html, body {
+                  height: auto !important;
+                  overflow: visible !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
                   background: white !important;
-                  color: black !important;
+                }
+                
+                /* Override fixed modal overlay styles so they don't center or restrict */
+                div.fixed.inset-0 {
+                  position: absolute !important;
+                  top: 0 !important;
+                  left: 0 !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  background: transparent !important;
+                  backdrop-filter: none !important;
                   padding: 0 !important;
                   margin: 0 !important;
+                  overflow: visible !important;
+                  display: block !important;
                 }
+                
+                /* Override modal card wrapper styling to take up full-width and remove bounds */
+                div.fixed.inset-0 > div {
+                  border: none !important;
+                  box-shadow: none !important;
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  max-width: 100% !important;
+                  width: 100% !important;
+                  transform: none !important;
+                  animation: none !important;
+                  background: transparent !important;
+                }
+
+                /* Absolute positioning of printable area at top-left with uniform page borders */
+                #printable-area-container {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 100% !important;
+                  background: white !important;
+                  color: black !important;
+                  padding: 1.5cm !important;
+                  margin: 0 !important;
+                  box-shadow: none !important;
+                  border: none !important;
+                }
+                
                 @page {
                   size: ${printTab === 'challan' ? 'landscape' : 'portrait'};
-                  margin: 0.5cm;
+                  margin: 0 !important; /* Completely strip default headers/footers */
                 }
+                
                 .no-print {
                   display: none !important;
+                  height: 0 !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
                 }
               }
             `}} />
@@ -3100,7 +3155,7 @@ export default function SalesView({
                     </div>
 
                     {/* In Words and Totals Summary Section */}
-                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 pt-3 font-mono">
+                    <div className="flex flex-col md:flex-row print:flex-row justify-between items-start gap-4 pt-3 font-mono">
                       {/* Left Side: In Words */}
                       <div className="flex-1 space-y-1 py-1">
                         <div className="flex items-start gap-2 text-xs">
@@ -3144,7 +3199,7 @@ export default function SalesView({
                     </div>
 
                     {/* Financial Balances Ledger Blocks */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-dashed border-slate-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 pt-6 border-t border-dashed border-slate-200">
                       {/* Left Ledger Box: Last Collection Info */}
                       <div>
                         <table className="w-full table-fixed border-2 border-slate-800 text-xs font-mono text-slate-800 border-collapse">
