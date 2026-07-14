@@ -136,6 +136,18 @@ export default function SalesView({
   const setSalesTab = (val: any) => {};
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
+  const generateDateTimeInvoiceNo = (prefix: string) => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}-${day}${month}${year}-${hours}${minutes}${seconds}-${rand}`;
+  };
+
   // --- POS STATES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [cart, setCart] = useState<SaleItem[]>([]);
@@ -147,7 +159,7 @@ export default function SalesView({
   const [posCategory, setPosCategory] = useState('All');
 
   // --- ERP THEME & INPUT STATES FOR HIGH PRECISION MATCHING ---
-  const [invoiceNoInput, setInvoiceNoInput] = useState(`INV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [invoiceNoInput, setInvoiceNoInput] = useState(generateDateTimeInvoiceNo('INV'));
   const [invoiceDateInput, setInvoiceDateInput] = useState(new Date().toISOString().split('T')[0]);
   const [receivedByInput, setReceivedByInput] = useState('');
   const [recipientAddressInput, setRecipientAddressInput] = useState('');
@@ -247,7 +259,7 @@ export default function SalesView({
   };
 
   // --- ERP SALES RETURN STATES ---
-  const [retInvoiceNo, setRetInvoiceNo] = useState(`RET-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [retInvoiceNo, setRetInvoiceNo] = useState(generateDateTimeInvoiceNo('RET'));
   const [retDate, setRetDate] = useState(new Date().toISOString().split('T')[0]);
   const [retCustomerId, setRetCustomerId] = useState('');
   const [retInvoiceRef, setRetInvoiceRef] = useState('');
@@ -338,7 +350,7 @@ export default function SalesView({
     alert(`Sales return ${retInvoiceNo} registered! Refund value of ৳${totalRefund.toLocaleString()} processed as Credit Note. Inventory stock levels updated!`);
     
     setRetCart([]);
-    setRetInvoiceNo(`RET-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+    setRetInvoiceNo(generateDateTimeInvoiceNo('RET'));
     setRetInvoiceRef('');
   };
 
@@ -529,7 +541,7 @@ export default function SalesView({
     setLabourCost(0);
     setTransportCost(0);
     setTransTypeInput('Cash Bill');
-    setInvoiceNoInput('');
+    setInvoiceNoInput(generateDateTimeInvoiceNo('INV'));
     setInvoiceDateInput(new Date().toISOString().split('T')[0]);
     setReceivedByInput('');
     setRecipientAddressInput('');

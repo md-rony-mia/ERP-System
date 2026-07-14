@@ -386,7 +386,7 @@ export default function PurchaseView({
     if (!p) return;
     
     const newPR = {
-      id: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: generateDateTimeInvoiceNo('PR'),
       department: prDept,
       productId: prProductId,
       productName: p.name,
@@ -435,7 +435,7 @@ export default function PurchaseView({
     });
 
     const newRFQ = {
-      id: `RFQ-2026-${Math.floor(100 + Math.random() * 900)}`,
+      id: generateDateTimeInvoiceNo('RFQ'),
       productId: rfqProductId,
       productName: p.name,
       quantity: rfqQty,
@@ -516,8 +516,21 @@ export default function PurchaseView({
 
   // --- FORM VALUES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const generateDateTimeInvoiceNo = (prefix: string) => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}-${day}${month}${year}-${hours}${minutes}${seconds}-${rand}`;
+  };
+
   // --- ERP ACTIVE PROCUREMENT THEME STATES ---
-  const [poInvoiceNo, setPoInvoiceNo] = useState(`PO-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [poInvoiceNo, setPoInvoiceNo] = useState(generateDateTimeInvoiceNo('PO'));
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0]);
   const [poProductId, setPoProductId] = useState(products[0]?.id || '');
   const [poQty, setPoQty] = useState<number | string>(1);
@@ -528,7 +541,7 @@ export default function PurchaseView({
   const [poLabour, setPoLabour] = useState(0);
 
   // --- ERP ACTIVE PROCUREMENT RETURNS STATES ---
-  const [pretId, setPretId] = useState(`PRET-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [pretId, setPretId] = useState(generateDateTimeInvoiceNo('PRET'));
   const [pretDate, setPretDate] = useState(new Date().toISOString().split('T')[0]);
   const [pretSupplierId, setPretSupplierId] = useState('');
   const [pretPoRef, setPretPoRef] = useState('');
@@ -669,7 +682,7 @@ export default function PurchaseView({
     setPoDiscount(0);
     setPoLabour(0);
     setPoTransport(0);
-    setPoInvoiceNo(`PO-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+    setPoInvoiceNo(generateDateTimeInvoiceNo('PO'));
   };
 
   const handleSelectProductForPret = (id: string) => {
@@ -746,7 +759,7 @@ export default function PurchaseView({
     setPurchaseReturns((prev) => [newReturn, ...prev]);
     alert(`Purchase Return ${pretId} logged successfully! Debit Note value of ৳${totalVal.toLocaleString()} registered against ${sup.name}.`);
     setPretCart([]);
-    setPretId(`PRET-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+    setPretId(generateDateTimeInvoiceNo('PRET'));
     setPretPoRef('');
   };
 
