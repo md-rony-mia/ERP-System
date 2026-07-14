@@ -2948,6 +2948,10 @@ export default function SalesView({
             {/* Custom Print Style Injection */}
             <style dangerouslySetInnerHTML={{__html: `
               @media print {
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
                 body * {
                   visibility: hidden;
                 }
@@ -2961,12 +2965,13 @@ export default function SalesView({
                   width: 100%;
                   background: white !important;
                   color: black !important;
-                  padding: 0 !important;
+                  padding: 1.2cm 1.5cm !important;
                   margin: 0 !important;
+                  box-sizing: border-box !important;
                 }
                 @page {
                   size: ${printTab === 'challan' ? 'landscape' : 'portrait'};
-                  margin: 0.5cm;
+                  margin: 0 !important;
                 }
                 .no-print {
                   display: none !important;
@@ -3037,7 +3042,7 @@ export default function SalesView({
                     <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-lg bg-indigo-600 text-white font-black text-base flex items-center justify-center shadow no-print">
+                          <div className="h-8 w-8 rounded-lg bg-indigo-600 text-white font-black text-base flex items-center justify-center shadow">
                             A
                           </div>
                           <span className="text-base font-black font-display text-slate-800 tracking-tight">{settings?.companyName || 'M/S Madani Traders'}</span>
@@ -3109,7 +3114,7 @@ export default function SalesView({
                     </div>
 
                     {/* In Words and Totals Summary Section */}
-                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 pt-3 font-mono">
+                    <div className="flex flex-row justify-between items-start gap-4 pt-3 font-mono">
                       {/* Left Side: In Words */}
                       <div className="flex-1 space-y-1 py-1">
                         <div className="flex items-start gap-2 text-xs">
@@ -3153,7 +3158,7 @@ export default function SalesView({
                     </div>
 
                     {/* Financial Balances Ledger Blocks */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-dashed border-slate-200">
+                    <div className="grid grid-cols-2 gap-6 pt-6 border-t border-dashed border-slate-200">
                       {/* Left Ledger Box: Last Collection Info */}
                       <div>
                         <table className="w-full table-fixed border-2 border-slate-800 text-xs font-mono text-slate-800 border-collapse">
