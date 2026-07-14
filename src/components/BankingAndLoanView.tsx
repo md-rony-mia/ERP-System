@@ -409,34 +409,34 @@ export default function BankingAndLoanView({
   };
 
   // 3. Suppliers Setting
-  const [supplierCreditTerms, setSupplierCreditTerms] = useState('Net 30');
-  const [supplierCodePrefix, setSupplierCodePrefix] = useState('SUP-');
-  const [reorderLeadTime, setReorderLeadTime] = useState(5);
-  const [supplierReqLimit, setSupplierReqLimit] = useState(50000);
+  const [supplierCreditTerms, setSupplierCreditTerms] = useState(settings?.supplierCreditTerms || 'Net 30');
+  const [supplierCodePrefix, setSupplierCodePrefix] = useState(settings?.supplierCodePrefix || 'SUP-');
+  const [reorderLeadTime, setReorderLeadTime] = useState(settings?.reorderLeadTime || 5);
+  const [supplierReqLimit, setSupplierReqLimit] = useState(settings?.supplierReqLimit || 50000);
 
   // 4. Customers Setting
-  const [customerCreditLimit, setCustomerCreditLimit] = useState(100000);
-  const [customerGroupDefault, setCustomerGroupDefault] = useState('General');
-  const [customerGracePeriod, setCustomerGracePeriod] = useState(7);
-  const [customerAllowUnregistered, setCustomerAllowUnregistered] = useState(true);
+  const [customerCreditLimit, setCustomerCreditLimit] = useState(settings?.customerCreditLimit || 100000);
+  const [customerGroupDefault, setCustomerGroupDefault] = useState(settings?.customerGroupDefault || 'General');
+  const [customerGracePeriod, setCustomerGracePeriod] = useState(settings?.customerGracePeriod || 7);
+  const [customerAllowUnregistered, setCustomerAllowUnregistered] = useState(settings?.customerAllowUnregistered ?? true);
 
   // 5. Product Setting
-  const [productSkuRule, setProductSkuRule] = useState('Auto');
-  const [productSkuPrefix, setProductSkuPrefix] = useState('PRD-');
-  const [productMarkup, setProductMarkup] = useState(15);
-  const [productValuation, setProductValuation] = useState('Weighted Average');
+  const [productSkuRule, setProductSkuRule] = useState(settings?.productSkuRule || 'Auto');
+  const [productSkuPrefix, setProductSkuPrefix] = useState(settings?.productSkuPrefix || 'PRD-');
+  const [productMarkup, setProductMarkup] = useState(settings?.productMarkup || 15);
+  const [productValuation, setProductValuation] = useState(settings?.productValuation || 'Weighted Average');
 
   // 6. POS Setting
-  const [posDefaultCustomer, setPosDefaultCustomer] = useState('Walk-In Cash Customer');
-  const [posShowImageGrid, setPosShowImageGrid] = useState(true);
-  const [posQuickDiscounts, setPosQuickDiscounts] = useState('5, 10, 15, 20');
-  const [posCashDrawTrigger, setPosCashDrawTrigger] = useState('Auto Open');
+  const [posDefaultCustomer, setPosDefaultCustomer] = useState(settings?.posDefaultCustomer || 'Walk-In Cash Customer');
+  const [posShowImageGrid, setPosShowImageGrid] = useState(settings?.posShowImageGrid ?? true);
+  const [posQuickDiscounts, setPosQuickDiscounts] = useState(settings?.posQuickDiscounts || '5, 10, 15, 20');
+  const [posCashDrawTrigger, setPosCashDrawTrigger] = useState(settings?.posCashDrawTrigger || 'Auto Open');
 
   // 7. Collection & Payment Settings
-  const [collectionAutoAlloc, setCollectionAutoAlloc] = useState(true);
-  const [collectionBounceFee, setCollectionBounceFee] = useState(500);
-  const [collectionEarlyDiscount, setCollectionEarlyDiscount] = useState(2);
-  const [collectionTargetDays, setCollectionTargetDays] = useState(10);
+  const [collectionAutoAlloc, setCollectionAutoAlloc] = useState(settings?.collectionAutoAlloc ?? true);
+  const [collectionBounceFee, setCollectionBounceFee] = useState(settings?.collectionBounceFee || 500);
+  const [collectionEarlyDiscount, setCollectionEarlyDiscount] = useState(settings?.collectionEarlyDiscount || 2);
+  const [collectionTargetDays, setCollectionTargetDays] = useState(settings?.collectionTargetDays || 10);
 
   // 8. Users
   const [usersList, setUsersList] = useState<any[]>(settings?.usersList || [
@@ -585,10 +585,10 @@ export default function BankingAndLoanView({
   };
 
   // 10. Loan Setting
-  const [loanDefaultInt, setLoanDefaultInt] = useState(9);
-  const [loanMaxTenure, setLoanMaxTenure] = useState(36);
-  const [loanEarlyRepayPenalty, setLoanEarlyRepayPenalty] = useState(1);
-  const [loanMinMargin, setLoanMinMargin] = useState(20);
+  const [loanDefaultInt, setLoanDefaultInt] = useState(settings?.loanDefaultInt || 9);
+  const [loanMaxTenure, setLoanMaxTenure] = useState(settings?.loanMaxTenure || 36);
+  const [loanEarlyRepayPenalty, setLoanEarlyRepayPenalty] = useState(settings?.loanEarlyRepayPenalty || 1);
+  const [loanMinMargin, setLoanMinMargin] = useState(settings?.loanMinMargin || 20);
 
   // 12. Menu Management
   const [sidebarMenusEnabled, setSidebarMenusEnabled] = useState({
@@ -616,16 +616,16 @@ export default function BankingAndLoanView({
   };
 
   // 14. Sales Return Setting
-  const [salesReturnWindow, setSalesReturnWindow] = useState('15 Days');
-  const [salesRestockingFee, setSalesRestockingFee] = useState(5);
-  const [salesReturnAction, setSalesReturnAction] = useState('Credit Note');
-  const [salesReturnInspection, setSalesReturnInspection] = useState(true);
+  const [salesReturnWindow, setSalesReturnWindow] = useState(settings?.salesReturnWindow || '15 Days');
+  const [salesRestockingFee, setSalesRestockingFee] = useState(settings?.salesRestockingFee || 5);
+  const [salesReturnAction, setSalesReturnAction] = useState(settings?.salesReturnAction || 'Credit Note');
+  const [salesReturnInspection, setSalesReturnInspection] = useState(settings?.salesReturnInspection ?? true);
 
   // 15. Sales Order Setting
-  const [salesOrderAutoRelease, setSalesOrderAutoRelease] = useState(true);
-  const [salesOrderPartial, setSalesOrderPartial] = useState(false);
-  const [salesOrderPrefix, setSalesOrderPrefix] = useState('SO-');
-  const [salesOrderTerms, setSalesOrderTerms] = useState('Immediate Delivery');
+  const [salesOrderAutoRelease, setSalesOrderAutoRelease] = useState(settings?.salesOrderAutoRelease ?? true);
+  const [salesOrderPartial, setSalesOrderPartial] = useState(settings?.salesOrderPartial ?? false);
+  const [salesOrderPrefix, setSalesOrderPrefix] = useState(settings?.salesOrderPrefix || 'SO-');
+  const [salesOrderTerms, setSalesOrderTerms] = useState(settings?.salesOrderTerms || 'Immediate Delivery');
 
   // 16. Activity Log
   const [activityLogs, setActivityLogs] = useState([
@@ -638,16 +638,16 @@ export default function BankingAndLoanView({
   const [activityLogSearch, setActivityLogSearch] = useState('');
 
   // 17. Purchase Setting
-  const [purchaseStrictPOAmt, setPurchaseStrictPOAmt] = useState(100000);
-  const [purchaseAutoReorder, setPurchaseAutoReorder] = useState(true);
-  const [purchaseDefaultUnit, setPurchaseDefaultUnit] = useState('Box');
-  const [purchaseGrnAutoDisburse, setPurchaseGrnAutoDisburse] = useState(false);
+  const [purchaseStrictPOAmt, setPurchaseStrictPOAmt] = useState(settings?.purchaseStrictPOAmt || 100000);
+  const [purchaseAutoReorder, setPurchaseAutoReorder] = useState(settings?.purchaseAutoReorder ?? true);
+  const [purchaseDefaultUnit, setPurchaseDefaultUnit] = useState(settings?.purchaseDefaultUnit || 'Box');
+  const [purchaseGrnAutoDisburse, setPurchaseGrnAutoDisburse] = useState(settings?.purchaseGrnAutoDisburse ?? false);
 
   // 18. Entry Setting
-  const [entryAutoPosting, setEntryAutoPosting] = useState(true);
-  const [entryLockDays, setEntryLockDays] = useState(30);
-  const [entryVoucherPrefix, setEntryVoucherPrefix] = useState('VOU-');
-  const [entryAllowManualLedger, setEntryAllowManualLedger] = useState(false);
+  const [entryAutoPosting, setEntryAutoPosting] = useState(settings?.entryAutoPosting ?? true);
+  const [entryLockDays, setEntryLockDays] = useState(settings?.entryLockDays || 30);
+  const [entryVoucherPrefix, setEntryVoucherPrefix] = useState(settings?.entryVoucherPrefix || 'VOU-');
+  const [entryAllowManualLedger, setEntryAllowManualLedger] = useState(settings?.entryAllowManualLedger ?? false);
 
   React.useEffect(() => {
     if (settings) {
@@ -671,6 +671,56 @@ export default function BankingAndLoanView({
       if (settings.taxes) setTaxes(settings.taxes);
       if (settings.paymentMethods) setPaymentMethods(settings.paymentMethods);
       if (settings.usersList) setUsersList(settings.usersList);
+
+      setSupplierCreditTerms(settings.supplierCreditTerms || 'Net 30');
+      setSupplierCodePrefix(settings.supplierCodePrefix || 'SUP-');
+      setReorderLeadTime(settings.reorderLeadTime || 5);
+      setSupplierReqLimit(settings.supplierReqLimit || 50000);
+
+      setCustomerCreditLimit(settings.customerCreditLimit || 100000);
+      setCustomerGroupDefault(settings.customerGroupDefault || 'General');
+      setCustomerGracePeriod(settings.customerGracePeriod || 7);
+      setCustomerAllowUnregistered(settings.customerAllowUnregistered ?? true);
+
+      setProductSkuRule(settings.productSkuRule || 'Auto');
+      setProductSkuPrefix(settings.productSkuPrefix || 'PRD-');
+      setProductMarkup(settings.productMarkup || 15);
+      setProductValuation(settings.productValuation || 'Weighted Average');
+
+      setPosDefaultCustomer(settings.posDefaultCustomer || 'Walk-In Cash Customer');
+      setPosShowImageGrid(settings.posShowImageGrid ?? true);
+      setPosQuickDiscounts(settings.posQuickDiscounts || '5, 10, 15, 20');
+      setPosCashDrawTrigger(settings.posCashDrawTrigger || 'Auto Open');
+
+      setCollectionAutoAlloc(settings.collectionAutoAlloc ?? true);
+      setCollectionBounceFee(settings.collectionBounceFee || 500);
+      setCollectionEarlyDiscount(settings.collectionEarlyDiscount || 2);
+      setCollectionTargetDays(settings.collectionTargetDays || 10);
+
+      setLoanDefaultInt(settings.loanDefaultInt || 9);
+      setLoanMaxTenure(settings.loanMaxTenure || 36);
+      setLoanEarlyRepayPenalty(settings.loanEarlyRepayPenalty || 1);
+      setLoanMinMargin(settings.loanMinMargin || 20);
+
+      setSalesReturnWindow(settings.salesReturnWindow || '15 Days');
+      setSalesRestockingFee(settings.salesRestockingFee || 5);
+      setSalesReturnAction(settings.salesReturnAction || 'Credit Note');
+      setSalesReturnInspection(settings.salesReturnInspection ?? true);
+
+      setSalesOrderAutoRelease(settings.salesOrderAutoRelease ?? true);
+      setSalesOrderPartial(settings.salesOrderPartial ?? false);
+      setSalesOrderPrefix(settings.salesOrderPrefix || 'SO-');
+      setSalesOrderTerms(settings.salesOrderTerms || 'Immediate Delivery');
+
+      setPurchaseStrictPOAmt(settings.purchaseStrictPOAmt || 100000);
+      setPurchaseAutoReorder(settings.purchaseAutoReorder ?? true);
+      setPurchaseDefaultUnit(settings.purchaseDefaultUnit || 'Box');
+      setPurchaseGrnAutoDisburse(settings.purchaseGrnAutoDisburse ?? false);
+
+      setEntryAutoPosting(settings.entryAutoPosting ?? true);
+      setEntryLockDays(settings.entryLockDays || 30);
+      setEntryVoucherPrefix(settings.entryVoucherPrefix || 'VOU-');
+      setEntryAllowManualLedger(settings.entryAllowManualLedger ?? false);
     }
   }, [settings]);
 
@@ -678,6 +728,7 @@ export default function BankingAndLoanView({
     e.preventDefault();
     if (onUpdateSettings) {
       onUpdateSettings({
+        ...settings,
         companyName: compName,
         companyAddress: compAddr,
         phone,
@@ -697,8 +748,116 @@ export default function BankingAndLoanView({
         taxes: taxes,
         paymentMethods: paymentMethods,
         usersList: usersList,
+        supplierCreditTerms,
+        supplierCodePrefix,
+        reorderLeadTime,
+        supplierReqLimit,
+        customerCreditLimit,
+        customerGroupDefault,
+        customerGracePeriod,
+        customerAllowUnregistered,
+        productSkuRule,
+        productSkuPrefix,
+        productMarkup,
+        productValuation,
+        posDefaultCustomer,
+        posShowImageGrid,
+        posQuickDiscounts,
+        posCashDrawTrigger,
+        collectionBounceFee,
+        collectionEarlyDiscount,
+        collectionTargetDays,
+        collectionAutoAlloc,
+        loanDefaultInt,
+        loanMaxTenure,
+        loanEarlyRepayPenalty,
+        loanMinMargin,
+        salesReturnWindow,
+        salesRestockingFee,
+        salesReturnAction,
+        salesReturnInspection,
+        salesOrderAutoRelease,
+        salesOrderPartial,
+        salesOrderPrefix,
+        salesOrderTerms,
+        purchaseStrictPOAmt,
+        purchaseAutoReorder,
+        purchaseDefaultUnit,
+        purchaseGrnAutoDisburse,
+        entryAutoPosting,
+        entryLockDays,
+        entryVoucherPrefix,
+        entryAllowManualLedger,
       });
       alert('System settings updated successfully!');
+    }
+  };
+  
+  const handleSaveTabSettings = (tabLabel: string) => {
+    if (onUpdateSettings) {
+      onUpdateSettings({
+        ...settings,
+        companyName: compName,
+        companyAddress: compAddr,
+        phone,
+        tinNumber: tin,
+        binNumber: bin,
+        tradeLicense: tradeLic,
+        defaultVatRate: Number(vat),
+        defaultDiscountRate: Number(discount),
+        baseCurrency: curr,
+        receiptFooterMessage: footer,
+        autoPrintReceipt: autoPrint,
+        enableSmsNotification: smsNotif,
+        defaultWarehouse: warehouse,
+        defaultUnit: defUnit,
+        lowStockThreshold: Number(threshold),
+        timezone: tz,
+        taxes: taxes,
+        paymentMethods: paymentMethods,
+        usersList: usersList,
+        supplierCreditTerms,
+        supplierCodePrefix,
+        reorderLeadTime,
+        supplierReqLimit,
+        customerCreditLimit,
+        customerGroupDefault,
+        customerGracePeriod,
+        customerAllowUnregistered,
+        productSkuRule,
+        productSkuPrefix,
+        productMarkup,
+        productValuation,
+        posDefaultCustomer,
+        posShowImageGrid,
+        posQuickDiscounts,
+        posCashDrawTrigger,
+        collectionBounceFee,
+        collectionEarlyDiscount,
+        collectionTargetDays,
+        collectionAutoAlloc,
+        loanDefaultInt,
+        loanMaxTenure,
+        loanEarlyRepayPenalty,
+        loanMinMargin,
+        salesReturnWindow,
+        salesRestockingFee,
+        salesReturnAction,
+        salesReturnInspection,
+        salesOrderAutoRelease,
+        salesOrderPartial,
+        salesOrderPrefix,
+        salesOrderTerms,
+        purchaseStrictPOAmt,
+        purchaseAutoReorder,
+        purchaseDefaultUnit,
+        purchaseGrnAutoDisburse,
+        entryAutoPosting,
+        entryLockDays,
+        entryVoucherPrefix,
+        entryAllowManualLedger,
+      });
+      alert(`${tabLabel} configurations saved successfully!`);
     }
   };
 
@@ -2127,7 +2286,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Supplier preferences updated successfully!')}
+                    onClick={() => handleSaveTabSettings('Supplier Preferences')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Supplier Config
@@ -2191,7 +2350,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Customer preferences saved successfully!')}
+                    onClick={() => handleSaveTabSettings('Customer Accounts Rules')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Customer Config
@@ -2252,7 +2411,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Product catalog defaults saved!')}
+                    onClick={() => handleSaveTabSettings('Product Catalog Rules')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Catalog Config
@@ -2315,7 +2474,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('POS cashier register parameters saved successfully!')}
+                    onClick={() => handleSaveTabSettings('POS Cash Register Preferences')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save POS Config
@@ -2375,7 +2534,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Collection and settlement policies saved!')}
+                    onClick={() => handleSaveTabSettings('Invoice Collection & Payment Policies')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Policies Config
@@ -2758,7 +2917,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Loan setting defaults updated successfully!')}
+                    onClick={() => handleSaveTabSettings('Liability & Loan Preferences')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Loan Defaults
@@ -3829,7 +3988,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Sales return guidelines updated successfully!')}
+                    onClick={() => handleSaveTabSettings('Sales Return Policy Controls')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Return Config
@@ -3899,7 +4058,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Sales order specifications saved successfully!')}
+                    onClick={() => handleSaveTabSettings('Sales Orders (SO) Rules')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Sales Order Config
@@ -4033,7 +4192,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('Procurement preferences recorded!')}
+                    onClick={() => handleSaveTabSettings('Procurement & Reorder Rules')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Purchase Config
@@ -4099,7 +4258,7 @@ export default function BankingAndLoanView({
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => alert('General ledger posting parameters updated successfully!')}
+                    onClick={() => handleSaveTabSettings('General Ledger Voucher Sequences')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                   >
                     Save Entry Settings

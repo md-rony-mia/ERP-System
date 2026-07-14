@@ -72,6 +72,52 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
+  const [globalAlert, setGlobalAlert] = useState<{ message: string; title: string; type: 'info' | 'error' | 'success' } | null>(null);
+
+  useEffect(() => {
+    const originalAlert = window.alert;
+    window.alert = (message: any) => {
+      const msgStr = String(message);
+      let alertType: 'info' | 'error' | 'success' = 'info';
+      let alertTitle = 'Notification';
+      
+      const lower = msgStr.toLowerCase();
+      if (
+        lower.includes('error') || 
+        lower.includes('cannot') || 
+        lower.includes('invalid') || 
+        lower.includes('insufficient') || 
+        lower.includes('failed') || 
+        lower.includes('required') || 
+        lower.includes('please')
+      ) {
+        alertType = 'error';
+        alertTitle = 'System Alert / Error';
+      } else if (
+        lower.includes('success') || 
+        lower.includes('completed') || 
+        lower.includes('registered') || 
+        lower.includes('saved') || 
+        lower.includes('dispatched') || 
+        lower.includes('loaded') || 
+        lower.includes('registered successfully') ||
+        lower.includes('complete!')
+      ) {
+        alertType = 'success';
+        alertTitle = 'Success Confirmation';
+      }
+      
+      setGlobalAlert({
+        message: msgStr,
+        title: alertTitle,
+        type: alertType,
+      });
+    };
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (fbUser) => {
       if (fbUser) {
@@ -1005,6 +1051,57 @@ export default function App() {
         </main>
       </div>
     </div>
+
+    {/* Beautiful Global Neo-brutalist Alert Modal */}
+    {globalAlert && (
+      <div 
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-fade-in"
+        onClick={() => setGlobalAlert(null)}
+      >
+        <div 
+          className="bg-white border-2 border-slate-800 rounded-xl w-full max-w-md shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] overflow-hidden animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header depending on type */}
+          <div className={`p-4 flex items-center gap-3 border-b-2 border-slate-800 ${
+            globalAlert.type === 'error' ? 'bg-rose-50 text-rose-800' :
+            globalAlert.type === 'success' ? 'bg-emerald-50 text-emerald-800' :
+            'bg-indigo-50 text-indigo-800'
+          }`}>
+            <span className="text-xl">
+              {globalAlert.type === 'error' ? '⚠️' :
+               globalAlert.type === 'success' ? '✅' :
+               'ℹ️'}
+            </span>
+            <h3 className="font-black text-xs uppercase tracking-wider font-display">
+              {globalAlert.title}
+            </h3>
+          </div>
+
+          {/* Message Body */}
+          <div className="p-5">
+            <p className="text-slate-700 font-bold text-xs leading-relaxed whitespace-pre-line text-left">
+              {globalAlert.message}
+            </p>
+          </div>
+
+          {/* Footer with action button */}
+          <div className="bg-slate-50 px-4 py-3 border-t-2 border-slate-800 flex justify-end">
+            <button
+              onClick={() => setGlobalAlert(null)}
+              className={`px-4 py-2 font-black text-[10px] uppercase tracking-wider rounded-lg border-2 border-slate-800 shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(30,41,59,1)] transition-all cursor-pointer ${
+                globalAlert.type === 'error' ? 'bg-rose-500 hover:bg-rose-600 text-white' :
+                globalAlert.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600 text-white' :
+                'bg-indigo-600 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              Okay, Understood
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     </ErrorBoundary>
   );
 }

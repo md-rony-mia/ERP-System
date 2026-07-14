@@ -209,6 +209,56 @@ export interface AppSettings {
   taxes?: TaxRateSetting[];
   paymentMethods?: PaymentMethodSetting[];
   usersList?: UserSetting[];
+  
+  supplierCreditTerms?: string;
+  supplierCodePrefix?: string;
+  reorderLeadTime?: number;
+  supplierReqLimit?: number;
+
+  customerCreditLimit?: number;
+  customerGroupDefault?: string;
+  customerGracePeriod?: number;
+  customerAllowUnregistered?: boolean;
+
+  productSkuRule?: string;
+  productSkuPrefix?: string;
+  productMarkup?: number;
+  productValuation?: string;
+
+  posDefaultCustomer?: string;
+  posShowImageGrid?: boolean;
+  posQuickDiscounts?: string;
+  posCashDrawTrigger?: string;
+
+  collectionBounceFee?: number;
+  collectionEarlyDiscount?: number;
+  collectionTargetDays?: number;
+  collectionAutoAlloc?: boolean;
+
+  loanDefaultInt?: number;
+  loanMaxTenure?: number;
+  loanEarlyRepayPenalty?: number;
+  loanMinMargin?: number;
+
+  salesReturnWindow?: string;
+  salesRestockingFee?: number;
+  salesReturnAction?: string;
+  salesReturnInspection?: boolean;
+
+  salesOrderAutoRelease?: boolean;
+  salesOrderPartial?: boolean;
+  salesOrderPrefix?: string;
+  salesOrderTerms?: string;
+
+  purchaseStrictPOAmt?: number;
+  purchaseAutoReorder?: boolean;
+  purchaseDefaultUnit?: string;
+  purchaseGrnAutoDisburse?: boolean;
+
+  entryAutoPosting?: boolean;
+  entryLockDays?: number;
+  entryVoucherPrefix?: string;
+  entryAllowManualLedger?: boolean;
 }
 
 export function formatBoxQty(pcs: number, pcsPerBox?: number): string {
