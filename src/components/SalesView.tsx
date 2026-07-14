@@ -32,6 +32,7 @@ interface SalesViewProps {
   onUpdateCustomers?: (customers: Customer[]) => void;
   onRecordCollection: (customerId: string, amount: number) => void;
   activeSubTab?: string;
+  onSubTabChange?: (tab: string) => void;
   settings?: AppSettings;
 }
 
@@ -44,6 +45,7 @@ export default function SalesView({
   onUpdateCustomers,
   onRecordCollection,
   activeSubTab = 'pos',
+  onSubTabChange,
   settings,
 }: SalesViewProps) {
   // Map activeSubTab to local salesTab routing
@@ -137,7 +139,7 @@ export default function SalesView({
   // --- POS STATES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [cart, setCart] = useState<SaleItem[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id || '');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
   const [discount, setDiscount] = useState<number>(0);
   const taxRate = settings?.defaultVatRate ?? 5;
@@ -149,14 +151,64 @@ export default function SalesView({
   const [invoiceDateInput, setInvoiceDateInput] = useState(new Date().toISOString().split('T')[0]);
   const [receivedByInput, setReceivedByInput] = useState('');
   const [recipientAddressInput, setRecipientAddressInput] = useState('');
-  const [mobileNoInput, setMobileNoInput] = useState(customers[0]?.phone || '');
+  const [mobileNoInput, setMobileNoInput] = useState('');
   const [orderIdInput, setOrderIdInput] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [pcsInput, setPcsInput] = useState<number>(1);
-  const [rateDisInput, setRateDisInput] = useState<number>(0);
-  const [rateInput, setRateInput] = useState<number>(products[0]?.price || 0);
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const [pcsInput, setPcsInput] = useState<number | string>(1);
+  const [rateDisInput, setRateDisInput] = useState<number | string>(0);
+  const [rateInput, setRateInput] = useState<number | string>('');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedCartItemIndex, setSelectedCartItemIndex] = useState<number | null>(null);
+
+  // Focus Refs
+  const pcsInputRef = React.useRef<HTMLInputElement>(null);
+  const rateDisInputRef = React.useRef<HTMLInputElement>(null);
+  const rateInputRef = React.useRef<HTMLInputElement>(null);
+  const barcodeInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Focus and keydown transition handlers
+  const handleBarcodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedProductId) {
+        pcsInputRef.current?.focus();
+        pcsInputRef.current?.select();
+      } else if (barcodeInput.trim()) {
+        const matched = products.find(p => p.sku.toLowerCase() === barcodeInput.trim().toLowerCase());
+        if (matched) {
+          handleSelectProduct(matched.id);
+        } else {
+          alert('Product not found for barcode: ' + barcodeInput);
+        }
+      }
+    }
+  };
+
+  const handlePcsKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      rateDisInputRef.current?.focus();
+      rateDisInputRef.current?.select();
+    }
+  };
+
+  const handleRateDisKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      rateInputRef.current?.focus();
+      rateInputRef.current?.select();
+    }
+  };
+
+  const handleRateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddToERPGrid();
+    }
+  };
+
+  // Active lookup fields for shared customer and product popups
+  const [activePopupContext, setActivePopupContext] = useState<'pos_cust' | 'ret_cust' | 'pos_prod' | 'ret_prod'>('pos_cust');
 
   // Overhead/Offer grid
   const [labourCost, setLabourCost] = useState<number>(0);
@@ -187,6 +239,10 @@ export default function SalesView({
     if (p) {
       setRateInput(p.price);
       setBarcodeInput(p.sku);
+      setTimeout(() => {
+        pcsInputRef.current?.focus();
+        pcsInputRef.current?.select();
+      }, 50);
     }
   };
 
@@ -197,8 +253,8 @@ export default function SalesView({
   const [retInvoiceRef, setRetInvoiceRef] = useState('');
   const [retReason, setRetReason] = useState('Damaged Tiles / Chips');
   const [retProductId, setRetProductId] = useState('');
-  const [retQty, setRetQty] = useState(1);
-  const [retRefundRate, setRetRefundRate] = useState(0);
+  const [retQty, setRetQty] = useState<number | string>(1);
+  const [retRefundRate, setRetRefundRate] = useState<number | string>(0);
   const [retCart, setRetCart] = useState<any[]>([]);
 
   const handleSelectProductForReturn = (id: string) => {
@@ -206,6 +262,13 @@ export default function SalesView({
     const p = products.find(prod => prod.id === id);
     if (p) {
       setRetRefundRate(p.price);
+    }
+  };
+
+  const handleReturnKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddReturnRow();
     }
   };
 
@@ -217,11 +280,19 @@ export default function SalesView({
     const p = products.find(prod => prod.id === retProductId);
     if (!p) return;
 
+    const qtyVal = retQty === '' ? 0 : Number(retQty);
+    const rateVal = retRefundRate === '' ? 0 : Number(retRefundRate);
+
+    if (qtyVal <= 0) {
+      alert('Return Quantity must be greater than 0!');
+      return;
+    }
+
     const existingIndex = retCart.findIndex(item => item.productId === retProductId);
     if (existingIndex > -1) {
       const newRetCart = [...retCart];
-      newRetCart[existingIndex].qty += retQty;
-      newRetCart[existingIndex].subtotal = newRetCart[existingIndex].qty * retRefundRate;
+      newRetCart[existingIndex].qty += qtyVal;
+      newRetCart[existingIndex].subtotal = newRetCart[existingIndex].qty * rateVal;
       setRetCart(newRetCart);
     } else {
       setRetCart([
@@ -230,9 +301,9 @@ export default function SalesView({
           productId: retProductId,
           sku: p.sku,
           name: p.name,
-          qty: retQty,
-          rate: retRefundRate,
-          subtotal: retQty * retRefundRate
+          qty: qtyVal,
+          rate: rateVal,
+          subtotal: qtyVal * rateVal
         }
       ]);
     }
@@ -367,8 +438,25 @@ export default function SalesView({
       alert('Cart is empty!');
       return;
     }
-    if (!selectedCustomerId) {
-      alert('Please select or create a customer!');
+
+    let finalCustomerId = selectedCustomerId;
+    let finalCustomerName = '';
+    const activeCustomer = customers.find((c) => c.id === selectedCustomerId);
+
+    if (activeCustomer) {
+      finalCustomerName = activeCustomer.name;
+    } else if (receivedByInput.trim()) {
+      // If "Received by" is specified but no registered customer is selected, treat as manual Cash/One-off recipient
+      finalCustomerName = receivedByInput.trim();
+      finalCustomerId = 'cash_temp_customer';
+    } else {
+      alert('Please select a customer or type a recipient name in "Received by"!');
+      return;
+    }
+
+    // STRICT prevention: If customer is only typed in Received By but NOT selected from registry, prevent "Credit Bill" saving
+    if (finalCustomerId === 'cash_temp_customer' && transTypeInput === 'Credit Bill') {
+      alert('Error: You cannot save a Credit Bill without selecting a registered customer. Please select a customer from the database, or change the payment mode to Cash Bill / bKash Payment.');
       return;
     }
 
@@ -400,10 +488,7 @@ export default function SalesView({
       return copy;
     });
 
-    const activeCustomer = customers.find((c) => c.id === selectedCustomerId);
-    if (!activeCustomer) return;
-
-    const generatedNo = `INV-007${400 + invoices.length}`;
+    const generatedNo = invoiceNoInput ? invoiceNoInput.trim() : `INV-007${400 + invoices.length}`;
 
     // Map classic transTypeInput ('Credit Bill' | 'Cash Bill' | 'bKash Payment') to the Invoice paymentMethod
     let mappedPaymentMethod: 'Cash' | 'Credit' | 'Mobile Banking' = 'Cash';
@@ -419,9 +504,9 @@ export default function SalesView({
     const newInvoice: Invoice = {
       id: `inv_dynamic_${Date.now()}`,
       invoiceNo: generatedNo,
-      customerId: selectedCustomerId,
-      customerName: activeCustomer.name,
-      date: new Date().toISOString().split('T')[0],
+      customerId: finalCustomerId,
+      customerName: finalCustomerName,
+      date: invoiceDateInput || new Date().toISOString().split('T')[0],
       items: cart,
       subtotal: cartSubtotal,
       taxRate: taxRate,
@@ -438,10 +523,33 @@ export default function SalesView({
     setPrintTab('invoice');
     setInvoiceToPrint(newInvoice); // Auto-show printable receipt
     setCart([]); // Clear Cart
-    setDiscount(0); // Reset discount
+    setSelectedCustomerId('');
+    setPaymentMethod('Cash');
+    setDiscount(0);
     setLabourCost(0);
     setTransportCost(0);
+    setTransTypeInput('Cash Bill');
+    setInvoiceNoInput('');
+    setInvoiceDateInput(new Date().toISOString().split('T')[0]);
+    setReceivedByInput('');
+    setRecipientAddressInput('');
+    setMobileNoInput('');
+    setOrderIdInput('');
+    setBarcodeInput('');
+    setPcsInput(1);
+    setRateDisInput(0);
+    setRateInput('');
+    setSelectedProductId('');
+    setSelectedCartItemIndex(null);
     setNowPayInput(0);
+    setFormErrors({});
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddToERPGrid();
+    }
   };
 
   const handleSaveCheckout = () => {
@@ -484,54 +592,47 @@ export default function SalesView({
       return copy;
     });
 
-    if (pcsInput > p.stock) {
+    const pcsNum = pcsInput === '' ? 0 : Number(pcsInput);
+    const rateDisNum = rateDisInput === '' ? 0 : Number(rateDisInput);
+    const rateNum = rateInput === '' ? 0 : Number(rateInput);
+
+    if (pcsNum > p.stock) {
       alert(`Only ${p.stock} units are in stock.`);
       return;
     }
 
-    const itemPrice = rateInput > 0 ? rateInput : p.price;
-    const netRate = itemPrice - rateDisInput;
+    const itemPrice = rateNum > 0 ? rateNum : p.price;
+    const netRate = itemPrice - rateDisNum;
     if (netRate < 0) {
       alert('Discount rate cannot exceed the product price!');
       return;
     }
 
-    const existingIndex = cart.findIndex((item) => item.productId === p.id);
-    if (existingIndex > -1) {
-      const currentQty = cart[existingIndex].quantity;
-      const newQty = currentQty + pcsInput;
-      if (newQty > p.stock) {
-        alert(`Cannot add more than ${p.stock} available stock.`);
-        return;
-      }
-      const newCart = [...cart];
-      newCart[existingIndex] = {
-        ...newCart[existingIndex],
-        quantity: newQty,
+    setCart([
+      ...cart,
+      {
+        productId: p.id,
+        name: p.name,
+        quantity: pcsNum,
         price: itemPrice,
-        discount: rateDisInput,
+        discount: rateDisNum,
         netRate: netRate,
-        subtotal: newQty * netRate,
-      };
-      setCart(newCart);
-    } else {
-      setCart([
-        ...cart,
-        {
-          productId: p.id,
-          name: p.name,
-          quantity: pcsInput,
-          price: itemPrice,
-          discount: rateDisInput,
-          netRate: netRate,
-          subtotal: pcsInput * netRate,
-        },
-      ]);
-    }
+        subtotal: pcsNum * netRate,
+      },
+    ]);
 
-    // Reset temporary pieces and discount inputs
+    // Reset temporary product select inputs to default values
+    setSelectedProductId('');
+    setBarcodeInput('');
     setPcsInput(1);
     setRateDisInput(0);
+    setRateInput(0);
+
+    // Focus back to barcode input for scanning next product
+    setTimeout(() => {
+      barcodeInputRef.current?.focus();
+      barcodeInputRef.current?.select();
+    }, 50);
   };
 
   const handleAddCustSubmit = (e: React.FormEvent) => {
@@ -584,8 +685,8 @@ export default function SalesView({
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Invoice Number</label>
                     <input
                       type="text"
-                      readOnly
                       value={invoiceNoInput}
+                      onChange={(e) => setInvoiceNoInput(e.target.value)}
                       className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -600,28 +701,17 @@ export default function SalesView({
                   </div>
                   <div className="relative">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Name</label>
-                    <div className="flex">
-                      <select
-                        value={selectedCustomerId}
-                        onChange={(e) => handleSelectCustomer(e.target.value)}
-                        className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                      >
-                        <option value="">-- Choose Customer --</option>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setShowCustPopupModal(true)}
-                        className="p-1 bg-slate-200 border border-l-0 border-slate-300 hover:bg-slate-300 rounded-sm cursor-pointer"
-                        title="Search Customer Popup"
-                      >
-                        <Search className="h-3.5 w-3.5 text-slate-600" />
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Select Customer"
+                      value={customers.find((c) => c.id === selectedCustomerId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('pos_cust');
+                        setShowCustPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Mobile No.</label>
@@ -654,19 +744,14 @@ export default function SalesView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">OrderID</label>
-                    <select
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">OrderID (Manual)</label>
+                    <input
+                      type="text"
                       value={orderIdInput}
                       onChange={(e) => setOrderIdInput(e.target.value)}
+                      placeholder="e.g. SO-2026-908"
                       className="w-full bg-[#ffffe2] text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- No Order Selected --</option>
-                      {saleOrders.map((so) => (
-                        <option key={so.id} value={so.orderNo}>
-                          {so.orderNo} ({so.customerName})
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                 </div>
               </div>
@@ -681,51 +766,42 @@ export default function SalesView({
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Barcode</label>
                     <input
                       type="text"
+                      ref={barcodeInputRef}
                       value={barcodeInput}
                       onChange={(e) => {
                         setBarcodeInput(e.target.value);
                         const matched = products.find(p => p.sku.toLowerCase() === e.target.value.toLowerCase());
                         if (matched) {
-                          setSelectedProductId(matched.id);
-                          setRateInput(matched.price);
+                          handleSelectProduct(matched.id);
                         }
                       }}
+                      onKeyDown={handleBarcodeKeyDown}
                       placeholder="SKU Barcode"
                       className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                   <div className="md:col-span-2 relative">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
-                    <div className="flex">
-                      <select
-                        value={selectedProductId}
-                        onChange={(e) => handleSelectProduct(e.target.value)}
-                        className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                      >
-                        <option value="">-- Choose Product --</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} (Stock: {p.stock})
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setShowProductPopupModal(true)}
-                        className="p-1 bg-slate-200 border border-l-0 border-slate-300 hover:bg-slate-300 rounded-sm cursor-pointer"
-                        title="Search Tiles / Ceramics Catalog Popup"
-                      >
-                        <Search className="h-3.5 w-3.5 text-slate-600" />
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Add product"
+                      value={products.find((p) => p.id === selectedProductId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('pos_prod');
+                        setShowProductPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Pcs</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      ref={pcsInputRef}
                       value={pcsInput}
-                      onChange={(e) => setPcsInput(parseInt(e.target.value) || 0)}
+                      onChange={(e) => setPcsInput(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                      onKeyDown={handlePcsKeyDown}
                       className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.pcsInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
                     {formErrors.pcsInput && (
@@ -735,10 +811,11 @@ export default function SalesView({
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate Dis</label>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      ref={rateDisInputRef}
                       value={rateDisInput}
-                      onChange={(e) => setRateDisInput(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => setRateDisInput(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handleRateDisKeyDown}
                       placeholder="0"
                       className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.rateDisInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
@@ -749,10 +826,11 @@ export default function SalesView({
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate</label>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      ref={rateInputRef}
                       value={rateInput}
-                      onChange={(e) => setRateInput(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => setRateInput(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handleRateKeyDown}
                       className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.rateInput ? 'border-rose-500' : 'border-slate-300'}`}
                     />
                     {formErrors.rateInput && (
@@ -1102,7 +1180,11 @@ export default function SalesView({
                           <tr
                             key={c.id}
                             onClick={() => {
-                              handleSelectCustomer(c.id);
+                              if (activePopupContext === 'pos_cust') {
+                                handleSelectCustomer(c.id);
+                              } else if (activePopupContext === 'ret_cust') {
+                                setRetCustomerId(c.id);
+                              }
                               setShowCustPopupModal(false);
                             }}
                             className="hover:bg-[#0055ff] hover:text-white cursor-pointer group"
@@ -1192,7 +1274,11 @@ export default function SalesView({
                             <tr
                               key={p.id}
                               onClick={() => {
-                                handleSelectProduct(p.id);
+                                if (activePopupContext === 'pos_prod') {
+                                  handleSelectProduct(p.id);
+                                } else if (activePopupContext === 'ret_prod') {
+                                  handleSelectProductForReturn(p.id);
+                                }
                                 setShowProductPopupModal(false);
                               }}
                               className="hover:bg-[#0055ff] hover:text-white cursor-pointer group"
@@ -1635,8 +1721,8 @@ export default function SalesView({
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return ID</label>
                     <input
                       type="text"
-                      readOnly
                       value={retInvoiceNo}
+                      onChange={(e) => setRetInvoiceNo(e.target.value)}
                       className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -1651,18 +1737,17 @@ export default function SalesView({
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Customer Name</label>
-                    <select
-                      value={retCustomerId}
-                      onChange={(e) => setRetCustomerId(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Customer --</option>
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Customer"
+                      value={customers.find((c) => c.id === retCustomerId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('ret_cust');
+                        setShowCustPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Ref Invoice No</label>
@@ -1698,35 +1783,35 @@ export default function SalesView({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
-                    <select
-                      value={retProductId}
-                      onChange={(e) => handleSelectProductForReturn(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Return Item --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (৳{p.price}/unit)
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Return Item"
+                      value={products.find((p) => p.id === retProductId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('ret_prod');
+                        setShowProductPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Qty</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
                       value={retQty}
-                      onChange={(e) => setRetQty(parseInt(e.target.value) || 1)}
+                      onChange={(e) => setRetQty(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                      onKeyDown={handleReturnKeyDown}
                       className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Refund Rate</label>
                     <input
-                      type="number"
-                      readOnly
+                      type="text"
                       value={retRefundRate}
+                      onChange={(e) => setRetRefundRate(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handleReturnKeyDown}
                       className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -2779,22 +2864,29 @@ export default function SalesView({
         );
         const lastCollection = customerCollections.length > 0 ? customerCollections[customerCollections.length - 1] : null;
         
-        let lastCollectionDate = '17-06-2026'; // Default from user reference
-        if (lastCollection) {
-          const parts = lastCollection.date.split('-');
-          if (parts.length === 3) {
-            lastCollectionDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD -> DD-MM-YYYY
-          }
-        }
+        const isCreditBill = invoiceToPrint.paymentMethod === 'Credit';
         
-        const lastCollectionAmount = lastCollection 
-          ? lastCollection.amount 
-          : 15000; // Default from user reference
+        let lastCollectionDate = 'N/A';
+        let lastCollectionAmount = 0;
+        
+        if (isCreditBill) {
+          if (lastCollection) {
+            const parts = lastCollection.date.split('-');
+            if (parts.length === 3) {
+              lastCollectionDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD -> DD-MM-YYYY
+            }
+          } else {
+            lastCollectionDate = '17-06-2026'; // Default from user reference
+          }
+          lastCollectionAmount = lastCollection ? lastCollection.amount : 15000; // Default from user reference
+        } else {
+          lastCollectionDate = 'N/A';
+          lastCollectionAmount = 0;
+        }
 
         // Customer Dues / Balances calculations
         const customerObj = customers.find(c => c.id === invoiceToPrint.customerId);
         const currentBalance = customerObj ? customerObj.outstandingBalance : 0;
-        const isCreditBill = invoiceToPrint.paymentMethod === 'Credit';
         const isInvoiceSavedInGlobalList = invoices.some(inv => inv.id === invoiceToPrint.id);
         const isIframe = typeof window !== 'undefined' && window.self !== window.top;
         
@@ -2809,15 +2901,15 @@ export default function SalesView({
             previousBalance = currentBalance;
             presentBalance = currentBalance + invoiceToPrint.total;
           }
+          
+          // Apply realistic screenshot mock values if they default to 0 for demo/Rony Mia
+          if (previousBalance === 0 && presentBalance === 0 && (invoiceToPrint.customerName === 'Rony Mia' || invoiceToPrint.customerName === 'Rony')) {
+            previousBalance = 5592;
+            presentBalance = 5592 + invoiceToPrint.total;
+          }
         } else {
-          previousBalance = currentBalance;
-          presentBalance = currentBalance;
-        }
-
-        // Apply realistic screenshot mock values if they default to 0 for demo/Rony Mia
-        if (previousBalance === 0 && presentBalance === 0 && (invoiceToPrint.customerName === 'Rony Mia' || invoiceToPrint.customerName === 'Rony')) {
-          previousBalance = 5592;
-          presentBalance = 5592 + invoiceToPrint.total;
+          previousBalance = 0;
+          presentBalance = 0;
         }
 
         const handlePrint = () => {
@@ -2827,7 +2919,10 @@ export default function SalesView({
         return (
           <div 
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto"
-            onClick={() => setInvoiceToPrint(null)}
+            onClick={() => {
+              setInvoiceToPrint(null);
+              onSubTabChange?.('pos');
+            }}
           >
             {/* Custom Print Style Injection */}
             <style dangerouslySetInnerHTML={{__html: `
@@ -2898,7 +2993,10 @@ export default function SalesView({
                     <span>Print</span>
                   </button>
                   <button
-                    onClick={() => setInvoiceToPrint(null)}
+                    onClick={() => {
+                      setInvoiceToPrint(null);
+                      onSubTabChange?.('pos');
+                    }}
                     className="flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer hover:scale-105"
                   >
                     <X className="h-4 w-4" />
@@ -3278,7 +3376,10 @@ export default function SalesView({
                     <span>Print This View</span>
                   </button>
                   <button
-                    onClick={() => setInvoiceToPrint(null)}
+                    onClick={() => {
+                      setInvoiceToPrint(null);
+                      onSubTabChange?.('pos');
+                    }}
                     className="flex items-center gap-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer"
                   >
                     <XCircle className="h-4 w-4" />

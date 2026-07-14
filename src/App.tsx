@@ -814,6 +814,7 @@ export default function App() {
                 onUpdateCustomers={setCustomers}
                 onRecordCollection={handleRecordCollection}
                 activeSubTab={currentSubTab}
+                onSubTabChange={setCurrentSubTab}
                 settings={settings}
               />
             </ErrorBoundary>

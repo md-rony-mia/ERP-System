@@ -507,14 +507,21 @@ export default function PurchaseView({
   const [showPayModal, setShowPayModal] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
+  // Search popups for Purchase View
+  const [activePopupContext, setActivePopupContext] = useState<'po_sup' | 'po_prod' | 'pret_sup' | 'pret_prod' | ''>('');
+  const [showSupPopupModal, setShowSupPopupModal] = useState(false);
+  const [showProductPopupModal, setShowProductPopupModal] = useState(false);
+  const [supPopupSearch, setSupPopupSearch] = useState('');
+  const [prodPopupSearch, setProdPopupSearch] = useState('');
+
   // --- FORM VALUES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   // --- ERP ACTIVE PROCUREMENT THEME STATES ---
   const [poInvoiceNo, setPoInvoiceNo] = useState(`PO-2026-${Math.floor(1000 + Math.random() * 9000)}`);
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0]);
   const [poProductId, setPoProductId] = useState(products[0]?.id || '');
-  const [poQty, setPoQty] = useState(1);
-  const [poCost, setPoCost] = useState(products[0]?.cost || 0);
+  const [poQty, setPoQty] = useState<number | string>(1);
+  const [poCost, setPoCost] = useState<number | string>(products[0]?.cost || 0);
   const [poCart, setPoCart] = useState<any[]>([]);
   const [poDiscount, setPoDiscount] = useState(0);
   const [poTransport, setPoTransport] = useState(0);
@@ -527,8 +534,8 @@ export default function PurchaseView({
   const [pretPoRef, setPretPoRef] = useState('');
   const [pretReason, setPretReason] = useState('Transit damage');
   const [pretProductId, setPretProductId] = useState('');
-  const [pretQty, setPretQty] = useState(1);
-  const [pretCost, setPretCost] = useState(0);
+  const [pretQty, setPretQty] = useState<number | string>(1);
+  const [pretCost, setPretCost] = useState<number | string>(0);
   const [pretCart, setPretCart] = useState<any[]>([]);
 
   const handleSelectProductForPO = (id: string) => {
@@ -547,11 +554,14 @@ export default function PurchaseView({
     const p = products.find((prod) => prod.id === poProductId);
     if (!p) return;
 
+    const parsedQty = typeof poQty === 'number' ? poQty : parseInt(poQty) || 0;
+    const parsedCost = typeof poCost === 'number' ? poCost : parseFloat(poCost) || 0;
+
     const errors: Record<string, string> = {};
-    const qtyVal = validatePositiveNumber(poQty, 'Quantity', 'পরিমাণ', false);
+    const qtyVal = validatePositiveNumber(parsedQty, 'Quantity', 'পরিমাণ', false);
     if (!qtyVal.isValid) errors.poQty = qtyVal.message;
 
-    const costVal = validatePositiveNumber(poCost, 'Unit Cost', 'ইউনিট খরচ', true);
+    const costVal = validatePositiveNumber(parsedCost, 'Unit Cost', 'ইউনিট খরচ', true);
     if (!costVal.isValid) errors.poCost = costVal.message;
 
     if (Object.keys(errors).length > 0) {
@@ -569,8 +579,8 @@ export default function PurchaseView({
     const existingIndex = poCart.findIndex((item) => item.productId === poProductId);
     if (existingIndex > -1) {
       const newCart = [...poCart];
-      newCart[existingIndex].qty += poQty;
-      newCart[existingIndex].subtotal = newCart[existingIndex].qty * poCost;
+      newCart[existingIndex].qty += parsedQty;
+      newCart[existingIndex].subtotal = newCart[existingIndex].qty * parsedCost;
       setPoCart(newCart);
     } else {
       setPoCart([
@@ -579,13 +589,20 @@ export default function PurchaseView({
           productId: poProductId,
           sku: p.sku,
           name: p.name,
-          qty: poQty,
-          cost: poCost,
-          subtotal: poQty * poCost,
+          qty: parsedQty,
+          cost: parsedCost,
+          subtotal: parsedQty * parsedCost,
         },
       ]);
     }
     setPoQty(1);
+  };
+
+  const handlePoKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddPOItemToGrid();
+    }
   };
 
   const handleSavePurchaseOrder = () => {
@@ -671,11 +688,14 @@ export default function PurchaseView({
     const p = products.find((prod) => prod.id === pretProductId);
     if (!p) return;
 
+    const parsedQty = typeof pretQty === 'number' ? pretQty : parseInt(pretQty) || 0;
+    const parsedCost = typeof pretCost === 'number' ? pretCost : parseFloat(pretCost) || 0;
+
     const existingIndex = pretCart.findIndex((item) => item.productId === pretProductId);
     if (existingIndex > -1) {
       const newCart = [...pretCart];
-      newCart[existingIndex].qty += pretQty;
-      newCart[existingIndex].subtotal = newCart[existingIndex].qty * pretCost;
+      newCart[existingIndex].qty += parsedQty;
+      newCart[existingIndex].subtotal = newCart[existingIndex].qty * parsedCost;
       setPretCart(newCart);
     } else {
       setPretCart([
@@ -684,13 +704,20 @@ export default function PurchaseView({
           productId: pretProductId,
           sku: p.sku,
           name: p.name,
-          qty: pretQty,
-          cost: pretCost,
-          subtotal: pretQty * pretCost,
+          qty: parsedQty,
+          cost: parsedCost,
+          subtotal: parsedQty * parsedCost,
         },
       ]);
     }
     setPretQty(1);
+  };
+
+  const handlePretKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddPretRow();
+    }
   };
 
   const handleSavePurchaseReturn = () => {
@@ -1038,8 +1065,8 @@ export default function PurchaseView({
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">PO Ref No</label>
                     <input
                       type="text"
-                      readOnly
                       value={poInvoiceNo}
+                      onChange={(e) => setPoInvoiceNo(e.target.value)}
                       className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -1054,18 +1081,17 @@ export default function PurchaseView({
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Supplier Name</label>
-                    <select
-                      value={selectedSupplierId}
-                      onChange={(e) => setSelectedSupplierId(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Supplier --</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.companyName || 'Factory Producer'})
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Supplier"
+                      value={suppliers.find((s) => s.id === selectedSupplierId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('po_sup');
+                        setShowSupPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>
@@ -1078,26 +1104,25 @@ export default function PurchaseView({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
-                    <select
-                      value={poProductId}
-                      onChange={(e) => handleSelectProductForPO(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (Cost: ৳{p.cost}/unit, Stock: {p.stock})
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Product"
+                      value={products.find((p) => p.id === poProductId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('po_prod');
+                        setShowProductPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Order Quantity</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
                       value={poQty}
-                      onChange={(e) => setPoQty(parseInt(e.target.value) || 0)}
+                      onChange={(e) => setPoQty(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                      onKeyDown={handlePoKeyDown}
                       className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poQty ? 'border-rose-500' : 'border-slate-300'}`}
                     />
                     {formErrors.poQty && (
@@ -1107,9 +1132,10 @@ export default function PurchaseView({
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Base Unit Cost</label>
                     <input
-                      type="number"
+                      type="text"
                       value={poCost}
-                      onChange={(e) => setPoCost(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => setPoCost(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handlePoKeyDown}
                       className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poCost ? 'border-rose-500' : 'border-slate-300'}`}
                     />
                     {formErrors.poCost && (
@@ -1396,8 +1422,8 @@ export default function PurchaseView({
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return ID</label>
                     <input
                       type="text"
-                      readOnly
                       value={pretId}
+                      onChange={(e) => setPretId(e.target.value)}
                       className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -1412,18 +1438,17 @@ export default function PurchaseView({
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Supplier Name</label>
-                    <select
-                      value={pretSupplierId}
-                      onChange={(e) => setPretSupplierId(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Supplier --</option>
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Supplier"
+                      value={suppliers.find((s) => s.id === pretSupplierId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('pret_sup');
+                        setShowSupPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Source PO Ref</label>
@@ -1459,35 +1484,35 @@ export default function PurchaseView({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
-                    <select
-                      value={pretProductId}
-                      onChange={(e) => handleSelectProductForPret(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="">-- Select Product --</option>
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (৳{p.cost}/unit, Stock: {p.stock})
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      readOnly
+                      placeholder="Click to Select / Search Product"
+                      value={products.find((p) => p.id === pretProductId)?.name || ''}
+                      onClick={() => {
+                        setActivePopupContext('pret_prod');
+                        setShowProductPopupModal(true);
+                      }}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Quantity</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
                       value={pretQty}
-                      onChange={(e) => setPretQty(parseInt(e.target.value) || 1)}
+                      onChange={(e) => setPretQty(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                      onKeyDown={handlePretKeyDown}
                       className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Returned Unit Cost</label>
                     <input
-                      type="number"
+                      type="text"
                       value={pretCost}
-                      onChange={(e) => setPretCost(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => setPretCost(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handlePretKeyDown}
                       className="w-full bg-[#ffffe2] text-slate-850 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
@@ -2874,6 +2899,170 @@ export default function PurchaseView({
           setIsImportModalOpen(false);
         }}
       />
+
+      {/* Supplier Search Modal Overlay */}
+      {showSupPopupModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 text-xs text-left text-slate-800">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Select / Search Supplier Registry
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSupPopupModal(false);
+                  setSupPopupSearch('');
+                }}
+                className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search supplier by name, company, phone, group..."
+                value={supPopupSearch}
+                onChange={(e) => setSupPopupSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600 text-slate-800"
+              />
+              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                {suppliers
+                  .filter((s) => {
+                    const term = supPopupSearch.toLowerCase();
+                    return (
+                      s.name.toLowerCase().includes(term) ||
+                      (s.companyName || '').toLowerCase().includes(term) ||
+                      s.phone.includes(term) ||
+                      s.group.toLowerCase().includes(term)
+                    );
+                  })
+                  .map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => {
+                        if (activePopupContext === 'po_sup') {
+                          setSelectedSupplierId(s.id);
+                        } else if (activePopupContext === 'pret_sup') {
+                          setPretSupplierId(s.id);
+                        }
+                        setShowSupPopupModal(false);
+                        setSupPopupSearch('');
+                      }}
+                      className="p-2.5 hover:bg-emerald-50 rounded-lg border border-slate-100 hover:border-emerald-200 cursor-pointer transition-all flex justify-between items-center"
+                    >
+                      <div>
+                        <div className="font-bold text-slate-800">{s.name}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {s.companyName || 'Factory Producer'} • {s.phone}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+                          {s.group}
+                        </span>
+                        <div className="text-[10px] font-bold text-rose-600 mt-1">৳{s.outstandingBalance.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                {suppliers.filter((s) => {
+                  const term = supPopupSearch.toLowerCase();
+                  return (
+                    s.name.toLowerCase().includes(term) ||
+                    (s.companyName || '').toLowerCase().includes(term) ||
+                    s.phone.includes(term) ||
+                    s.group.toLowerCase().includes(term)
+                  );
+                }).length === 0 && (
+                  <div className="text-center py-6 text-slate-400">No matching suppliers found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Search Modal Overlay */}
+      {showProductPopupModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 text-xs text-left text-slate-800">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Select / Search Product Catalog
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProductPopupModal(false);
+                  setProdPopupSearch('');
+                }}
+                className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search product by name, SKU, categories..."
+                value={prodPopupSearch}
+                onChange={(e) => setProdPopupSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600 text-slate-800"
+              />
+              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                {products
+                  .filter((p) => {
+                    const term = prodPopupSearch.toLowerCase();
+                    return (
+                      p.name.toLowerCase().includes(term) ||
+                      p.sku.toLowerCase().includes(term) ||
+                      p.category.toLowerCase().includes(term)
+                    );
+                  })
+                  .map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        if (activePopupContext === 'po_prod') {
+                          handleSelectProductForPO(p.id);
+                        } else if (activePopupContext === 'pret_prod') {
+                          handleSelectProductForPret(p.id);
+                        }
+                        setShowProductPopupModal(false);
+                        setProdPopupSearch('');
+                      }}
+                      className="p-2.5 hover:bg-emerald-50 rounded-lg border border-slate-100 hover:border-emerald-200 cursor-pointer transition-all flex justify-between items-center"
+                    >
+                      <div>
+                        <div className="font-bold text-slate-800">{p.name}</div>
+                        <div className="text-[10px] text-slate-400">
+                          SKU: {p.sku} • {p.category}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-emerald-600">Cost: ৳{p.cost}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Stock: {p.stock} units</div>
+                      </div>
+                    </div>
+                  ))}
+                {products.filter((p) => {
+                  const term = prodPopupSearch.toLowerCase();
+                  return (
+                    p.name.toLowerCase().includes(term) ||
+                    p.sku.toLowerCase().includes(term) ||
+                    p.category.toLowerCase().includes(term)
+                  );
+                }).length === 0 && (
+                  <div className="text-center py-6 text-slate-400">No matching products found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
