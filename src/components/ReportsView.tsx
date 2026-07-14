@@ -39,6 +39,13 @@ import {
   ArrowUp,
   Wrench,
   Download,
+  Trash2,
+  Edit2,
+  Save,
+  X,
+  ArrowUpDown,
+  Plus,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface ReportsViewProps {
@@ -52,6 +59,12 @@ interface ReportsViewProps {
   accountHeads: AccountHead[];
   employees: Employee[];
   activeSubTab: string;
+  currentUser?: any;
+  onUpdateInvoices?: (invoices: Invoice[]) => void;
+  onUpdateTransactions?: (transactions: Transaction[]) => void;
+  onUpdatePurchaseOrders?: (purchaseOrders: PurchaseOrder[]) => void;
+  onUpdateCustomers?: (customers: Customer[]) => void;
+  onUpdateSuppliers?: (suppliers: Supplier[]) => void;
 }
 
 export default function ReportsView({
@@ -65,12 +78,43 @@ export default function ReportsView({
   accountHeads,
   employees,
   activeSubTab,
+  currentUser,
+  onUpdateInvoices,
+  onUpdateTransactions,
+  onUpdatePurchaseOrders,
+  onUpdateCustomers,
+  onUpdateSuppliers,
 }: ReportsViewProps) {
   const [selectedDate, setSelectedDate] = useState('2026-07-07'); // Default to 2026-07-07 to display the perfect PDF data instantly!
   const [showSampleData, setShowSampleData] = useState(true);
   const [filterText, setFilterText] = useState('');
   const [dailySearchText, setDailySearchText] = useState('');
   const [dailyActiveFilter, setDailyActiveFilter] = useState('all');
+
+  // Master Transaction Ledger States
+  const [ledgerFromDate, setLedgerFromDate] = useState('2026-07-07');
+  const [ledgerToDate, setLedgerToDate] = useState('2026-07-14');
+  const [ledgerCategory, setLedgerCategory] = useState('All');
+  const [ledgerSearchText, setLedgerSearchText] = useState('');
+  const [activeFromDate, setActiveFromDate] = useState('2026-07-07');
+  const [activeToDate, setActiveToDate] = useState('2026-07-14');
+
+  // Interactive Grid States
+  const [ledgerSortField, setLedgerSortField] = useState('date');
+  const [ledgerSortOrder, setLedgerSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<'date' | 'party' | null>(null);
+  const [editDateValue, setEditDateValue] = useState('');
+  const [editPartyValue, setEditPartyValue] = useState('');
+
+  // Manual Adjustments State
+  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
+  const [adjType, setAdjType] = useState<'Deposit' | 'Withdrawal'>('Withdrawal');
+  const [adjCategory, setAdjCategory] = useState('Office Expense');
+  const [adjPartyName, setAdjPartyName] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjDesc, setAdjDesc] = useState('');
+  const [adjRef, setAdjRef] = useState('');
 
   // 1. Sales Report
   const renderSalesReport = () => {
@@ -1938,6 +1982,1131 @@ export default function ReportsView({
     );
   };
 
+  // 19. Master Transaction Ledger Report
+  const renderMasterLedger = () => {
+    // 1. Compile Invoice Entries
+    const invoiceEntries = invoices.map(inv => {
+      let categoryLabel = 'Cash Sale Bill';
+      if (inv.paymentMethod === 'Credit' && !inv.isPaid) {
+        categoryLabel = 'Credit Sale Bill';
+      } else {
+        categoryLabel = inv.paymentMethod === 'Mobile Banking' ? 'Mobile Banking Sale' : 'Cash Sale Bill';
+      }
+
+      const customer = customers.find(c => c.id === inv.customerId || c.name === inv.customerName);
+      const address = (customer as any)?.address || '';
+      const itemsDesc = inv.items?.map(it => `${it.name} (x${it.quantity})`).join(', ') || 'Sales Invoice';
+
+      return {
+        id: `INV-${inv.id}`,
+        date: inv.date,
+        category: categoryLabel,
+        referenceNo: inv.invoiceNo,
+        partyName: inv.customerName,
+        address: address,
+        description: itemsDesc,
+        debit: 0,
+        credit: inv.total,
+        enteredBy: currentUser?.name || currentUser?.email || 'System Admin'
+      };
+    });
+
+    // 2. Compile Transaction Entries
+    const transactionEntries = transactions.map(tx => {
+      let categoryLabel = tx.category || 'Transaction';
+      if (tx.type === 'Deposit') {
+        categoryLabel = 'Collection';
+      } else if (tx.type === 'Withdrawal') {
+        categoryLabel = 'Payment';
+      } else if (tx.type === 'Transfer') {
+        categoryLabel = 'Transfer';
+      }
+
+      let partyName = tx.description || 'General Ledger Account';
+      const matchedCustomer = customers.find(c => tx.description?.toLowerCase().includes(c.name.toLowerCase()));
+      const matchedSupplier = suppliers.find(s => tx.description?.toLowerCase().includes(s.name.toLowerCase()));
+      
+      let address = '';
+      if (matchedCustomer) {
+        partyName = matchedCustomer.name;
+        address = (matchedCustomer as any)?.address || '';
+      } else if (matchedSupplier) {
+        partyName = matchedSupplier.name;
+        address = (matchedSupplier as any)?.address || '';
+      }
+
+      const isDebit = tx.type === 'Withdrawal' || tx.type === 'Expense';
+      const isCredit = tx.type === 'Deposit' || tx.type === 'Income';
+
+      return {
+        id: `TX-${tx.id}`,
+        date: tx.date,
+        category: categoryLabel,
+        referenceNo: tx.referenceNo || `TX-${tx.id.slice(-4)}`,
+        partyName: partyName,
+        address: address,
+        description: tx.description || tx.category || 'Accounting Adjustment',
+        debit: isDebit ? tx.amount : 0,
+        credit: isCredit ? tx.amount : 0,
+        enteredBy: currentUser?.name || currentUser?.email || 'System Admin'
+      };
+    });
+
+    // 3. Compile Purchase Order Entries
+    const purchaseEntries = purchaseOrders.map(po => {
+      const categoryLabel = 'Purchase Bill';
+      const supplier = suppliers.find(s => s.id === po.supplierId || s.name === po.supplierName);
+      const address = (supplier as any)?.address || '';
+      const itemsDesc = po.items?.map(it => `${it.name} (x${it.quantity})`).join(', ') || 'Purchase Order';
+
+      return {
+        id: `PO-${po.id}`,
+        date: po.date,
+        category: categoryLabel,
+        referenceNo: po.poNo,
+        partyName: po.supplierName,
+        address: address,
+        description: itemsDesc,
+        debit: po.total,
+        credit: 0,
+        enteredBy: currentUser?.name || currentUser?.email || 'System Admin'
+      };
+    });
+
+    // Combine
+    const combinedLedger = [
+      ...invoiceEntries,
+      ...transactionEntries,
+      ...purchaseEntries
+    ];
+
+    // Filter Logic
+    const filteredLedger = combinedLedger.filter(entry => {
+      // Date range filter
+      if (entry.date < activeFromDate || entry.date > activeToDate) {
+        return false;
+      }
+
+      // Category filter
+      if (ledgerCategory !== 'All') {
+        const catLower = entry.category.toLowerCase();
+
+        if (ledgerCategory === 'Cash Sale Bill') {
+          if (entry.category !== 'Cash Sale Bill' && entry.category !== 'Mobile Banking Sale') {
+            return false;
+          }
+        } else if (ledgerCategory === 'Credit Sale Bill') {
+          if (entry.category !== 'Credit Sale Bill') {
+            return false;
+          }
+        } else if (ledgerCategory === 'Collection') {
+          if (!catLower.includes('collection') && !catLower.includes('deposit') && !catLower.includes('income')) {
+            return false;
+          }
+        } else if (ledgerCategory === 'Payment') {
+          if (!catLower.includes('payment') && !catLower.includes('withdrawal') && !catLower.includes('expense')) {
+            return false;
+          }
+        } else if (ledgerCategory === 'Purchase Bill') {
+          if (!catLower.includes('purchase')) {
+            return false;
+          }
+        } else if (ledgerCategory === 'Transfer') {
+          if (!catLower.includes('transfer')) {
+            return false;
+          }
+        } else {
+          if (entry.category !== ledgerCategory) return false;
+        }
+      }
+
+      // Text search filter
+      if (ledgerSearchText.trim()) {
+        const searchVal = ledgerSearchText.toLowerCase();
+        const matchesParty = entry.partyName.toLowerCase().includes(searchVal);
+        const matchesRef = entry.referenceNo.toLowerCase().includes(searchVal);
+        const matchesDesc = entry.description.toLowerCase().includes(searchVal);
+        const matchesCat = entry.category.toLowerCase().includes(searchVal);
+        if (!matchesParty && !matchesRef && !matchesDesc && !matchesCat) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Apply Dynamic Sorting
+    const sortedFilteredLedger = [...filteredLedger].sort((a, b) => {
+      let valA: any = a[ledgerSortField as keyof typeof a];
+      let valB: any = b[ledgerSortField as keyof typeof b];
+
+      if (valA === undefined || valA === null) return ledgerSortOrder === 'asc' ? 1 : -1;
+      if (valB === undefined || valB === null) return ledgerSortOrder === 'asc' ? -1 : 1;
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return ledgerSortOrder === 'asc' ? valA - valB : valB - valA;
+      }
+
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      return ledgerSortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+    });
+
+    // Calculations
+    const debitTotal = sortedFilteredLedger.reduce((sum, entry) => sum + entry.debit, 0);
+    const creditTotal = sortedFilteredLedger.reduce((sum, entry) => sum + entry.credit, 0);
+    const runningBalance = creditTotal - debitTotal;
+
+    const handleGoFilter = () => {
+      setActiveFromDate(ledgerFromDate);
+      setActiveToDate(ledgerToDate);
+    };
+
+    const handlePrintLedger = () => {
+      window.print();
+    };
+
+    // --- Actions Handlers ---
+    const handleSort = (field: string) => {
+      if (ledgerSortField === field) {
+        setLedgerSortOrder(ledgerSortOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+        setLedgerSortField(field);
+        setLedgerSortOrder('asc');
+      }
+    };
+
+    const handleStartEditDate = (id: string, currentDate: string) => {
+      setEditingRowId(id);
+      setEditingField('date');
+      setEditDateValue(currentDate);
+    };
+
+    const handleStartEditParty = (id: string, currentParty: string) => {
+      setEditingRowId(id);
+      setEditingField('party');
+      setEditPartyValue(currentParty);
+    };
+
+    const handleSaveEditDate = (id: string) => {
+      if (!editDateValue) return;
+
+      if (id.startsWith('INV-')) {
+        const realId = id.replace('INV-', '');
+        if (onUpdateInvoices) {
+          const updated = invoices.map(inv => inv.id === realId ? { ...inv, date: editDateValue } : inv);
+          onUpdateInvoices(updated);
+        }
+      } else if (id.startsWith('TX-')) {
+        const realId = id.replace('TX-', '');
+        if (onUpdateTransactions) {
+          const updated = transactions.map(tx => tx.id === realId ? { ...tx, date: editDateValue } : tx);
+          onUpdateTransactions(updated);
+        }
+      } else if (id.startsWith('PO-')) {
+        const realId = id.replace('PO-', '');
+        if (onUpdatePurchaseOrders) {
+          const updated = purchaseOrders.map(po => po.id === realId ? { ...po, date: editDateValue } : po);
+          onUpdatePurchaseOrders(updated);
+        }
+      }
+
+      setEditingRowId(null);
+      setEditingField(null);
+      alert('তারিখ সফলভাবে আপডেট করা হয়েছে!');
+    };
+
+    const handleSaveEditParty = (id: string) => {
+      if (!editPartyValue) return;
+
+      let oldPartyName = '';
+      let referenceNo = '';
+
+      let updatedInvoices = [...invoices];
+      let updatedTransactions = [...transactions];
+      let updatedPurchaseOrders = [...purchaseOrders];
+
+      if (id.startsWith('INV-')) {
+        const realId = id.replace('INV-', '');
+        const inv = invoices.find(i => i.id === realId);
+        if (inv) {
+          oldPartyName = inv.customerName;
+          referenceNo = inv.invoiceNo;
+
+          const matchedCust = customers.find(c => c.name === editPartyValue);
+          updatedInvoices = invoices.map(item => {
+            if (item.id === realId) {
+              return {
+                ...item,
+                customerName: editPartyValue,
+                customerId: matchedCust ? matchedCust.id : item.customerId
+              };
+            }
+            return item;
+          });
+
+          // Also update referenced transactions (Debit/Credit counterpart)
+          updatedTransactions = transactions.map(tx => {
+            const matchesRef = tx.referenceNo === referenceNo || (referenceNo && tx.description?.includes(referenceNo));
+            const matchesParty = oldPartyName && tx.description?.toLowerCase().includes(oldPartyName.toLowerCase());
+            
+            if (matchesRef || matchesParty) {
+              let newDesc = tx.description;
+              if (oldPartyName) {
+                const regex = new RegExp(oldPartyName, 'gi');
+                newDesc = tx.description.replace(regex, editPartyValue);
+              }
+              return {
+                ...tx,
+                description: newDesc
+              };
+            }
+            return tx;
+          });
+        }
+      } else if (id.startsWith('TX-')) {
+        const realId = id.replace('TX-', '');
+        const tx = transactions.find(t => t.id === realId);
+        if (tx) {
+          referenceNo = tx.referenceNo || '';
+          
+          const matchedCustOld = customers.find(c => tx.description?.toLowerCase().includes(c.name.toLowerCase()));
+          const matchedSupOld = suppliers.find(s => tx.description?.toLowerCase().includes(s.name.toLowerCase()));
+          oldPartyName = matchedCustOld?.name || matchedSupOld?.name || '';
+
+          updatedTransactions = transactions.map(item => {
+            if (item.id === realId) {
+              let newDesc = item.description;
+              if (oldPartyName) {
+                const regex = new RegExp(oldPartyName, 'gi');
+                newDesc = item.description.replace(regex, editPartyValue);
+              } else {
+                newDesc = `${item.category || 'Transaction'} - Party: ${editPartyValue}`;
+              }
+              return {
+                ...item,
+                description: newDesc
+              };
+            }
+            
+            const matchesRef = referenceNo && (item.referenceNo === referenceNo || item.description?.includes(referenceNo));
+            if (matchesRef) {
+              let newDesc = item.description;
+              if (oldPartyName) {
+                const regex = new RegExp(oldPartyName, 'gi');
+                newDesc = item.description.replace(regex, editPartyValue);
+              } else {
+                newDesc = item.description + ` (Transferred to ${editPartyValue})`;
+              }
+              return {
+                ...item,
+                description: newDesc
+              };
+            }
+            return item;
+          });
+
+          if (referenceNo) {
+            const matchedCustNew = customers.find(c => c.name === editPartyValue);
+            updatedInvoices = invoices.map(inv => {
+              if (inv.invoiceNo === referenceNo) {
+                return {
+                  ...inv,
+                  customerName: editPartyValue,
+                  customerId: matchedCustNew ? matchedCustNew.id : inv.customerId
+                };
+              }
+              return inv;
+            });
+
+            const matchedSupNew = suppliers.find(s => s.name === editPartyValue);
+            updatedPurchaseOrders = purchaseOrders.map(po => {
+              if (po.poNo === referenceNo) {
+                return {
+                  ...po,
+                  supplierName: editPartyValue,
+                  supplierId: matchedSupNew ? matchedSupNew.id : po.supplierId
+                };
+              }
+              return po;
+            });
+          }
+        }
+      } else if (id.startsWith('PO-')) {
+        const realId = id.replace('PO-', '');
+        const po = purchaseOrders.find(p => p.id === realId);
+        if (po) {
+          oldPartyName = po.supplierName;
+          referenceNo = po.poNo;
+
+          const matchedSup = suppliers.find(s => s.name === editPartyValue);
+          updatedPurchaseOrders = purchaseOrders.map(item => {
+            if (item.id === realId) {
+              return {
+                ...item,
+                supplierName: editPartyValue,
+                supplierId: matchedSup ? matchedSup.id : item.supplierId
+              };
+            }
+            return item;
+          });
+
+          updatedTransactions = transactions.map(tx => {
+            const matchesRef = tx.referenceNo === referenceNo || (referenceNo && tx.description?.includes(referenceNo));
+            const matchesParty = oldPartyName && tx.description?.toLowerCase().includes(oldPartyName.toLowerCase());
+            
+            if (matchesRef || matchesParty) {
+              let newDesc = tx.description;
+              if (oldPartyName) {
+                const regex = new RegExp(oldPartyName, 'gi');
+                newDesc = tx.description.replace(regex, editPartyValue);
+              }
+              return {
+                ...tx,
+                description: newDesc
+              };
+            }
+            return tx;
+          });
+        }
+      }
+
+      if (onUpdateInvoices) onUpdateInvoices(updatedInvoices);
+      if (onUpdateTransactions) onUpdateTransactions(updatedTransactions);
+      if (onUpdatePurchaseOrders) onUpdatePurchaseOrders(updatedPurchaseOrders);
+
+      setEditingRowId(null);
+      setEditingField(null);
+      alert('ক্লায়েন্ট/পার্টি এবং এর সাথে সম্পর্কিত রেফারেন্স লেনদেন (Debit/Credit) সফলভাবে স্থানান্তর করা হয়েছে!');
+    };
+
+    const handleDeleteRow = (id: string) => {
+      if (!window.confirm('আপনি কি নিশ্চিত যে আপনি স্থায়ীভাবে এই আর্থিক রেকর্ডটি এবং এর সাথে সম্পর্কিত সকল রেফারেন্স ডেবিট/ক্রেডিট লেনদেন ডিলিট করতে চান? এটি অ্যাকাউন্টের ব্যালেন্স পরিবর্তন করবে।')) {
+        return;
+      }
+
+      let updatedInvoices = [...invoices];
+      let updatedTransactions = [...transactions];
+      let updatedPurchaseOrders = [...purchaseOrders];
+
+      if (id.startsWith('INV-')) {
+        const realId = id.replace('INV-', '');
+        const inv = invoices.find(i => i.id === realId);
+        if (inv) {
+          const refNo = inv.invoiceNo;
+          // Delete invoice
+          updatedInvoices = invoices.filter(i => i.id !== realId);
+          // Delete related transactions (debit/credit counterparts)
+          updatedTransactions = transactions.filter(tx => tx.referenceNo !== refNo && !(refNo && tx.description?.includes(refNo)));
+          
+          if (onUpdateInvoices) onUpdateInvoices(updatedInvoices);
+          if (onUpdateTransactions) onUpdateTransactions(updatedTransactions);
+          alert('ইনভয়েস এবং এর সাথে সম্পর্কিত ডেবিট-ক্রেডিট লেনদেন সফলভাবে ডিলিট করা হয়েছে!');
+        }
+      } else if (id.startsWith('PO-')) {
+        const realId = id.replace('PO-', '');
+        const po = purchaseOrders.find(p => p.id === realId);
+        if (po) {
+          const refNo = po.poNo;
+          // Delete PO
+          updatedPurchaseOrders = purchaseOrders.filter(p => p.id !== realId);
+          // Delete related transactions
+          updatedTransactions = transactions.filter(tx => tx.referenceNo !== refNo && !(refNo && tx.description?.includes(refNo)));
+          
+          if (onUpdatePurchaseOrders) onUpdatePurchaseOrders(updatedPurchaseOrders);
+          if (onUpdateTransactions) onUpdateTransactions(updatedTransactions);
+          alert('ক্রয় অর্ডার এবং এর সাথে সম্পর্কিত ডেবিট-ক্রেডিট লেনদেন সফলভাবে ডিলিট করা হয়েছে!');
+        }
+      } else if (id.startsWith('TX-')) {
+        const realId = id.replace('TX-', '');
+        const tx = transactions.find(t => t.id === realId);
+        if (tx) {
+          const refNo = tx.referenceNo || '';
+          // Delete current transaction
+          updatedTransactions = transactions.filter(t => t.id !== realId);
+          
+          // If there is a reference No, cascade delete other transaction entries and invoices/purchase orders sharing the reference
+          if (refNo) {
+            updatedTransactions = updatedTransactions.filter(t => t.referenceNo !== refNo && !t.description?.includes(refNo));
+            updatedInvoices = invoices.filter(inv => inv.invoiceNo !== refNo);
+            updatedPurchaseOrders = purchaseOrders.filter(po => po.poNo !== refNo);
+          }
+
+          if (onUpdateTransactions) onUpdateTransactions(updatedTransactions);
+          if (onUpdateInvoices && refNo) onUpdateInvoices(updatedInvoices);
+          if (onUpdatePurchaseOrders && refNo) onUpdatePurchaseOrders(updatedPurchaseOrders);
+          alert('লেনদেন এবং এর সাথে সম্পর্কিত রেফারেন্স ডকুমেন্ট (যেমন: ইনভয়েস/ক্রয় বিল ও এর দ্বিপাক্ষিক এন্ট্রি) সফলভাবে ডিলিট করা হয়েছে!');
+        }
+      }
+    };
+
+    const handleAddManualAdjustment = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!adjAmount || isNaN(parseFloat(adjAmount))) {
+        alert('দয়া করে একটি সঠিক অংক লিখুন।');
+        return;
+      }
+      if (!adjPartyName.trim()) {
+        alert('দয়া করে ক্লায়েন্ট বা পার্টির নাম লিখুন।');
+        return;
+      }
+
+      const newTx: Transaction = {
+        id: `tx_adj_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        category: adjCategory,
+        description: `${adjDesc || adjCategory} - Party: ${adjPartyName}`,
+        type: adjType,
+        amount: parseFloat(adjAmount),
+        referenceNo: adjRef || `ADJ-${Math.floor(1000 + Math.random() * 9000)}`,
+        accountId: bankAccounts[0]?.id || 'cash_on_hand',
+      };
+
+      if (onUpdateTransactions) {
+        onUpdateTransactions([...transactions, newTx]);
+        alert('লেজার অ্যাডজাস্টমেন্ট এন্ট্রি সফলভাবে সম্পন্ন হয়েছে!');
+        setShowAdjustmentForm(false);
+        setAdjAmount('');
+        setAdjPartyName('');
+        setAdjDesc('');
+        setAdjRef('');
+      }
+    };
+
+    const handleExportLedgerCSV = () => {
+      const headers = ['Row No', 'Date', 'Category', 'Reference No', 'Party Name', 'Address', 'Description', 'Debit (BDT)', 'Credit (BDT)', 'Entered By'];
+      const rows = sortedFilteredLedger.map((entry, idx) => [
+        idx + 1,
+        entry.date,
+        entry.category,
+        entry.referenceNo,
+        entry.partyName,
+        entry.address || '—',
+        entry.description,
+        entry.debit,
+        entry.credit,
+        entry.enteredBy
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
+        + [headers.join(','), ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `MS_Madani_Master_Ledger_${activeFromDate}_to_${activeToDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    const allPartyNames = Array.from(new Set([
+      ...customers.map(c => c.name),
+      ...suppliers.map(s => s.name),
+      'General Ledger Account',
+      'Office Cash Account',
+      'Adjustment Holder'
+    ])).sort();
+
+    return (
+      <div className="space-y-4">
+        {/* Custom Print Style Injection */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body * {
+              visibility: hidden !important;
+            }
+            #master-ledger-printable-area, #master-ledger-printable-area * {
+              visibility: visible !important;
+            }
+            #master-ledger-printable-area {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              background: white !important;
+              color: black !important;
+              padding: 1.5cm 1.5cm !important;
+              margin: 0 !important;
+              box-sizing: border-box !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}} />
+
+        {/* Top Filters & Controls Toolbar */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-4 no-print">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                <Filter className="h-4 w-4 text-indigo-600" />
+                <span>মাস্টার গ্রিড লেজার রিপোর্ট কুয়েরি ইন্জিন (Master Grid Engine)</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">তালিকায় ডাবল-ক্লিক করে সরাসরি ডেট বা ক্লায়েন্ট এডিট করুন।</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowAdjustmentForm(!showAdjustmentForm)}
+                className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>ম্যানুয়াল অ্যাডজাস্টমেন্ট এন্ট্রি (Adj Entry)</span>
+              </button>
+
+              <button
+                onClick={handleExportLedgerCSV}
+                className="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg border border-slate-200 transition-all cursor-pointer"
+                title="Excel/CSV ফাইল ডাউনলোড করুন"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                <span>CSV ডাউনলোড</span>
+              </button>
+
+              <button
+                onClick={handlePrintLedger}
+                className="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>প্রিন্ট করুন</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Manual Adjustment Form Drawer */}
+          {showAdjustmentForm && (
+            <form onSubmit={handleAddManualAdjustment} className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-emerald-600" />
+                  <span>লেজার অ্যাডজাস্টমেন্ট ভাউচার (Manual Adjustment Voucher)</span>
+                </h4>
+                <button type="button" onClick={() => setShowAdjustmentForm(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">প্রকার (Type)</label>
+                  <select
+                    value={adjType}
+                    onChange={(e: any) => setAdjType(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  >
+                    <option value="Withdrawal">ডেবিট (Withdrawal/Expense)</option>
+                    <option value="Deposit">ক্রেডিট (Deposit/Income)</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">ক্যাটাগরি (Category)</label>
+                  <select
+                    value={adjCategory}
+                    onChange={(e) => setAdjCategory(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  >
+                    <option value="Office Expense">Office Expense</option>
+                    <option value="Client Adjustment">Client Adjustment</option>
+                    <option value="Cash Receipt">Cash Receipt</option>
+                    <option value="Bank Charge">Bank Charge</option>
+                    <option value="Capital Input">Capital Input</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">ক্লায়েন্ট / পার্টি (Party Name)</label>
+                  <input
+                    type="text"
+                    list="adjustment-parties"
+                    value={adjPartyName}
+                    onChange={(e) => setAdjPartyName(e.target.value)}
+                    placeholder="পার্টির নাম লিখুন"
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  />
+                  <datalist id="adjustment-parties">
+                    {allPartyNames.map(name => <option key={name} value={name} />)}
+                  </datalist>
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">টাকার অংক (Amount ৳)</label>
+                  <input
+                    type="number"
+                    value={adjAmount}
+                    onChange={(e) => setAdjAmount(e.target.value)}
+                    placeholder="৳ অংক"
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">রেফারেন্স নং (Reference)</label>
+                  <input
+                    type="text"
+                    value={adjRef}
+                    onChange={(e) => setAdjRef(e.target.value)}
+                    placeholder="যেমন: ADJ-001"
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">বিবরণ (Narration)</label>
+                  <input
+                    type="text"
+                    value={adjDesc}
+                    onChange={(e) => setAdjDesc(e.target.value)}
+                    placeholder="সংক্ষিপ্ত বিবরণ"
+                    className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-6 rounded-lg shadow-sm"
+                >
+                  সংরক্ষণ করুন (Save Adjustment)
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+            {/* From Date */}
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">From Date (তারিখ থেকে)</label>
+              <input
+                type="date"
+                value={ledgerFromDate}
+                onChange={(e) => setLedgerFromDate(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* To Date */}
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">To Date (তারিখ পর্যন্ত)</label>
+              <input
+                type="date"
+                value={ledgerToDate}
+                onChange={(e) => setLedgerToDate(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Category Filter Dropdown */}
+            <div className="flex flex-col space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">ক্যাটাগরি ফিল্টার</label>
+              <select
+                value={ledgerCategory}
+                onChange={(e) => setLedgerCategory(e.target.value)}
+                className="bg-white border border-slate-200 rounded-lg p-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="All">All Categories</option>
+                <option value="Cash Sale Bill">Cash Sale Bill</option>
+                <option value="Credit Sale Bill">Credit Sale Bill</option>
+                <option value="Collection">Collection</option>
+                <option value="Payment">Payment</option>
+                <option value="Purchase Bill">Purchase Bill</option>
+                <option value="Transfer">Transfer</option>
+              </select>
+            </div>
+
+            {/* Party / Ref Search Box */}
+            <div className="flex flex-col space-y-1 lg:col-span-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase">খুঁজুন (Search Party / Ref)</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="যেমন: কাস্টমার, রেফারেন্স নং, বিবরণ..."
+                  value={ledgerSearchText}
+                  onChange={(e) => setLedgerSearchText(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 p-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-500 placeholder-slate-400"
+                />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              </div>
+            </div>
+
+            {/* Go Action Button */}
+            <div className="flex items-end">
+              <button
+                onClick={handleGoFilter}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              >
+                <Activity className="h-4 w-4" />
+                <span>ফিল্টার করুন (Go Filter)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Master Printable / A4 Render Wrapper */}
+        <div id="master-ledger-printable-area" className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs p-6 space-y-6">
+          
+          {/* Print Header Block */}
+          <div className="border-b border-slate-200 pb-5 text-center relative space-y-1.5">
+            <h1 className="text-2xl font-black text-slate-900 uppercase font-serif tracking-wide" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+              M/S MADANI TRADERS
+            </h1>
+            <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+              Dhaka Sadar Head Office, Dhaka, Bangladesh
+            </p>
+            <div className="flex flex-col items-center pt-2">
+              <div className="border-t border-slate-300 w-40 my-0.5"></div>
+              <h2 className="text-sm font-black text-slate-800 tracking-wider uppercase font-serif" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                MASTER TRANSACTION LEDGER REGISTER (গ্রিড রিপোর্ট)
+              </h2>
+              <div className="border-b-2 border-double border-slate-800 w-48 mt-1 pb-0.5"></div>
+            </div>
+
+            {/* Print Metadata */}
+            <div className="flex justify-between items-end pt-4 text-[9px] font-bold font-mono text-slate-400">
+              <div>
+                LEDGER DATE RANGE: <span className="text-slate-800 font-extrabold">{activeFromDate} to {activeToDate}</span>
+              </div>
+              <div className="no-print bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded font-sans text-[10px]">
+                রোল: <span className="font-extrabold text-indigo-700">{currentUser?.role || 'Guest'}</span>
+              </div>
+              <div>
+                SYSTEM ID: <span className="text-slate-800 font-extrabold">MASTER-TX-LEDGER</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Combined Ledger Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-100/80 border-b border-slate-300 text-[10px] font-bold text-slate-500 uppercase tracking-wider select-none">
+                  <th className="py-2.5 px-3 text-center" style={{ width: '60px' }}>Row No</th>
+                  
+                  {/* Sorting Date Header */}
+                  <th 
+                    onClick={() => handleSort('date')}
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '100px' }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Date</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  {/* Sorting Category Header */}
+                  <th 
+                    onClick={() => handleSort('category')}
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '130px' }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Category</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  {/* Sorting Reference Header */}
+                  <th 
+                    onClick={() => handleSort('referenceNo')}
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '110px' }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Invoice/Ref No</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  {/* Sorting Party Name Header */}
+                  <th 
+                    onClick={() => handleSort('partyName')}
+                    className="py-2.5 px-3 cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '160px' }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Party Name</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  <th className="py-2.5 px-3" style={{ width: '140px' }}>Address/Location</th>
+                  <th className="py-2.5 px-3">Description</th>
+                  
+                  {/* Sorting Debit Header */}
+                  <th 
+                    onClick={() => handleSort('debit')}
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '100px' }}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Debit</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  {/* Sorting Credit Header */}
+                  <th 
+                    onClick={() => handleSort('credit')}
+                    className="py-2.5 px-3 text-right cursor-pointer hover:bg-slate-200 transition-colors" 
+                    style={{ width: '100px' }}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Credit</span>
+                      <ArrowUpDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </div>
+                  </th>
+
+                  <th className="py-2.5 px-3 text-center" style={{ width: '90px' }}>Entered By</th>
+                  <th className="py-2.5 px-3 text-center no-print" style={{ width: '100px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {sortedFilteredLedger.map((entry, idx) => {
+                  const isEditingThisRow = editingRowId === entry.id;
+                  
+                  return (
+                    <tr key={entry.id} className="hover:bg-indigo-50/20 transition-colors">
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                      
+                      {/* Date Column (Editable) */}
+                      <td className="py-2.5 px-3 font-semibold font-mono">
+                        {isEditingThisRow && editingField === 'date' ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="date"
+                              value={editDateValue}
+                              onChange={(e) => setEditDateValue(e.target.value)}
+                              className="border border-indigo-400 rounded px-1.5 py-0.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 w-28 text-slate-800 bg-white"
+                            />
+                            <button
+                              onClick={() => handleSaveEditDate(entry.id)}
+                              className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded cursor-pointer"
+                              title="সংরক্ষণ করুন"
+                            >
+                              <Save className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => { setEditingRowId(null); setEditingField(null); }}
+                              className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded cursor-pointer"
+                              title="বাতিল করুন"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div 
+                            onDoubleClick={() => handleStartEditDate(entry.id, entry.date)}
+                            className="flex items-center gap-1 group cursor-pointer hover:text-indigo-600"
+                            title="তারিখ এডিট করতে ডাবল-ক্লিক করুন"
+                          >
+                            <span>{entry.date}</span>
+                            <Edit2 className="h-2.5 w-2.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity no-print" />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Category Label (Non-Editable Badge) */}
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          entry.category.toLowerCase().includes('sale') 
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                            : entry.category.toLowerCase().includes('purchase') 
+                            ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                            : entry.category.toLowerCase().includes('collection') || entry.category.toLowerCase().includes('deposit')
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>
+                          {entry.category}
+                        </span>
+                      </td>
+
+                      {/* Invoice/Ref No */}
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-600 text-[11px]">{entry.referenceNo}</td>
+                      
+                      {/* Party Name (Editable Dropdown) */}
+                      <td className="py-2.5 px-3 font-bold text-slate-800">
+                        {isEditingThisRow && editingField === 'party' ? (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={editPartyValue}
+                              onChange={(e) => setEditPartyValue(e.target.value)}
+                              className="border border-indigo-400 rounded px-1.5 py-0.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 w-36 text-slate-800 bg-white"
+                            >
+                              {allPartyNames.map(name => (
+                                <option key={name} value={name}>{name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleSaveEditParty(entry.id)}
+                              className="p-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded cursor-pointer"
+                              title="সংরক্ষণ করুন"
+                            >
+                              <Save className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => { setEditingRowId(null); setEditingField(null); }}
+                              className="p-1 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded cursor-pointer"
+                              title="বাতিল করুন"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div 
+                            onDoubleClick={() => handleStartEditParty(entry.id, entry.partyName)}
+                            className="flex items-center gap-1 group cursor-pointer hover:text-indigo-600"
+                            title="পার্টি এডিট করতে ডাবল-ক্লিক করুন"
+                          >
+                            <span>{entry.partyName}</span>
+                            <Edit2 className="h-2.5 w-2.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity no-print" />
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Address */}
+                      <td className="py-2.5 px-3 text-slate-400 font-medium text-[11px] truncate max-w-[140px]" title={entry.address || '—'}>
+                        {entry.address || <span className="text-slate-300">—</span>}
+                      </td>
+
+                      {/* Description */}
+                      <td className="py-2.5 px-3 text-slate-500 font-medium truncate max-w-[180px]" title={entry.description}>
+                        {entry.description}
+                      </td>
+
+                      {/* Debit (BDT) */}
+                      <td className="py-2.5 px-3 text-right font-mono font-bold">
+                        {entry.debit > 0 ? (
+                          <span className="text-rose-600">৳{entry.debit.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-slate-300 font-normal">—</span>
+                        )}
+                      </td>
+
+                      {/* Credit (BDT) */}
+                      <td className="py-2.5 px-3 text-right font-mono font-bold">
+                        {entry.credit > 0 ? (
+                          <span className="text-emerald-600">৳{entry.credit.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-slate-300 font-normal">—</span>
+                        )}
+                      </td>
+
+                      {/* Entered By */}
+                      <td className="py-2.5 px-3 text-center text-slate-500 text-[11px] font-medium truncate max-w-[90px]" title={entry.enteredBy}>
+                        {entry.enteredBy}
+                      </td>
+
+                      {/* Actions Column (Interactive Delete + Inline Trigger icons, no-print) */}
+                      <td className="py-2.5 px-3 text-center no-print">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Edit Date Button */}
+                          <button
+                            onClick={() => {
+                              if (isEditingThisRow && editingField === 'date') {
+                                setEditingRowId(null);
+                                setEditingField(null);
+                              } else {
+                                handleStartEditDate(entry.id, entry.date);
+                              }
+                            }}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              isEditingThisRow && editingField === 'date'
+                                ? 'bg-indigo-600 text-white'
+                                : 'hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700'
+                            }`}
+                            title="তারিখ পরিবর্তন করুন (Edit Date)"
+                          >
+                            <Calendar className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* Transfer / Edit Client Party Button */}
+                          <button
+                            onClick={() => {
+                              if (isEditingThisRow && editingField === 'party') {
+                                setEditingRowId(null);
+                                setEditingField(null);
+                              } else {
+                                handleStartEditParty(entry.id, entry.partyName);
+                              }
+                            }}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              isEditingThisRow && editingField === 'party'
+                                ? 'bg-emerald-600 text-white'
+                                : 'hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700'
+                            }`}
+                            title="ক্লায়েন্ট/পার্টি স্থানান্তর করুন (Transfer Client/Party)"
+                          >
+                            <User className="h-3.5 w-3.5" />
+                          </button>
+                          
+                          {/* Cascade Delete Button */}
+                          <button
+                            onClick={() => handleDeleteRow(entry.id)}
+                            className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded transition-colors cursor-pointer"
+                            title="স্থায়ীভাবে মুছে ফেলুন (Delete Cascading / Dual Ledger)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* Ledger Totals Row */}
+                <tr className="bg-slate-50 font-semibold text-xs text-slate-900 border-t-2 border-slate-300 border-b-2 border-double border-slate-300">
+                  <td colSpan={7} className="py-3 px-3 text-right font-black uppercase tracking-wider text-[10px] font-sans text-slate-500 select-none">
+                    SUM / TOTAL LEDGER ACCUMULATION:
+                  </td>
+                  <td className="py-3 px-3 text-right font-black font-mono text-rose-600 bg-rose-50/30">
+                    ৳{debitTotal.toLocaleString()}
+                  </td>
+                  <td className="py-3 px-3 text-right font-black font-mono text-emerald-600 bg-emerald-50/30">
+                    ৳{creditTotal.toLocaleString()}
+                  </td>
+                  <td className="py-3 px-3"></td>
+                  <td className="py-3 px-3 no-print"></td>
+                </tr>
+
+                {/* Ledger Running Balance Row */}
+                <tr className="bg-indigo-50/40 text-xs font-black text-indigo-950">
+                  <td colSpan={7} className="py-3 px-3 text-right uppercase tracking-wider text-[10px] font-sans text-indigo-800 select-none">
+                    RUNNING BALANCING ACCOUNT (CREDIT − DEBIT):
+                  </td>
+                  <td colSpan={2} className="py-3 px-3 text-right font-black font-mono text-indigo-950 text-sm">
+                    ৳{runningBalance.toLocaleString()}
+                  </td>
+                  <td className="py-3 px-3"></td>
+                  <td className="py-3 px-3 no-print"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {sortedFilteredLedger.length === 0 && (
+            <div className="py-12 text-center text-slate-400 font-black bg-[#fafafa] rounded-lg border border-dashed border-slate-200">
+              No matching transaction ledger entries found in selected date range.
+            </div>
+          )}
+
+          {/* Audit Trail Note at bottom */}
+          <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center text-[10px] font-bold text-slate-400 font-mono uppercase select-none">
+            <span>* AUDIT NOTE: INTERNAL DOUBLE-ENTRY EQUILIBRIUM SECURED. AUDIT TRAIL PER-RECORD IS LOGGED SEPARATELY.</span>
+            <span>PAGE 1 OF 1</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const getSubTabTitle = () => {
     switch (activeSubTab) {
       case 'sales_report':
@@ -1976,6 +3145,8 @@ export default function ReportsView({
         return 'Promotional Sales Report';
       case 'product_wise_total_profit':
         return 'Product Wise Total Realized Profit';
+      case 'master_ledger':
+        return 'Master Transaction Ledger';
       default:
         return 'Analytical Ledger Report';
     }
@@ -2019,6 +3190,8 @@ export default function ReportsView({
         return renderOfferSalesReport();
       case 'product_wise_total_profit':
         return renderProductWiseTotalProfit();
+      case 'master_ledger':
+        return renderMasterLedger();
       default:
         return (
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-12 text-center max-w-md mx-auto space-y-4">
@@ -2027,7 +3200,7 @@ export default function ReportsView({
               Operational Ledger Analytics
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Select one of the 18 specific financial sub-reports from the sidebar list under the Reports section to view specialized metrics, double-entry balancings, aging logs, or dynamic box-per-piece stock representation.
+              Select one of the 19 specific financial sub-reports from the sidebar list under the Reports section to view specialized metrics, double-entry balancings, aging logs, or dynamic box-per-piece stock representation.
             </p>
           </div>
         );

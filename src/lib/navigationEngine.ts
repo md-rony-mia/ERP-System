@@ -213,6 +213,7 @@ export const INITIAL_ITEMS: NavigationItem[] = [
   { id: 'rep_manufacturing', label: 'Mfg Resource Logs', groupId: 'reports', icon: 'Wrench', tab: 'reports', subTab: 'mfg_report', order: 7, enabled: true },
   { id: 'rep_custom', label: 'Custom Reports Builder', groupId: 'reports', icon: 'Sliders', tab: 'reports', subTab: 'custom_reports', order: 8, enabled: true },
   { id: 'rep_analytics', label: 'Core Multi-Variance Analytics', groupId: 'reports', icon: 'BarChart3', tab: 'reports', subTab: 'analytics', order: 9, enabled: true },
+  { id: 'master_ledger', label: 'Master Transaction Ledger', groupId: 'reports', icon: 'BookOpen', tab: 'reports', subTab: 'master_ledger', order: 10, enabled: true },
 
   // === AI GROUP ===
   { id: 'ai_copilot', label: 'AI Copilot Chatbot', groupId: 'ai', icon: 'Sparkles', tab: 'ai', subTab: 'copilot', order: 1, enabled: true },
@@ -280,7 +281,20 @@ export class NavigationEngineService {
     const savedLang = localStorage.getItem('nexova_nav_language');
 
     if (savedItems) {
-      try { this.items = JSON.parse(savedItems); } catch { this.items = INITIAL_ITEMS; }
+      try {
+        const parsed = JSON.parse(savedItems);
+        // Robustly merge any missing items from INITIAL_ITEMS so that newly added menus appear in existing sessions
+        const parsedIds = new Set(parsed.map((item: any) => item.id));
+        const missingItems = INITIAL_ITEMS.filter(item => !parsedIds.has(item.id));
+        if (missingItems.length > 0) {
+          this.items = [...parsed, ...missingItems];
+          this.saveItems();
+        } else {
+          this.items = parsed;
+        }
+      } catch {
+        this.items = INITIAL_ITEMS;
+      }
     } else {
       this.items = INITIAL_ITEMS;
       this.saveItems();

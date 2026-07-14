@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
 import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
-import { createNewUserWithSecondaryApp } from '../lib/firebase';
+import { createNewUserWithSecondaryApp, db, auth } from '../lib/firebase';
+import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import * as Icons from 'lucide-react';
 import {
   Landmark,
@@ -453,6 +455,13 @@ export default function BankingAndLoanView({
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserError, setAddUserError] = useState<string | null>(null);
 
+  // --- PASSWORD RESET & CHANGE STATES ---
+  const [passwordModalUser, setPasswordModalUser] = useState<any | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
+  const [passwordModalSuccess, setPasswordModalSuccess] = useState<string | null>(null);
+  const [passwordModalLoading, setPasswordModalLoading] = useState(false);
+
   // SYSTEM USER ACTIONS
   const startEditUser = (usr: any) => {
     setEditingUserId(usr.id);
@@ -482,16 +491,125 @@ export default function BankingAndLoanView({
     }
   };
 
-  const handleDeleteUser = (id: string) => {
-    if (confirm('Are you sure you want to delete this user login account?')) {
-      const updated = usersList.filter(u => u.id !== id);
+  const handleDeleteUser = async (id: string) => {
+    const targetUser = usersList.find(u => String(u.id) === String(id));
+    if (!targetUser) {
+      alert(`দুঃখিত, এই আইডি (${id}) এর ব্যবহারকারী পাওয়া যায়নি! / Sorry, user with ID ${id} was not found in the users list.`);
+      return;
+    }
+
+    // ১. শুধুমাত্র সিস্টেম এডমিনিস্ট্রেটররাই ব্যবহারকারী অ্যাকাউন্ট মুছে ফেলতে পারবেন।
+    // (Only Administrator users can delete accounts)
+    if (currentUser?.role !== 'Administrator') {
+      alert('দুঃখিত, শুধুমাত্র সিস্টেম এডমিনিস্ট্রেটররাই ব্যবহারকারী অ্যাকাউন্ট মুছে ফেলতে পারবেন। / Sorry, only active system Administrators can delete user accounts.');
+      return;
+    }
+
+    // ২. আপনি বর্তমানে এই অ্যাকাউন্টে লগইন আছেন, তাই এটি মুছে ফেলা সম্ভব নয়।
+    // (Prevent current user from self-deleting)
+    const currentEmail = (currentUser?.email || '').toLowerCase();
+    const targetEmail = (targetUser.email || '').toLowerCase();
+    if (currentEmail && targetEmail === currentEmail) {
+      alert('আপনি বর্তমানে এই অ্যাকাউন্টে লগইন আছেন, তাই এটি মুছে ফেলা সম্ভব নয়। / You are currently logged in with this account and cannot delete it.');
+      return;
+    }
+
+    // ৩. চেক করুন ব্যবহারকারীর সিস্টেমে কোনো লেনদেন রেকর্ড আছে কিনা।
+    // (Check if the user has any transactions/invoices/purchaseOrders)
+    const targetUsername = (targetUser.username || '').toLowerCase();
+    const targetName = (targetUser.name || '').toLowerCase();
+
+    // Ledger transactions check
+    const hasTx = localTxs.some(tx => {
+      const desc = (tx.description || '').toLowerCase();
+      const cat = (tx.category || '').toLowerCase();
+      const ent = ((tx as any).enteredBy || '').toLowerCase();
+      return (
+        (targetUsername && desc.includes(targetUsername)) ||
+        (targetName && desc.includes(targetName)) ||
+        (targetUsername && cat.includes(targetUsername)) ||
+        (targetName && cat.includes(targetName)) ||
+        (targetUsername && ent === targetUsername) ||
+        (targetName && ent === targetName) ||
+        (targetEmail && ent === targetEmail)
+      );
+    });
+
+    // Sales Invoice check
+    const hasInvoice = systemData?.invoices?.some((inv: any) => {
+      const ent = (inv.enteredBy || '').toLowerCase();
+      const cust = (inv.customerName || '').toLowerCase();
+      return (
+        (targetUsername && ent === targetUsername) ||
+        (targetName && ent === targetName) ||
+        (targetName && cust.includes(targetName))
+      );
+    }) || false;
+
+    // Purchase Order check
+    const hasPurchase = systemData?.purchaseOrders?.some((po: any) => {
+      const ent = (po.enteredBy || '').toLowerCase();
+      return (
+        (targetUsername && ent === targetUsername) ||
+        (targetName && ent === targetName)
+      );
+    }) || false;
+
+    let forceDelete = false;
+    if (hasTx || hasInvoice || hasPurchase) {
+      let reasons = [];
+      if (hasTx) reasons.push('লেনদেন খতিয়ান রেকর্ড (Ledger Transactions)');
+      if (hasInvoice) reasons.push('বিক্রয় চালান (Sales Invoices)');
+      if (hasPurchase) reasons.push('ক্রয় অর্ডার (Purchase Orders)');
+
+      const confirmForce = window.confirm(
+        `সতর্কতা: এই ব্যবহারকারীর (${targetUser.name}) সিস্টেমে নিচের রেকর্ডসমূহ বা ট্রানজেকশন রয়েছে:\n\n${reasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\nসিস্টেমের ডাটা ইন্টিগ্রিটির জন্য এই অ্যাকাউন্টটি মুছে ফেলা রিকমেন্ডেড নয়। তবে আপনি চাইলে অ্যাকাউন্টটি জোরপূর্বক মুছে (Force Delete) ফেলতে পারেন।\n\nআপনি কি নিশ্চিত যে আপনি অ্যাকাউন্টটি ফোর্স ডিলিট (Force Delete) করতে চান?\n\n/ WARNING: This user has historical records in the system. Do you want to FORCE delete their login account anyway?`
+      );
+      if (!confirmForce) return;
+      forceDelete = true;
+    }
+
+    // ৪. ডিলিট করার কনফার্মেশন (যদি অলরেডি ফোর্স ডিলিট কনফার্ম না করা হয়ে থাকে)
+    if (forceDelete || window.confirm(`আপনি কি নিশ্চিত যে আপনি "${targetUser.name}" ব্যবহারকারী অ্যাকাউন্টটি মুছে ফেলতে চান?\n\nAre you sure you want to delete this user login account?`)) {
+      const updated = usersList.filter(u => String(u.id) !== String(id));
       setUsersList(updated);
+      
+      try {
+        // Firestore 'users' কালেকশন থেকে ডিলিট করার চেষ্টা করুন
+        if (targetUser.id) {
+          await deleteDoc(doc(db, 'users', targetUser.id));
+        }
+      } catch (dbErr) {
+        console.warn("Firestore user doc deletion warning (ignoring):", dbErr);
+      }
+
       if (onUpdateSettings && settings) {
         onUpdateSettings({
           ...settings,
           usersList: updated,
         });
       }
+      window.alert(`ব্যবহারকারী অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে! / User account for ${targetUser.name} deleted successfully!`);
+    }
+  };
+
+  const handleSendResetPassword = async (email: string, name: string) => {
+    if (!email) return;
+    const confirmReset = window.confirm(
+      `আপনি কি নিশ্চিত যে আপনি "${name}" (${email}) এর জন্য পাসওয়ার্ড রিসেট করার লিঙ্ক পাঠাতে চান?\n\nThis will send a secure password reset email link from Firebase.`
+    );
+    if (!confirmReset) return;
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert(
+        `পাসওয়ার্ড রিসেট লিঙ্ক সফলভাবে পাঠানো হয়েছে! অনুগ্রহ করে "${email}" এর ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।\n\nPassword reset link sent successfully to ${email}!`
+      );
+    } catch (err: any) {
+      console.error("Password reset error:", err);
+      alert(
+        `পাসওয়ার্ড রিসেট লিঙ্ক পাঠাতে ব্যর্থ হয়েছে: ${err.message || err}\n\nFailed to send reset email.`
+      );
     }
   };
 
@@ -556,7 +674,65 @@ export default function BankingAndLoanView({
       console.error("In-app user creation error:", err);
       let errMsg = `Failed to create account: ${err.message || err} / অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে: ${err.message || err}`;
       if (err.code === 'auth/email-already-in-use') {
-        errMsg = 'This email address is already in use by another user. / এই ইমেইলটি ইতিমধ্যে অন্য অ্যাকাউন্টে ব্যবহৃত হচ্ছে।';
+        const confirmLink = confirm(
+          `এই ইমেইল এড্রেসটি (${newUserEmail}) ইতিমধ্যেই ফায়ারবেস অথেনটিকেশনে নিবন্ধিত আছে, কিন্তু বর্তমান ব্যবহারকারী তালিকায় নেই।\n\nআপনি কি এই বিদ্যমান অ্যাকাউন্টটি সিস্টেমের ব্যবহারকারী তালিকায় পুনরায় সংযুক্ত (Link/Restore) করতে চান?\n\nThis email is already registered in Firebase Auth but missing from the list. Do you want to restore and link it?`
+        );
+        if (confirmLink) {
+          try {
+            setAddUserLoading(true);
+            // Search Firestore for existing user document to get real UID
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where('email', '==', newUserEmail));
+            const qSnap = await getDocs(q);
+            
+            let existingUid = `imported-${Date.now()}`;
+            let existingName = newUserFullName;
+            let existingUsername = newUserUsername;
+            let existingRole = newUserRole;
+
+            if (!qSnap.empty) {
+              const matchedDoc = qSnap.docs[0];
+              existingUid = matchedDoc.id;
+              const matchedData = matchedDoc.data();
+              if (matchedData.name) existingName = matchedData.name;
+              if (matchedData.username) existingUsername = matchedData.username;
+              if (matchedData.role) existingRole = matchedData.role;
+            }
+
+            const initials = existingName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const newUser = {
+              id: existingUid,
+              name: existingName,
+              username: existingUsername.toLowerCase().replace(/\s/g, '_'),
+              email: newUserEmail,
+              role: existingRole,
+              status: 'Active' as const,
+              avatar: initials || 'U',
+            };
+
+            const updated = [...usersList, newUser];
+            setUsersList(updated);
+            setNewUserFullName('');
+            setNewUserEmail('');
+            setNewUserUsername('');
+            setNewUserPassword('');
+
+            if (onUpdateSettings && settings) {
+              onUpdateSettings({
+                ...settings,
+                usersList: updated
+              });
+            }
+
+            alert(`অ্যাকাউন্টটি সফলভাবে পুনরুদ্ধার এবং লিংক করা হয়েছে! / Successfully restored and linked account for ${existingName}!`);
+            return;
+          } catch (restoreErr: any) {
+            console.error("Error restoring user profile:", restoreErr);
+            errMsg = `Failed to restore profile: ${restoreErr.message || restoreErr} / প্রোফাইল পুনরুদ্ধার ব্যর্থ হয়েছে।`;
+          }
+        } else {
+          errMsg = 'This email address is already in use by another user. / এই ইমেইলটি ইতিমধ্যে অন্য অ্যাকাউন্টে ব্যবহৃত হচ্ছে।';
+        }
       } else if (err.code === 'auth/invalid-email') {
         errMsg = 'The email address is invalid. / অনুগ্রহ করে একটি সঠিক ইমেইল এড্রেস প্রদান করুন।';
       } else if (err.code === 'auth/weak-password') {
@@ -2648,20 +2824,28 @@ export default function BankingAndLoanView({
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0 font-sans">
+                              <button
+                                type="button"
+                                onClick={() => setPasswordModalUser(usr)}
+                                className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all cursor-pointer"
+                                title="পাসওয়ার্ড রিসেট এবং পরিবর্তন (Reset/Change Password)"
+                              >
+                                <Lock className="h-3.5 w-3.5" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => startEditUser(usr)}
-                                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all"
-                                title="Edit User Account"
+                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer"
+                                title="সম্পাদনা করুন (Edit User Account)"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteUser(usr.id)}
-                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-all"
-                                title="Delete User Account"
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                                title="মুছে ফেলুন (Delete User Account)"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -5200,6 +5384,172 @@ export default function BankingAndLoanView({
                 <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer">Sanction Loan</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset / Change Modal */}
+      {passwordModalUser && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 font-sans text-xs text-slate-700">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-amber-500" />
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  পাসওয়ার্ড রিসেট এবং পরিবর্তন / Password Actions
+                </h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setPasswordModalUser(null);
+                  setNewPasswordInput('');
+                  setPasswordModalError(null);
+                  setPasswordModalSuccess(null);
+                }} 
+                className="text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                <p className="font-bold text-slate-800 text-sm">{passwordModalUser.name}</p>
+                <p className="text-[10px] text-slate-500">@{passwordModalUser.username} | {passwordModalUser.email}</p>
+                <p className="text-[10px] mt-1 font-semibold text-indigo-600 uppercase">রোল: {passwordModalUser.role}</p>
+              </div>
+
+              {passwordModalError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg font-medium">
+                  {passwordModalError}
+                </div>
+              )}
+
+              {passwordModalSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg font-semibold">
+                  {passwordModalSuccess}
+                </div>
+              )}
+
+              {/* Action 1: Reset Password Link */}
+              <div className="space-y-2 border-b border-slate-100 pb-4">
+                <p className="font-bold text-slate-700 text-xs">অপশন ১: পাসওয়ার্ড রিসেট লিঙ্ক ইমেইল করুন</p>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  এটি ব্যবহারকারীর নিবন্ধিত ইমেইলে একটি নিরাপদ পাসওয়ার্ড রিসেট লিংক পাঠাবে। ব্যবহারকারী সেই লিংকে ক্লিক করে নতুন পাসওয়ার্ড সেট করে নিতে পারবেন।
+                </p>
+                <button
+                  type="button"
+                  disabled={passwordModalLoading}
+                  onClick={async () => {
+                    setPasswordModalLoading(true);
+                    setPasswordModalError(null);
+                    setPasswordModalSuccess(null);
+                    try {
+                      await sendPasswordResetEmail(auth, passwordModalUser.email);
+                      setPasswordModalSuccess(
+                        `পাসওয়ার্ড রিসেট লিঙ্কটি সফলভাবে পাঠানো হয়েছে! অনুগ্রহ করে "${passwordModalUser.email}" এর ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।`
+                      );
+                    } catch (err: any) {
+                      console.error("Reset password link error:", err);
+                      setPasswordModalError(
+                        `লিঙ্ক পাঠাতে ব্যর্থ হয়েছে: ${err.message || err}. (নোট: আপনার ফায়ারবেস অথেনটিকেশন ডোমেন বা কনফিগারেশন সঠিক আছে কিনা চেক করুন)`
+                      );
+                    } finally {
+                      setPasswordModalLoading(false);
+                    }
+                  }}
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2"
+                >
+                  {passwordModalLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Icons.Mail className="h-3.5 w-3.5" />
+                  )}
+                  <span>রিসেট ইমেইল লিঙ্ক পাঠান (Send Reset Link)</span>
+                </button>
+              </div>
+
+              {/* Action 2: Change Own Password directly */}
+              <div className="space-y-2 pt-1">
+                <p className="font-bold text-slate-700 text-xs">অপশন ২: সরাসরি পাসওয়ার্ড পরিবর্তন (শুধু নিজের জন্য)</p>
+                {currentUser?.email?.toLowerCase() === passwordModalUser.email?.toLowerCase() ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      আপনি বর্তমানে এই অ্যাকাউন্টে লগইন আছেন। আপনি চাইলে সরাসরি নিজের জন্য একটি নতুন পাসওয়ার্ড সেট করতে পারেন:
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড"
+                        value={newPasswordInput}
+                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:outline-none focus:border-indigo-600 font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        disabled={passwordModalLoading || newPasswordInput.length < 6}
+                        onClick={async () => {
+                          if (newPasswordInput.length < 6) {
+                            setPasswordModalError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+                            return;
+                          }
+                          setPasswordModalLoading(true);
+                          setPasswordModalError(null);
+                          setPasswordModalSuccess(null);
+                          try {
+                            const user = auth.currentUser;
+                            if (user) {
+                              await updatePassword(user, newPasswordInput);
+                              setPasswordModalSuccess('আপনার পাসওয়ার্ডটি সফলভাবে পরিবর্তন করা হয়েছে!');
+                              setNewPasswordInput('');
+                            } else {
+                              setPasswordModalError('কোনো সেশন খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আবার লগইন করুন।');
+                            }
+                          } catch (err: any) {
+                            console.error("Change password error:", err);
+                            setPasswordModalError(
+                              `পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে: ${err.message || err}`
+                            );
+                          } finally {
+                            setPasswordModalLoading(false);
+                          }
+                        }}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg cursor-pointer transition-colors disabled:opacity-50"
+                      >
+                        আপডেট করুন
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      নিরাপত্তা নীতিমালার কারণে Client-side Firebase Auth সরাসরি অন্য ব্যবহারকারীর পাসওয়ার্ড পরিবর্তন করার অনুমতি দেয় না।
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed mt-1.5 font-semibold text-indigo-600">
+                      বিকল্প পদ্ধতি (Alternative):
+                    </p>
+                    <ul className="list-disc list-inside text-[9px] text-slate-400 space-y-1 mt-1">
+                      <li>উপরের <strong>'রিসেট ইমেইল লিঙ্ক পাঠান'</strong> ব্যবহার করুন।</li>
+                      <li>অথবা, এই ব্যবহারকারীকে তালিকা থেকে ডিলিট করে একই ইমেইল দিয়ে নতুন পাসওয়ার্ড দিয়ে পুনরায় এড করুন (যা অ্যাকাউন্টকে লিংক করে নিবে)।</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => {
+                  setPasswordModalUser(null);
+                  setNewPasswordInput('');
+                  setPasswordModalError(null);
+                  setPasswordModalSuccess(null);
+                }} 
+                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg cursor-pointer transition-colors"
+              >
+                বন্ধ করুন (Close)
+              </button>
+            </div>
           </div>
         </div>
       )}

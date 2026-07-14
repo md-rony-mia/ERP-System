@@ -943,6 +943,12 @@ export default function App() {
                 accountHeads={accountHeads}
                 employees={employees}
                 activeSubTab={currentSubTab}
+                currentUser={currentUser}
+                onUpdateInvoices={setInvoices}
+                onUpdateTransactions={setTransactions}
+                onUpdatePurchaseOrders={setPurchaseOrders}
+                onUpdateCustomers={setCustomers}
+                onUpdateSuppliers={setSuppliers}
               />
             </ErrorBoundary>
           )}
