@@ -11,11 +11,7 @@ interface SidebarProps {
 export default function Sidebar({ currentTab, currentSubTab, onTabChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    dashboard: true,
-    inventory: false,
-    sales: false,
-  });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const [activeLanguage, setActiveLanguage] = useState(navEngine.getLanguage());
   const [groups, setGroups] = useState<NavigationGroup[]>([]);
@@ -50,6 +46,21 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
     const interval = setInterval(syncWithEngine, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const activeItem = items.find(
+      (item) => item.tab === currentTab && item.subTab === currentSubTab
+    );
+    if (activeItem) {
+      setExpandedGroups((prev) => {
+        // Only collapse others if they aren't matching the current active group
+        if (prev[activeItem.groupId]) return prev;
+        const newState: Record<string, boolean> = {};
+        newState[activeItem.groupId] = true;
+        return newState;
+      });
+    }
+  }, [currentTab, currentSubTab, items]);
 
   const handleLanguageToggle = () => {
     const nextLang = activeLanguage === 'en' ? 'bn' : 'en';
@@ -343,7 +354,7 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
           const hasSelectedChild = groupItems.some(
             (item) => currentTab === item.tab && currentSubTab === item.subTab
           );
-          const isExpanded = !!expandedGroups[group.id] || hasSelectedChild || searchQuery !== '';
+          const isExpanded = !!expandedGroups[group.id] || searchQuery !== '';
 
           if (isCollapsed) {
             return (
