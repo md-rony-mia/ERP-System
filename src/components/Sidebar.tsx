@@ -48,19 +48,19 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
   }, []);
 
   useEffect(() => {
-    const activeItem = items.find(
+    const activeItem = navEngine.getItems().find(
       (item) => item.tab === currentTab && item.subTab === currentSubTab
     );
     if (activeItem) {
       setExpandedGroups((prev) => {
-        // Only collapse others if they aren't matching the current active group
+        // Only change if the current active group isn't already the only one expanded
         if (prev[activeItem.groupId]) return prev;
         const newState: Record<string, boolean> = {};
         newState[activeItem.groupId] = true;
         return newState;
       });
     }
-  }, [currentTab, currentSubTab, items]);
+  }, [currentTab, currentSubTab]);
 
   const handleLanguageToggle = () => {
     const nextLang = activeLanguage === 'en' ? 'bn' : 'en';
