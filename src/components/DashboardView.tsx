@@ -991,7 +991,7 @@ export default function DashboardView({
               {renderControls('kpis', index)}
               
               {/* Horizontal Scrollable Stat Strip replacing 6 cards */}
-              <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar scroll-smooth snap-x select-none">
+              <div className="flex gap-4 overflow-x-auto pb-1.5 pt-1 px-1 no-scrollbar scroll-smooth snap-x select-none">
                 
                 {/* Chip 1: Today's Invoices */}
                 <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-blue-500 overflow-hidden relative">

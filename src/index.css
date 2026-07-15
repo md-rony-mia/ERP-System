@@ -37,6 +37,15 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* Premium Sidebar Mesh Gradient Background */
 .sidebar-mesh {
   background-color: #08090d;
