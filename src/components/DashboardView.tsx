@@ -5,6 +5,7 @@ import {
   Supplier,
   Customer,
 } from '../types';
+import FinanceDashboard from './FinanceDashboard';
 import * as Icons from 'lucide-react';
 import {
   TrendingUp,
@@ -805,6 +806,17 @@ export default function DashboardView({
   }
   if (activeSubTab === 'pinned') {
     return renderPinnedView();
+  }
+  if (activeSubTab === 'finance_dash') {
+    return (
+      <FinanceDashboard
+        invoices={invoices}
+        products={products}
+        suppliers={suppliers}
+        customers={customers}
+        onTabChange={onTabChange}
+      />
+    );
   }
 
   return (
