@@ -1052,7 +1052,20 @@ export default function BankingAndLoanView({
   const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileReader = new FileReader();
     if (e.target.files && e.target.files[0]) {
-      fileReader.readAsText(e.target.files[0], "UTF-8");
+      const file = e.target.files[0];
+
+      // Safe Confirmation gate requiring case-sensitive "RESTORE" word input
+      const userInput = window.prompt(
+        "সতর্কতা: ব্যাকআপ ফাইলটি ইম্পোর্ট করলে আপনার বর্তমান সমস্ত ডাটা ওভাররাইট হয়ে যাবে!\n\nডাটা রিস্টোর করার জন্য নিচে বড় হাতের অক্ষরে 'RESTORE' টাইপ করুন:"
+      );
+
+      if (userInput !== "RESTORE") {
+        alert("ডাটা রিস্টোর বাতিল করা হয়েছে বা ভুল ইনপুট দেওয়া হয়েছে। (Restore aborted or invalid input)");
+        e.target.value = ''; // reset the file input
+        return;
+      }
+
+      fileReader.readAsText(file, "UTF-8");
       fileReader.onload = (event) => {
         try {
           const parsed = JSON.parse(event.target?.result as string);

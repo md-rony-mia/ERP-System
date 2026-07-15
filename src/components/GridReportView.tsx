@@ -265,6 +265,7 @@ export default function GridReportView({
         }
       } catch (err) {
         console.error("Grid reports migration failed", err);
+        alert("গ্রিড রিপোর্টস ডাটা মাইগ্রেশন করতে ব্যর্থ হয়েছে। অনুগ্রহ করে পৃষ্ঠাটি রিফ্রেশ করুন। (Grid reports schema migration failed. Please refresh the page.)");
       } finally {
         setLoading(false);
       }

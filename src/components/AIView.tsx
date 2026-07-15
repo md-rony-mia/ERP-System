@@ -30,6 +30,12 @@ import {
 
 interface AIViewProps {
   activeSubTab?: string;
+  products?: any[];
+  customers?: any[];
+  suppliers?: any[];
+  invoices?: any[];
+  purchaseOrders?: any[];
+  bankAccounts?: any[];
 }
 
 interface Message {
@@ -48,16 +54,25 @@ interface Recommendation {
   status: 'Pending' | 'Applied';
 }
 
-export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
+export default function AIView({
+  activeSubTab = 'copilot',
+  products = [],
+  customers = [],
+  suppliers = [],
+  invoices = [],
+  purchaseOrders = [],
+  bankAccounts = [],
+}: AIViewProps) {
   const currentTab = ['copilot', 'forecast', 'recommendation', 'insights', 'ai_reports'].includes(activeSubTab)
     ? activeSubTab
     : 'copilot';
 
   // --- LOCAL PERSISTED / MOCK STATES ---
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', sender: 'assistant', text: 'Adu-bismillah! I am Nexova ERP AI assistant. How can I optimize your manufacturing operations, predict supply shortages, or scan financial deflections today?', timestamp: '10:00 AM' }
+    { id: '1', sender: 'assistant', text: 'আসসালামু আলাইকুম! আমি নেক্সোভা ইআরপি এআই অ্যাসিস্ট্যান্ট। কীভাবে আমি আপনার উৎপাদন কার্যকারিতা বাড়াতে, সাপ্লাই সংকট অনুমান করতে বা আর্থিক সামঞ্জস্য নিরীক্ষণ করতে সাহায্য করতে পারি?', timestamp: '10:00 AM' }
   ]);
   const [inputText, setInputText] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([
     { id: 'rec1', material: 'Gypsum Cement Stabilizer', currentSafety: 5, suggestedSafety: 15, reason: 'Q3 regional concrete demands are projected to surge by 32%. Increasing safety reserves prevents blending stoppages.', status: 'Pending' },
@@ -83,41 +98,81 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
     { week: 'Wk 29', price: 64100 } // price is dropping, perfect buy recommendation!
   ];
 
-  // --- ACTIONS ---
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const generateSystemInstruction = () => {
+    const stockSummary = products.length > 0 
+      ? products.slice(0, 10).map(p => `${p.name}: stock=${p.stock}, cost=৳${p.cost}`).join(', ') 
+      : 'No product data available';
+    const totalReceivables = customers.reduce((sum, c) => sum + (c.outstandingBalance || 0), 0);
+    const totalPayables = suppliers.reduce((sum, s) => sum + (s.outstandingBalance || 0), 0);
+    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const bankBalance = bankAccounts.reduce((sum, b) => sum + (b.balance || 0), 0);
 
+    return `You are Nexova ERP AI assistant, a highly professional AI agent designed to help optimize manufacturing, supply chains, sales, and financial margins for Nexova ERP Solution.
+You have access to the current live ERP state:
+- Top Products Stock: [${stockSummary}]
+- Accounts Receivable: ৳${totalReceivables.toLocaleString()} BDT
+- Accounts Payable: ৳${totalPayables.toLocaleString()} BDT
+- Total Invoiced Revenue: ৳${totalRevenue.toLocaleString()} BDT
+- Bank Balances: ৳${bankBalance.toLocaleString()} BDT
+
+Respond professionally, helpfully and constructively in Bengali and keep responses brief and focused on actionable business insights. Use BDT or BDT symbol ৳ where appropriate.`;
+  };
+
+  // --- ACTIONS ---
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim() || isGenerating) return;
+
+    const userText = inputText;
     const userMsg: Message = {
       id: `u_${Date.now()}`,
       sender: 'user',
-      text: inputText,
+      text: userText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
+    setIsGenerating(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      let reply = "I've analyzed the transactional database. All supply parameters are within tolerance, but coal raw reserves are lower than safety index parameters. Shall I draft a Purchase Order?";
-      const lower = userMsg.text.toLowerCase();
-      if (lower.includes('steel') || lower.includes('tmt')) {
-        reply = "TMT Steel Bar 12mm has a current production queue batch BCH-STL-202607-A with 150 Tons scheduled at Rolling Mill 01. Prices of billets are trending down by 5.2% over Wk 24-29.";
-      } else if (lower.includes('revenue') || lower.includes('sales') || lower.includes('forecast')) {
-        reply = "Estimated revenue for August is projected to grow to ৳3,500,000 BDT, driven by corporate supply deals with Baitul Mukarram Builders and Green City Complex.";
-      } else if (lower.includes('clinker') || lower.includes('cement')) {
-        reply = "Portland Composite Cement is currently queued for 50 lots at Blending Station 03. Raw clinker stock is 150 Tons. Suggested safety stock increase of gypsum from 5 to 15 Tons has been queued.";
+    // Place placeholder message for loading feedback
+    const placeholderId = `a_loading_${Date.now()}`;
+    const botPlaceholderMsg: Message = {
+      id: placeholderId,
+      sender: 'assistant',
+      text: 'AI চিন্তা করছে...',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages(prev => [...prev, botPlaceholderMsg]);
+
+    try {
+      const response = await fetch("/api/gemini/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: userText,
+          systemInstruction: generateSystemInstruction(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("API request failed");
       }
 
-      const botMsg: Message = {
-        id: `a_${Date.now()}`,
-        sender: 'assistant',
-        text: reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, botMsg]);
-    }, 1000);
+      const data = await response.json();
+      const reply = data.text || "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
+
+      setMessages(prev =>
+        prev.map(m => m.id === placeholderId ? { ...m, text: reply } : m)
+      );
+    } catch (err) {
+      console.error("AI View error calling Gemini proxy:", err);
+      setMessages(prev =>
+        prev.map(m => m.id === placeholderId ? { ...m, text: "AI সার্ভিস সাময়িকভাবে অনুপলব্ধ আছে।" } : m)
+      );
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleApplyRecommendation = (id: string) => {

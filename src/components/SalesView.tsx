@@ -3805,7 +3805,7 @@ export default function SalesView({
                             const discountPerPcs = item.discount || 0;
                             const netRateVal = item.netRate || item.price;
                             return (
-                              <tr key={index} className="hover:bg-slate-50/30">
+                              <tr key={`${item.productId}-${index}`} className="hover:bg-slate-50/30">
                                 <td className="py-2.5 px-2 text-center border-r border-dotted border-slate-400 font-semibold">{index + 1}</td>
                                 <td className="py-2.5 px-3 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2.5 px-2 text-center border-r border-dotted border-slate-400">{localGetItemClass(item.name)}</td>

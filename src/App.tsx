@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
-import InventoryView from './components/InventoryView';
-import SalesView from './components/SalesView';
-import PurchaseView from './components/PurchaseView';
-import EmployeeView from './components/EmployeeView';
+
+// Lazy load large per-module view components (>2000 lines) to support optimal bundle size split
+const InventoryView = lazy(() => import('./components/InventoryView'));
+const SalesView = lazy(() => import('./components/SalesView'));
+const PurchaseView = lazy(() => import('./components/PurchaseView'));
+const EmployeeView = lazy(() => import('./components/EmployeeView'));
+const BankingAndLoanView = lazy(() => import('./components/BankingAndLoanView'));
+const ReportsView = lazy(() => import('./components/ReportsView'));
+
 import AccountingView from './components/AccountingView';
-import BankingAndLoanView from './components/BankingAndLoanView';
-import ReportsView from './components/ReportsView';
 import GridReportView from './components/GridReportView';
 import RdlReportView from './components/RdlReportView';
 import Login from './components/Login';
@@ -63,6 +66,13 @@ import {
   INITIAL_ATTENDANCE,
   INITIAL_LOANS,
 } from './data';
+
+const LazyLoadingFallback = () => (
+  <div className="flex h-[450px] w-full flex-col items-center justify-center gap-3">
+    <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-indigo-600 animate-spin"></div>
+    <span className="text-xs text-slate-400 font-mono">মডিউল লোড হচ্ছে...</span>
+  </div>
+);
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
@@ -838,59 +848,67 @@ export default function App() {
 
           {currentTab === 'inventory' && (
             <ErrorBoundary variant="section" sectionName="Inventory Module">
-              <InventoryView
-                products={products}
-                onAddProduct={handleAddProduct}
-                onUpdateStock={handleEditStock}
-                onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
-                activeSubTab={currentSubTab}
-                onUpdateProducts={setProducts}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <InventoryView
+                  products={products}
+                  onAddProduct={handleAddProduct}
+                  onUpdateStock={handleEditStock}
+                  onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
+                  activeSubTab={currentSubTab}
+                  onUpdateProducts={setProducts}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
           {currentTab === 'sales' && (
             <ErrorBoundary variant="section" sectionName="Sales & Billing Module">
-              <SalesView
-                products={products}
-                customers={customers}
-                invoices={invoices}
-                onAddInvoice={handleAddInvoice}
-                onAddCustomer={handleAddCustomer}
-                onUpdateCustomers={setCustomers}
-                onRecordCollection={handleRecordCollection}
-                activeSubTab={currentSubTab}
-                onSubTabChange={setCurrentSubTab}
-                settings={settings}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <SalesView
+                  products={products}
+                  customers={customers}
+                  invoices={invoices}
+                  onAddInvoice={handleAddInvoice}
+                  onAddCustomer={handleAddCustomer}
+                  onUpdateCustomers={setCustomers}
+                  onRecordCollection={handleRecordCollection}
+                  activeSubTab={currentSubTab}
+                  onSubTabChange={setCurrentSubTab}
+                  settings={settings}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
           {currentTab === 'purchase' && (
             <ErrorBoundary variant="section" sectionName="Purchase & Inbound Module">
-              <PurchaseView
-                suppliers={suppliers}
-                purchaseOrders={purchaseOrders}
-                products={products}
-                onAddSupplier={handleAddSupplier}
-                onUpdateSuppliers={setSuppliers}
-                onAddPurchaseOrder={handleAddPurchaseOrder}
-                onReceivePurchaseOrder={handleReceivePurchaseOrder}
-                activeSubTab={currentSubTab}
-                onTabChange={handleTabChange}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <PurchaseView
+                  suppliers={suppliers}
+                  purchaseOrders={purchaseOrders}
+                  products={products}
+                  onAddSupplier={handleAddSupplier}
+                  onUpdateSuppliers={setSuppliers}
+                  onAddPurchaseOrder={handleAddPurchaseOrder}
+                  onReceivePurchaseOrder={handleReceivePurchaseOrder}
+                  activeSubTab={currentSubTab}
+                  onTabChange={handleTabChange}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
           {currentTab === 'employee' && (
             <ErrorBoundary variant="section" sectionName="HR & Employee Management Module">
-              <EmployeeView
-                employees={employees}
-                attendances={attendances}
-                onAddEmployee={handleAddEmployee}
-                onUpdateAttendance={handleUpdateAttendance}
-                activeSubTab={currentSubTab}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <EmployeeView
+                  employees={employees}
+                  attendances={attendances}
+                  onAddEmployee={handleAddEmployee}
+                  onUpdateAttendance={handleUpdateAttendance}
+                  activeSubTab={currentSubTab}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
@@ -912,44 +930,48 @@ export default function App() {
 
           {(currentTab === 'banking' || currentTab === 'loan' || currentTab === 'settings') && (
             <ErrorBoundary variant="section" sectionName="Banking, Loans & Settings Module">
-              <BankingAndLoanView
-                bankAccounts={bankAccounts}
-                loanAccounts={loanAccounts}
-                transactions={transactions}
-                currentTab={currentTab as 'banking' | 'loan' | 'settings'}
-                activeSubTab={currentSubTab}
-                onAddBankAccount={handleAddBankAccount}
-                onAddLoan={handleAddLoan}
-                settings={settings}
-                onUpdateSettings={handleUpdateSettings}
-                onResetData={handleResetData}
-                onImportData={handleImportData}
-                systemData={systemData}
-                currentUser={currentUser}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <BankingAndLoanView
+                  bankAccounts={bankAccounts}
+                  loanAccounts={loanAccounts}
+                  transactions={transactions}
+                  currentTab={currentTab as 'banking' | 'loan' | 'settings'}
+                  activeSubTab={currentSubTab}
+                  onAddBankAccount={handleAddBankAccount}
+                  onAddLoan={handleAddLoan}
+                  settings={settings}
+                  onUpdateSettings={handleUpdateSettings}
+                  onResetData={handleResetData}
+                  onImportData={handleImportData}
+                  systemData={systemData}
+                  currentUser={currentUser}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
           {currentTab === 'reports' && (
             <ErrorBoundary variant="section" sectionName="Standard PDF & Ledger Reports Module">
-              <ReportsView
-                products={products}
-                customers={customers}
-                suppliers={suppliers}
-                invoices={invoices}
-                purchaseOrders={purchaseOrders}
-                bankAccounts={bankAccounts}
-                transactions={transactions}
-                accountHeads={accountHeads}
-                employees={employees}
-                activeSubTab={currentSubTab}
-                currentUser={currentUser}
-                onUpdateInvoices={setInvoices}
-                onUpdateTransactions={setTransactions}
-                onUpdatePurchaseOrders={setPurchaseOrders}
-                onUpdateCustomers={setCustomers}
-                onUpdateSuppliers={setSuppliers}
-              />
+              <Suspense fallback={<LazyLoadingFallback />}>
+                <ReportsView
+                  products={products}
+                  customers={customers}
+                  suppliers={suppliers}
+                  invoices={invoices}
+                  purchaseOrders={purchaseOrders}
+                  bankAccounts={bankAccounts}
+                  transactions={transactions}
+                  accountHeads={accountHeads}
+                  employees={employees}
+                  activeSubTab={currentSubTab}
+                  currentUser={currentUser}
+                  onUpdateInvoices={setInvoices}
+                  onUpdateTransactions={setTransactions}
+                  onUpdatePurchaseOrders={setPurchaseOrders}
+                  onUpdateCustomers={setCustomers}
+                  onUpdateSuppliers={setSuppliers}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
 
@@ -1024,7 +1046,15 @@ export default function App() {
 
           {currentTab === 'ai' && (
             <ErrorBoundary variant="section" sectionName="Gemini AI Assistant Module">
-              <AIView activeSubTab={currentSubTab} />
+              <AIView
+                activeSubTab={currentSubTab}
+                products={products}
+                customers={customers}
+                suppliers={suppliers}
+                invoices={invoices}
+                purchaseOrders={purchaseOrders}
+                bankAccounts={bankAccounts}
+              />
             </ErrorBoundary>
           )}
 

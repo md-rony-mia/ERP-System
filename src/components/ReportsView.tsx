@@ -712,9 +712,10 @@ export default function ReportsView({
     const totalAssets = currentCash + receivables + inventoryVal;
 
     // Liabilities & Equity
-    const payables = suppliers.reduce((sum, s) => sum + (s.id.charCodeAt(0) * 1200), 0); // simulated standard supplier outstanding
-    const ownerEquity = 3000000; // standard starting base equity
+    const payables = suppliers.reduce((sum, s) => sum + (s.outstandingBalance || 0), 0);
     const retainedEarnings = invoices.reduce((sum, inv) => sum + inv.total, 0) - purchaseOrders.reduce((sum, po) => sum + po.total, 0);
+    const equityFromHeads = accountHeads.filter(h => h.type === 'Equity').reduce((sum, h) => sum + h.balance, 0);
+    const ownerEquity = equityFromHeads > 0 ? equityFromHeads : (totalAssets - (payables + retainedEarnings));
     const totalLiabilitiesEquity = payables + ownerEquity + retainedEarnings;
 
     return (
@@ -922,7 +923,7 @@ export default function ReportsView({
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                 {suppliers.map((s) => {
-                  const bal = s.id.charCodeAt(0) * 1200; // simulated standard supplier outstanding
+                  const bal = s.outstandingBalance || 0;
                   const bucket1 = Math.round(bal * 0.5);
                   const bucket2 = Math.round(bal * 0.3);
                   const bucket3 = Math.round(bal * 0.2);

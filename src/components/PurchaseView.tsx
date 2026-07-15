@@ -2813,7 +2813,7 @@ export default function PurchaseView({
                       {newQuoteItemsList.length > 0 && (
                         <div className="mt-3 bg-white border border-slate-150 rounded-lg p-2 space-y-1 max-h-24 overflow-y-auto">
                           {newQuoteItemsList.map((itm, index) => (
-                            <div key={index} className="flex justify-between items-center text-[11px] font-medium text-slate-700 py-1 border-b border-slate-50 last:border-b-0">
+                            <div key={`${itm.productName}-${index}`} className="flex justify-between items-center text-[11px] font-medium text-slate-700 py-1 border-b border-slate-50 last:border-b-0">
                               <span>• {itm.productName} ({itm.qty} Units)</span>
                               <div className="flex items-center gap-3">
                                 <span className="font-bold text-slate-800">৳{(itm.qty * itm.finalPrice).toLocaleString()}</span>
