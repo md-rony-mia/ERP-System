@@ -68,23 +68,18 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
     if (activeLanguage === 'bn') {
       const bnMap: Record<string, string> = {
         'Dashboard': 'ড্যাশবোর্ড',
-        'Inventory': 'ইনভেন্টরি',
-        'Warehouse': 'গুদামজাতকরণ',
-        'Purchase': 'ক্রয় মডিউল',
         'Sales': 'বিক্রয় মডিউল',
+        'Purchase': 'ক্রয় মডিউল',
+        'Inventory': 'ইনভেন্টরি',
         'Accounting': 'হিসাববিজ্ঞান',
-        'CRM': 'সিআরএম',
-        'HR': 'মানব সম্পদ',
+        'CRM': 'গ্রাহক সম্পর্ক (CRM)',
+        'HRM': 'কর্মী ব্যবস্থাপনা (HRM)',
         'Projects': 'প্রকল্পসমূহ',
-        'Manufacturing': 'উৎপাদন',
-        'Service': 'সেবাসমূহ',
-        'Documents': 'নথিপত্র',
-        'Workflow': 'ওয়ার্কফ্লো',
-        'Reports': 'প্রতিবেদন',
-        'AI': 'এআই সহকারী',
-        'Integration': 'ইন্টিগ্রেশন',
+        'Assets': 'সম্পদ ও লিজ',
+        'Manufacturing': 'উৎপাদন মডিউল',
+        'Reports': 'প্রতিবেদনসমূহ',
         'Administration': 'প্রশাসন',
-        'System': 'সিস্টেম',
+        'Settings': 'সেটিংস',
       };
       return bnMap[group.label] || group.label;
     }
@@ -345,10 +340,10 @@ export default function Sidebar({ currentTab, currentSubTab, onTabChange }: Side
           const groupItems = items.filter((item) => item.groupId === group.id);
           if (groupItems.length === 0) return null;
 
-          const isExpanded = !!expandedGroups[group.id] || searchQuery !== '';
           const hasSelectedChild = groupItems.some(
             (item) => currentTab === item.tab && currentSubTab === item.subTab
           );
+          const isExpanded = !!expandedGroups[group.id] || hasSelectedChild || searchQuery !== '';
 
           if (isCollapsed) {
             return (

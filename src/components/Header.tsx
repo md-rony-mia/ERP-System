@@ -65,6 +65,14 @@ export default function Header({
       settings: 'Settings',
       employee: 'Employee',
       salary: 'Salary',
+      crm: 'CRM',
+      projects: 'Projects',
+      manufacturing: 'Manufacturing',
+      service: 'Service & RMA',
+      documents: 'Document Center',
+      workflow: 'Workflow Approval',
+      ai: 'AI Assistant',
+      integration: 'System Integration',
     };
     return labels[tab] || tab;
   };
