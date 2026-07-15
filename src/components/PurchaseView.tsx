@@ -26,6 +26,7 @@ import {
   Eye,
   RefreshCw,
   Zap,
+  Trash2,
 } from 'lucide-react';
 
 interface PurchaseViewProps {
@@ -38,6 +39,7 @@ interface PurchaseViewProps {
   onReceivePurchaseOrder: (poId: string) => void;
   activeSubTab?: string;
   onTabChange?: (tab: string, subTab?: string) => void;
+  currentUser?: any;
 }
 
 export default function PurchaseView({
@@ -50,6 +52,7 @@ export default function PurchaseView({
   onReceivePurchaseOrder,
   activeSubTab = 'purchase_orders',
   onTabChange,
+  currentUser,
 }: PurchaseViewProps) {
   // Bind current selected view directly to activeSubTab
   const currentTab = [
@@ -1063,6 +1066,7 @@ export default function PurchaseView({
                   <th className="py-3.5 px-6">Contact Channels</th>
                   <th className="py-3.5 px-6">Supplier Segment</th>
                   <th className="py-3.5 px-6 text-right">Ledger Balance</th>
+                  <th className="py-3.5 px-6 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1086,6 +1090,44 @@ export default function PurchaseView({
                         </span>
                       </td>
                       <td className="py-4 px-6 text-right font-black text-rose-600">৳{sup.outstandingBalance.toLocaleString()}</td>
+                      <td className="py-4 px-6 text-center">
+                        <button
+                          onClick={() => {
+                            if (currentUser?.role !== 'Administrator') {
+                              alert('দুঃখিত, শুধুমাত্র সিস্টেম এডমিনিস্ট্রেটররাই সরবরাহকারী মুছে ফেলতে পারবেন। / Sorry, only active system Administrators can delete supplier records.');
+                              return;
+                            }
+
+                            const hasPurchaseRef = purchaseOrders.some(po => String(po.supplierId) === String(sup.id));
+                            if (hasPurchaseRef) {
+                              const reasons = ['ক্রয় অর্ডার রেকর্ড (Purchase Orders)'];
+                              alert(
+                                `দুঃখিত, এই সরবরাহকারীটি (${sup.name}) ডিলিট করা সম্ভব নয় কারণ নিচের ট্রানজেকশনে এর রেফারেন্স রয়েছে:\n\n1. ${reasons[0]}\n\nসিস্টেমের ডাটা ইন্টিগ্রিটির জন্য এটি ডিলিট করা সম্পূর্ণ ব্লক করা হয়েছে।\n\n/ Sorry, this supplier (${sup.name}) cannot be deleted because they are referenced in the following transactions:\n\n1. ${reasons[0]}\n\nDeletion is strictly blocked to maintain system integrity.`
+                              );
+                              return;
+                            }
+
+                            if (window.confirm(`আপনি কি নিশ্চিত যে আপনি "${sup.name}" সরবরাহকারীটি মুছে ফেলতে চান?\n\nAre you sure you want to delete this supplier?`)) {
+                              if (onUpdateSuppliers) {
+                                const updated = suppliers.filter(s => String(s.id) !== String(sup.id));
+                                onUpdateSuppliers(updated);
+                              }
+                            }
+                          }}
+                          className={`p-1.5 rounded transition-colors cursor-pointer ${
+                            currentUser?.role === 'Administrator'
+                              ? 'hover:bg-rose-50 text-rose-600'
+                              : 'text-slate-300 hover:bg-slate-50'
+                          }`}
+                          title={
+                            currentUser?.role === 'Administrator'
+                              ? 'Delete Supplier'
+                              : 'Only Administrators can delete this record'
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
               </tbody>

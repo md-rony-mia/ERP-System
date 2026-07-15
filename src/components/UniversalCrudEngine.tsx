@@ -107,6 +107,13 @@ export interface FieldDef {
   subFields?: FieldDef[];
 }
 
+export interface DeleteBlockingRule {
+  localStorageKey: string;
+  referenceField: string;
+  entityLabelEn: string;
+  entityLabelBn: string;
+}
+
 export interface ModuleConfig {
   moduleKey: string;
   moduleName: string;
@@ -114,6 +121,7 @@ export interface ModuleConfig {
   primaryKey: string;
   fields: FieldDef[];
   workflowStatuses?: string[];
+  deleteBlockingRules?: DeleteBlockingRule[];
 }
 
 export interface AuditEntry {
@@ -853,6 +861,34 @@ export default function UniversalCrudEngine({
     }
     const record = data.find((r) => r[primaryKey] === id);
     if (!record) return;
+
+    // --- GENERIC TRANSACTION REFERENCE SAFETY CHECKS ---
+    if (config.deleteBlockingRules && config.deleteBlockingRules.length > 0) {
+      for (const rule of config.deleteBlockingRules) {
+        try {
+          const rawRefData = localStorage.getItem(rule.localStorageKey);
+          if (rawRefData) {
+            const parsedRefData = JSON.parse(rawRefData);
+            if (Array.isArray(parsedRefData)) {
+              const hasReference = parsedRefData.some((item: any) => String(item[rule.referenceField]) === String(id));
+              if (hasReference) {
+                alert(
+                  `দুঃখিত, এই রেকর্ডটি (${name}) ডিলিট করা সম্ভব নয় কারণ এটি নিম্নোক্ত ট্রানজেকশনে ব্যবহৃত হচ্ছে:\n\n` +
+                  `* ${rule.entityLabelBn} (${rule.entityLabelEn})\n\n` +
+                  `সিস্টেমের ডাটা ইন্টিগ্রিটির জন্য এটি ডিলিট করা সম্পূর্ণ ব্লক করা হয়েছে।\n\n` +
+                  `/ Sorry, this record (${name}) cannot be deleted because it is referenced in the following operational data:\n\n` +
+                  `* ${rule.entityLabelEn} (${rule.entityLabelBn})\n\n` +
+                  `Deletion is strictly blocked to maintain database integrity.`
+                );
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to run delete blocking rule check:", rule, e);
+        }
+      }
+    }
 
     if (confirm(`Are you sure you want to permanently delete record "${name}"? This is completely irreversible and logs auditing flags.`)) {
       const updated = data.filter((r) => r[primaryKey] !== id);

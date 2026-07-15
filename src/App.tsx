@@ -856,6 +856,9 @@ export default function App() {
                   onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
                   activeSubTab={currentSubTab}
                   onUpdateProducts={setProducts}
+                  currentUser={currentUser}
+                  invoices={invoices}
+                  purchaseOrders={purchaseOrders}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -875,6 +878,7 @@ export default function App() {
                   activeSubTab={currentSubTab}
                   onSubTabChange={setCurrentSubTab}
                   settings={settings}
+                  currentUser={currentUser}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -893,6 +897,7 @@ export default function App() {
                   onReceivePurchaseOrder={handleReceivePurchaseOrder}
                   activeSubTab={currentSubTab}
                   onTabChange={handleTabChange}
+                  currentUser={currentUser}
                 />
               </Suspense>
             </ErrorBoundary>

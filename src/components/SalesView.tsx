@@ -34,6 +34,7 @@ interface SalesViewProps {
   activeSubTab?: string;
   onSubTabChange?: (tab: string) => void;
   settings?: AppSettings;
+  currentUser?: any;
 }
 
 export default function SalesView({
@@ -47,6 +48,7 @@ export default function SalesView({
   activeSubTab = 'pos',
   onSubTabChange,
   settings,
+  currentUser,
 }: SalesViewProps) {
   // Map activeSubTab to local salesTab routing
   const salesTab = [
@@ -1534,6 +1536,7 @@ export default function SalesView({
                   <th className="py-3 px-4">Group Classification</th>
                   <th className="py-3 px-4 text-right">Outstanding Credit</th>
                   <th className="py-3 px-4 text-right">Collection Activity</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1563,6 +1566,44 @@ export default function SalesView({
                           CLEAN LEDGER
                         </span>
                       )}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        onClick={() => {
+                          if (currentUser?.role !== 'Administrator') {
+                            alert('দুঃখিত, শুধুমাত্র সিস্টেম এডমিনিস্ট্রেটররাই কাস্টমার মুছে ফেলতে পারবেন। / Sorry, only active system Administrators can delete customer records.');
+                            return;
+                          }
+
+                          const hasInvoiceRef = invoices.some(inv => String(inv.customerId) === String(c.id));
+                          if (hasInvoiceRef) {
+                            const reasons = ['বিক্রয় চালান রেকর্ড (Sales Invoices)'];
+                            alert(
+                              `দুঃখিত, এই কাস্টমারটি (${c.name}) ডিলিট করা সম্ভব নয় কারণ নিচের ট্রানজেকশনে এর রেফারেন্স রয়েছে:\n\n1. ${reasons[0]}\n\nসিস্টেমের ডাটা ইন্টিগ্রিটির জন্য এটি ডিলিট করা সম্পূর্ণ ব্লক করা হয়েছে।\n\n/ Sorry, this customer (${c.name}) cannot be deleted because they are referenced in the following transactions:\n\n1. ${reasons[0]}\n\nDeletion is strictly blocked to maintain system integrity.`
+                            );
+                            return;
+                          }
+
+                          if (window.confirm(`আপনি কি নিশ্চিত যে আপনি "${c.name}" কাস্টমারটি মুছে ফেলতে চান?\n\nAre you sure you want to delete this customer?`)) {
+                            if (onUpdateCustomers) {
+                              const updated = customers.filter(cust => String(cust.id) !== String(c.id));
+                              onUpdateCustomers(updated);
+                            }
+                          }
+                        }}
+                        className={`p-1.5 rounded transition-colors cursor-pointer ${
+                          currentUser?.role === 'Administrator'
+                            ? 'hover:bg-rose-50 text-rose-600'
+                            : 'text-slate-300 hover:bg-slate-50'
+                        }`}
+                        title={
+                          currentUser?.role === 'Administrator'
+                            ? 'Delete Customer'
+                            : 'Only Administrators can delete this record'
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}

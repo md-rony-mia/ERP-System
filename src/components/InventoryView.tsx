@@ -89,6 +89,9 @@ interface InventoryViewProps {
   onDeleteProduct: (productId: string) => void;
   activeSubTab?: string;
   onUpdateProducts?: (products: Product[]) => void;
+  currentUser?: any;
+  invoices?: any[];
+  purchaseOrders?: any[];
 }
 
 export default function InventoryView({
@@ -98,6 +101,9 @@ export default function InventoryView({
   onDeleteProduct,
   activeSubTab = 'products',
   onUpdateProducts,
+  currentUser,
+  invoices = [],
+  purchaseOrders = [],
 }: InventoryViewProps) {
   // Navigation mapping if activeSubTab is parsed
   const currentTab = [
@@ -1430,17 +1436,36 @@ export default function InventoryView({
                                 >
                                   <Edit3 className="h-3.5 w-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => {
-                                    if (confirm('Delete this product from catalog?')) {
-                                      onDeleteProduct(p.id);
-                                    }
-                                  }}
-                                  className="p-1.5 hover:bg-rose-50 text-rose-600 rounded transition-colors cursor-pointer"
-                                  title="Delete Product"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                {currentUser?.role === 'Administrator' && (
+                                  <button
+                                    onClick={() => {
+                                      const hasInvoiceRef = invoices.some(inv => 
+                                        inv.items?.some((item: any) => String(item.productId) === String(p.id))
+                                      );
+                                      const hasPurchaseRef = purchaseOrders.some(po => 
+                                        po.items?.some((item: any) => String(item.productId) === String(p.id))
+                                      );
+
+                                      if (hasInvoiceRef || hasPurchaseRef) {
+                                        const reasons = [];
+                                        if (hasInvoiceRef) reasons.push('বিক্রয় চালান রেকর্ড (Sales Invoices)');
+                                        if (hasPurchaseRef) reasons.push('ক্রয় অর্ডার রেকর্ড (Purchase Orders)');
+                                        alert(
+                                          `দুঃখিত, এই পণ্যটি (${p.name}) ডিলিট করা সম্ভব নয় কারণ নিচের ট্রানজেকশনে এর রেফারেন্স রয়েছে:\n\n${reasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\nসিস্টেমের ডাটা ইন্টিগ্রিটির জন্য এটি ডিলিট করা সম্পূর্ণ ব্লক করা হয়েছে।\n\n/ Sorry, this product (${p.name}) cannot be deleted because it is referenced in the following transactions:\n\n${reasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n\nDeletion is strictly blocked to maintain system integrity.`
+                                        );
+                                        return;
+                                      }
+
+                                      if (window.confirm(`আপনি কি নিশ্চিত যে আপনি "${p.name}" পণ্যটি ক্যাটালগ থেকে মুছে ফেলতে চান?\n\nAre you sure you want to delete this product from the catalog?`)) {
+                                        onDeleteProduct(p.id);
+                                      }
+                                    }}
+                                    className="p-1.5 hover:bg-rose-50 text-rose-600 rounded transition-colors cursor-pointer"
+                                    title="Delete Product"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           )}

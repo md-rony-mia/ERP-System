@@ -35,7 +35,15 @@ export const LEADS_CONFIG: ModuleConfig = {
     },
     { key: 'notes', label: 'Lead Requirements & Notes', type: 'textarea' }
   ],
-  workflowStatuses: ['Draft', 'Submitted', 'Pending Approval', 'Approved']
+  workflowStatuses: ['Draft', 'Submitted', 'Pending Approval', 'Approved'],
+  deleteBlockingRules: [
+    {
+      localStorageKey: 'nexova_crm_activities',
+      referenceField: 'leadId',
+      entityLabelEn: 'CRM Lead Activities',
+      entityLabelBn: 'সিআরএম লিড অ্যাক্টিভিটিস'
+    }
+  ]
 };
 
 export const EMPLOYEES_CONFIG: ModuleConfig = {
@@ -76,7 +84,27 @@ export const EMPLOYEES_CONFIG: ModuleConfig = {
     },
     { key: 'joiningDate', label: 'Date of Joining', type: 'date', required: true }
   ],
-  workflowStatuses: ['Draft', 'Submitted', 'Pending Approval', 'Approved']
+  workflowStatuses: ['Draft', 'Submitted', 'Pending Approval', 'Approved'],
+  deleteBlockingRules: [
+    {
+      localStorageKey: 'nexova_hr_attendance',
+      referenceField: 'employeeId',
+      entityLabelEn: 'Attendance Records',
+      entityLabelBn: 'উপস্থিতি রেকর্ড'
+    },
+    {
+      localStorageKey: 'nexova_hr_leaves',
+      referenceField: 'employeeId',
+      entityLabelEn: 'Leave Applications',
+      entityLabelBn: 'ছুটির আবেদনসমূহ'
+    },
+    {
+      localStorageKey: 'nexova_hr_appraisals',
+      referenceField: 'employeeId',
+      entityLabelEn: 'Performance Appraisals',
+      entityLabelBn: 'কর্মদক্ষতা মূল্যায়ন'
+    }
+  ]
 };
 
 export const FIXED_ASSETS_CONFIG: ModuleConfig = {
