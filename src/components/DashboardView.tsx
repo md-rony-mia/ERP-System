@@ -1118,6 +1118,54 @@ export default function DashboardView({
                     <MiniSparkline color="#f97316" seed={6} />
                   </div>
                 </div>
+
+                {/* Chip 7: Total Customers */}
+                <div 
+                  onClick={() => onTabChange('sales', 'customers')}
+                  className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-indigo-500 overflow-hidden relative"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-indigo-50 text-indigo-500 border border-indigo-100 flex items-center justify-center shrink-0">
+                      <Icons.Users className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Total Customers</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        <AnimatedNumber value={customers.length} />
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Growth Rate</span>
+                    <MiniSparkline color="#6366f1" seed={7} />
+                  </div>
+                </div>
+
+                {/* Chip 8: Total Suppliers */}
+                <div 
+                  onClick={() => onTabChange('purchase', 'suppliers')}
+                  className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-cyan-500 overflow-hidden relative"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-cyan-50 text-cyan-500 border border-cyan-100 flex items-center justify-center shrink-0">
+                      <Icons.Truck className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Total Suppliers</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        <AnimatedNumber value={suppliers.length} />
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Coverage</span>
+                    <MiniSparkline color="#06b6d4" seed={8} />
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -1355,66 +1403,76 @@ export default function DashboardView({
                   {/* Center Button: POS Checkout (larger with dynamic pulse shadow) */}
                   <div
                     onClick={() => onTabChange('sales', 'pos')}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 group cursor-pointer flex flex-col items-center"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-18 h-18 z-30 group cursor-pointer"
                   >
-                    <div className="h-18 w-18 rounded-full bg-gradient-to-tr from-brand-orange to-amber-500 hover:scale-110 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] flex items-center justify-center border-4 border-[#10121d]">
-                      <Icons.ShoppingBag className="h-7 w-7 text-white" />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="h-18 w-18 rounded-full bg-gradient-to-tr from-brand-orange to-amber-500 hover:scale-110 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] flex items-center justify-center border-4 border-[#10121d]">
+                        <Icons.ShoppingBag className="h-7 w-7 text-white" />
+                      </div>
+                      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[10px] font-black tracking-wider uppercase text-brand-orange px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100 z-50">
+                        POS Checkout
+                      </span>
                     </div>
-                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[10px] font-black tracking-wider uppercase text-brand-orange px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      POS Checkout
-                    </span>
                   </div>
 
                   {/* Top-Left Orbit: Add Product */}
                   <div
                     onClick={() => onTabChange('inventory', 'products')}
-                    className="absolute top-4 left-6 z-20 group cursor-pointer flex flex-col items-center"
+                    className="absolute top-4 left-6 w-12 h-12 z-20 group cursor-pointer"
                   >
-                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-brand-orange text-white flex items-center justify-center border border-slate-700 hover:border-brand-orange shadow-lg hover:scale-105 transition-all duration-300">
-                      <Icons.Boxes className="h-5 w-5" />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-brand-orange text-white flex items-center justify-center border border-slate-700 hover:border-brand-orange shadow-lg hover:scale-105 transition-all duration-300">
+                        <Icons.Boxes className="h-5 w-5" />
+                      </div>
+                      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100 z-50">
+                        Add Product
+                      </span>
                     </div>
-                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
-                      Add Product
-                    </span>
                   </div>
 
                   {/* Top-Right Orbit: Add Customer */}
                   <div
                     onClick={() => onTabChange('sales', 'customers')}
-                    className="absolute top-4 right-6 z-20 group cursor-pointer flex flex-col items-center"
+                    className="absolute top-4 right-6 w-12 h-12 z-20 group cursor-pointer"
                   >
-                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-indigo-600 text-white flex items-center justify-center border border-slate-700 hover:border-indigo-600 shadow-lg hover:scale-105 transition-all duration-300">
-                      <Icons.UserPlus className="h-5 w-5" />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-indigo-600 text-white flex items-center justify-center border border-slate-700 hover:border-indigo-600 shadow-lg hover:scale-105 transition-all duration-300">
+                        <Icons.UserPlus className="h-5 w-5" />
+                      </div>
+                      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100 z-50">
+                        New Customer
+                      </span>
                     </div>
-                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
-                      New Customer
-                    </span>
                   </div>
 
                   {/* Bottom-Left Orbit: Purchase Order */}
                   <div
                     onClick={() => onTabChange('purchase', 'purchase_orders')}
-                    className="absolute bottom-4 left-6 z-20 group cursor-pointer flex flex-col items-center"
+                    className="absolute bottom-4 left-6 w-12 h-12 z-20 group cursor-pointer"
                   >
-                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-emerald-600 text-white flex items-center justify-center border border-slate-700 hover:border-emerald-600 shadow-lg hover:scale-105 transition-all duration-300">
-                      <Icons.ArrowRightLeft className="h-5 w-5" />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-emerald-600 text-white flex items-center justify-center border border-slate-700 hover:border-emerald-600 shadow-lg hover:scale-105 transition-all duration-300">
+                        <Icons.ArrowRightLeft className="h-5 w-5" />
+                      </div>
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100 z-50">
+                        Procure Items
+                      </span>
                     </div>
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
-                      Procure Items
-                    </span>
                   </div>
 
                   {/* Bottom-Right Orbit: Favorites Menu */}
                   <div
                     onClick={() => onTabChange('dashboard', 'favorites')}
-                    className="absolute bottom-4 right-6 z-20 group cursor-pointer flex flex-col items-center"
+                    className="absolute bottom-4 right-6 w-12 h-12 z-20 group cursor-pointer"
                   >
-                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-amber-500 text-white flex items-center justify-center border border-slate-700 hover:border-amber-500 shadow-lg hover:scale-105 transition-all duration-300">
-                      <Icons.Star className="h-5 w-5" />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-amber-500 text-white flex items-center justify-center border border-slate-700 hover:border-amber-500 shadow-lg hover:scale-105 transition-all duration-300">
+                        <Icons.Star className="h-5 w-5" />
+                      </div>
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100 z-50">
+                        Bookmark Menu
+                      </span>
                     </div>
-                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
-                      Bookmark Menu
-                    </span>
                   </div>
                 </div>
               </div>
