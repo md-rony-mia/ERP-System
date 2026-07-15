@@ -236,7 +236,7 @@ export default function UniversalCrudEngine({
 
   // --- ADVANCED SEARCH BUILDER ---
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<{ field: string; operator: string; value: string }[]>([]);
+  const [advancedFilters, setAdvancedFilters] = useState<{ id: string; field: string; operator: string; value: string }[]>([]);
 
   // --- REVISION HISTORY & AUDIT ---
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
@@ -268,7 +268,10 @@ export default function UniversalCrudEngine({
           const legacyData = localStorage.getItem(`nexova_crud_${moduleKey}`);
           let initialData = initialSeedData || getSeedDataForModule(moduleKey);
           if (legacyData) {
-            try { initialData = JSON.parse(legacyData); } catch (e) { console.error(e); }
+            try { initialData = JSON.parse(legacyData); } catch (e) {
+              // Intentionally silent: legacy local CRUD migration parse error fallback
+              console.error(e);
+            }
           }
           const seeded = await seedCollectionIfEmpty(moduleKey, initialData);
           setData(seeded || []);
@@ -282,6 +285,7 @@ export default function UniversalCrudEngine({
             try {
               setData(JSON.parse(savedData));
             } catch (e) {
+              // Intentionally silent: legacy local saved CRUD parse error fallback
               console.error(e);
             }
           } else {
@@ -291,6 +295,7 @@ export default function UniversalCrudEngine({
           }
         }
       } catch (err) {
+        // Intentionally silent: background data migration on mount of dynamic CRUD module
         console.error("Failed to load / migrate CRUD collection:", moduleKey, err);
       } finally {
         setLoading(false);
@@ -1081,6 +1086,7 @@ export default function UniversalCrudEngine({
                     {log.changes && log.changes.length > 0 && (
                       <div className="mt-1.5 pl-2.5 border-l-2 border-indigo-900/60 text-slate-400 space-y-0.5 text-[9px]">
                         {log.changes.map((ch, i) => (
+                          // index key safe: fixed-order static list
                           <div key={i}>Altered [<strong>{ch.field}</strong>]: "{String(ch.oldValue ?? '')}" ➔ "<span className="text-indigo-400 font-bold">{String(ch.newValue ?? '')}</span>"</div>
                         ))}
                       </div>
@@ -1262,7 +1268,7 @@ export default function UniversalCrudEngine({
 
             <div className="space-y-2">
               {advancedFilters.map((f, index) => (
-                <div key={index} className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 text-xs">
+                <div key={f.id} className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-slate-200 text-xs">
                   <select
                     value={f.field}
                     onChange={(e) => {
@@ -1309,7 +1315,7 @@ export default function UniversalCrudEngine({
                   />
 
                   <button
-                    onClick={() => setAdvancedFilters(advancedFilters.filter((_, idx) => idx !== index))}
+                    onClick={() => setAdvancedFilters(advancedFilters.filter((item) => item.id !== f.id))}
                     className="text-rose-500 hover:text-rose-700 p-1"
                   >
                     <X className="h-4 w-4" />
@@ -1319,7 +1325,7 @@ export default function UniversalCrudEngine({
             </div>
 
             <button
-              onClick={() => setAdvancedFilters([...advancedFilters, { field: fields[0]?.key || '', operator: 'contains', value: '' }])}
+              onClick={() => setAdvancedFilters([...advancedFilters, { id: Math.random().toString(), field: fields[0]?.key || '', operator: 'contains', value: '' }])}
               className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 text-[10px] font-bold"
             >
               <PlusCircle className="h-3.5 w-3.5" />

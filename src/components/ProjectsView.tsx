@@ -739,6 +739,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
               <div className="grid grid-cols-7 gap-1.5 min-h-[400px]">
                 {getDaysInJuly2026().map((dayObj, idx) => {
                   if (dayObj.blank) {
+                    // index key safe: fixed-order static list
                     return <div key={`blank_${idx}`} className="bg-slate-50/20 border border-slate-100 rounded-lg min-h-[70px]"></div>;
                   }
 

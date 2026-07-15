@@ -204,6 +204,7 @@ export default function RdlReportView({
           localStorage.removeItem('nexova_rdl_templates');
         }
       } catch (err) {
+        // Intentionally silent: background local data migration fallback on component load
         console.error("RDL templates migration failed", err);
       } finally {
         setLoading(false);

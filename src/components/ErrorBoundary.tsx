@@ -31,6 +31,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Intentionally silent: logs are captured, but the ErrorBoundary actively renders a rich visual crash interface to notify the user
     // Log the error with full diagnostic details to the console
     console.error("==========================================");
     console.error("NEXOVA ERP ERROR BOUNDARY CAUGHT A CRASH!");

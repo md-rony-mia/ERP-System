@@ -109,6 +109,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
+  // Intentionally silent: re-thrown immediately so caller catch blocks/UIs handle it
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

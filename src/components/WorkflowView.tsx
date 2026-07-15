@@ -142,6 +142,7 @@ export default function WorkflowView({ activeSubTab = 'pending_approval' }: Work
           localStorage.removeItem('nexova_wf_stages');
         }
       } catch (err) {
+        // Intentionally silent: background local workflow data migration on component mount
         console.error("Workflow migration failed", err);
       } finally {
         setLoading(false);

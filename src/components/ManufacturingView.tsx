@@ -159,16 +159,28 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
         let initialInspections = DEFAULT_QUALITY_INSPECTIONS;
 
         if (legacyBoms) {
-          try { initialBoms = JSON.parse(legacyBoms); } catch (e) { console.error(e); }
+          try { initialBoms = JSON.parse(legacyBoms); } catch (e) {
+            // Intentionally silent: fallback to default if legacy storage string is corrupted
+            console.error(e);
+          }
         }
         if (legacyWorkcenters) {
-          try { initialWorkcenters = JSON.parse(legacyWorkcenters); } catch (e) { console.error(e); }
+          try { initialWorkcenters = JSON.parse(legacyWorkcenters); } catch (e) {
+            // Intentionally silent: fallback to default if legacy storage string is corrupted
+            console.error(e);
+          }
         }
         if (legacyOrders) {
-          try { initialOrders = JSON.parse(legacyOrders); } catch (e) { console.error(e); }
+          try { initialOrders = JSON.parse(legacyOrders); } catch (e) {
+            // Intentionally silent: fallback to default if legacy storage string is corrupted
+            console.error(e);
+          }
         }
         if (legacyInspections) {
-          try { initialInspections = JSON.parse(legacyInspections); } catch (e) { console.error(e); }
+          try { initialInspections = JSON.parse(legacyInspections); } catch (e) {
+            // Intentionally silent: fallback to default if legacy storage string is corrupted
+            console.error(e);
+          }
         }
 
         // Load & seed Firestore collections
@@ -192,6 +204,7 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
         localStorage.removeItem('nexova_mfg_inspections');
 
       } catch (err) {
+        // Intentionally silent: background data migration on component mount
         console.error("Manufacturing data fetch/migration failed:", err);
       } finally {
         setLoading(false);
@@ -414,8 +427,8 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
                 <div className="border-t border-slate-100 pt-2">
                   <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Raw Material Allocation</h5>
                   <ul className="space-y-1.5 text-xs text-slate-600">
-                    {b.rawMaterials.map((rm, idx) => (
-                      <li key={idx} className="flex justify-between items-center bg-white border border-slate-100 p-2 rounded">
+                    {b.rawMaterials.map((rm) => (
+                      <li key={rm.name} className="flex justify-between items-center bg-white border border-slate-100 p-2 rounded">
                         <span className="font-semibold text-slate-700">{rm.name}</span>
                         <span className="font-mono text-slate-500">{rm.qty} {rm.unit}</span>
                       </li>

@@ -972,7 +972,7 @@ export default function GridReportView({
                   {highlightRules.map((rule, idx) => {
                     const colLabel = currentDatasetConfig.allColumns.find((c) => c.key === rule.column)?.label || rule.column;
                     return (
-                      <div key={idx} className="flex items-center justify-between p-1 px-2 bg-slate-50 rounded text-[9px] border border-slate-100 font-mono text-slate-500">
+                      <div key={`${rule.column}_${rule.condition}_${rule.value}`} className="flex items-center justify-between p-1 px-2 bg-slate-50 rounded text-[9px] border border-slate-100 font-mono text-slate-500">
                         <span className="truncate">{colLabel} {rule.condition === 'less' ? '<' : rule.condition === 'greater' ? '>' : '='} {rule.value}</span>
                         <button onClick={() => handleRemoveRule(idx)} className="text-red-500 hover:text-red-700">✕</button>
                       </div>

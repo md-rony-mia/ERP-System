@@ -94,6 +94,7 @@ export default function DocumentsView({ activeSubTab = 'document_center' }: Docu
           localStorage.removeItem('nexova_doc_contracts');
         }
       } catch (err) {
+        // Intentionally silent: background local document data migration on component mount
         console.error("Documents migration failed", err);
       } finally {
         setLoading(false);

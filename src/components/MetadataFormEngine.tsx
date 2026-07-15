@@ -202,6 +202,7 @@ export default function MetadataFormEngine({
             else if (op === '/') computedValue = rightVal !== 0 ? leftVal / rightVal : 0;
           }
         } catch (e) {
+          // Intentionally silent: silent background evaluation of dynamic form formulas on user keystrokes
           console.error('Formula evaluation error', e);
         }
 
@@ -376,7 +377,7 @@ export default function MetadataFormEngine({
             <div className="space-y-1 w-full">
               {Array.isArray(val) && val.length > 0 ? (
                 val.map((f: any, i: number) => (
-                  <div key={i} className="flex items-center gap-1.5 text-[10px] text-indigo-600 font-bold bg-indigo-50/50 px-2 py-1 rounded">
+                  <div key={`${f.name}_${i}`} className="flex items-center gap-1.5 text-[10px] text-indigo-600 font-bold bg-indigo-50/50 px-2 py-1 rounded">
                     <Paperclip className="h-3 w-3" />
                     <span>{f.name} ({f.size})</span>
                   </div>
@@ -415,6 +416,7 @@ export default function MetadataFormEngine({
                 </div>
                 <div className="prose prose-slate max-w-none prose-xs font-medium">
                   {val.split('\n').map((para: string, idx: number) => (
+                    // index key safe: fixed-order static list
                     <p key={idx} className="mb-1">{para}</p>
                   ))}
                 </div>
@@ -486,7 +488,7 @@ export default function MetadataFormEngine({
                 <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Attached Files ({filesList.length})</div>
                 <div className="space-y-1">
                   {filesList.map((f: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center bg-white border border-slate-150 px-2.5 py-1.5 rounded text-[10px] text-slate-600">
+                    <div key={`${f.name}_${idx}`} className="flex justify-between items-center bg-white border border-slate-150 px-2.5 py-1.5 rounded text-[10px] text-slate-600">
                       <span className="font-bold text-slate-700 flex items-center gap-1">
                         <Paperclip className="h-3 w-3 text-indigo-500 shrink-0" />
                         <span>{f.name}</span>
@@ -583,6 +585,7 @@ export default function MetadataFormEngine({
                     const width = (Number(char) % 3) + 1;
                     return (
                       <div
+                        // index key safe: fixed-order static list
                         key={i}
                         className="bg-slate-900"
                         style={{ width: `${width}px` }}
@@ -672,6 +675,7 @@ export default function MetadataFormEngine({
                     const isPixel = isAnchor || (Math.sin(idx * 7) > 0);
                     return (
                       <div
+                        // index key safe: fixed-order static list
                         key={idx}
                         className={`rounded-xs ${isPixel ? 'bg-slate-900' : 'bg-white'}`}
                       />
@@ -900,9 +904,9 @@ export default function MetadataFormEngine({
                 <div className="absolute w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-50 animate-in fade-in duration-100">
                   {field.autocompletePresets
                     .filter((preset) => String(preset).toLowerCase().includes(String(val).toLowerCase()))
-                    .map((preset, idx) => (
+                    .map((preset) => (
                       <button
-                        key={idx}
+                        key={preset}
                         type="button"
                         onClick={() => setFormData({ ...formData, [field.key]: preset })}
                         className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 font-semibold text-slate-700"

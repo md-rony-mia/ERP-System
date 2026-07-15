@@ -101,6 +101,7 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
         errMsg = 'Access denied. Please check your user permissions in Firestore. / প্রবেশাধিকার প্রত্যাখ্যাত। অনুগ্রহ করে ফায়ারস্টোর পারমিশন চেক করুন।';
       }
       setError(errMsg);
+      alert(errMsg);
     } finally {
       setLoading(false);
     }

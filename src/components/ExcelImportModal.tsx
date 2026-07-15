@@ -477,9 +477,9 @@ export default function ExcelImportModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
-                        {parsedRows.map((row, index) => (
+                        {parsedRows.map((row) => (
                           <tr 
-                            key={index} 
+                            key={row.index} 
                             className={`hover:bg-slate-50/50 transition-colors ${!row.isValid ? 'bg-rose-50/20' : ''}`}
                           >
                             <td className="py-2.5 px-4 font-mono text-slate-500 text-[11px]">#{row.index}</td>
@@ -616,12 +616,12 @@ export default function ExcelImportModal({
 
                 {/* Side-by-side List */}
                 <div className="space-y-4 max-h-[45vh] overflow-y-auto">
-                  {conflictRows.map((row, idx) => {
+                  {conflictRows.map((row) => {
                     const matchVal = String(row.data[uniqueKey]);
                     const decision = conflictDecisions[matchVal] || 'overwrite';
                     
                     return (
-                      <div key={idx} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row justify-between gap-4">
+                      <div key={matchVal} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
                             <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px]">Conflict</span>

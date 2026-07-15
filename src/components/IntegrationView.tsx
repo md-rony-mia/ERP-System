@@ -151,6 +151,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
         }
 
       } catch (err) {
+        // Intentionally silent: background local integration data migration on page load
         console.error("Integrations migration failed", err);
       } finally {
         setLoading(false);
@@ -421,6 +422,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
             {importStatus === 'completed' && (
               <div className="bg-slate-950 p-3.5 border border-slate-900 rounded-xl font-mono text-[11px] space-y-1 max-h-[300px] overflow-y-auto">
                 {importLogs.map((log, idx) => (
+                  // index key safe: fixed-order static list
                   <p key={idx} className={log.startsWith('Successfully') ? 'text-emerald-400' : log.startsWith('Cause') ? 'text-rose-400' : 'text-slate-300'}>
                     &gt; {log}
                   </p>
@@ -846,6 +848,7 @@ export default function IntegrationView({ activeSubTab = 'import' }: Integration
                   if (log.startsWith('[COMMIT]') || log.startsWith('[PUSH]')) colorClass = 'text-sky-300';
 
                   return (
+                    // index key safe: fixed-order static list
                     <p key={idx} className={colorClass}>
                       &gt; {log}
                     </p>

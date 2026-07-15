@@ -580,6 +580,7 @@ export default function BankingAndLoanView({
           await deleteDoc(doc(db, 'users', targetUser.id));
         }
       } catch (dbErr) {
+        // Intentionally silent: non-critical firestore document deletion failure during user account deletion
         console.warn("Firestore user doc deletion warning (ignoring):", dbErr);
       }
 
@@ -741,6 +742,7 @@ export default function BankingAndLoanView({
         errMsg = 'Access Denied. You do not have permission to write this user profile. / প্রবেশাধিকার প্রত্যাখ্যাত। ফায়ারস্টোর পারমিশন নেই।';
       }
       setAddUserError(errMsg);
+      alert(errMsg);
     } finally {
       setAddUserLoading(false);
     }
@@ -1710,8 +1712,8 @@ export default function BankingAndLoanView({
           {subTab === 'mobile_banking' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {mobileWallets.map((wallet, idx) => (
-                  <div key={idx} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4 relative overflow-hidden">
+                {mobileWallets.map((wallet) => (
+                  <div key={wallet.number} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-2 h-full bg-indigo-500" />
                     <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
                       <Smartphone className="h-6 w-6" />
@@ -1737,7 +1739,10 @@ export default function BankingAndLoanView({
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Wallet</label>
                       <select value={mobWalletIdx} onChange={(e) => setMobWalletIdx(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none cursor-pointer">
-                        {mobileWallets.map((w, i) => <option key={i} value={i}>{w.name}</option>)}
+                        {mobileWallets.map((w, i) => (
+                          // index key safe: fixed-order static list
+                          <option key={i} value={i}>{w.name}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -2957,6 +2962,7 @@ export default function BankingAndLoanView({
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                       {rolesPermissions.map((row, idx) => (
+                        // index key safe: fixed-order static list
                         <tr key={idx} className="hover:bg-slate-50/50">
                           <td className="p-3 font-bold text-slate-800">{row.role}</td>
                           {/* Sales */}
@@ -4502,6 +4508,7 @@ export default function BankingAndLoanView({
                             { name: 'Service Helpdesk & Client Contracts', codes: [true, false, false, true] },
                             { name: 'Workflow Approval Rules & Escalation', codes: [true, false, true, false] }
                           ].map((row, idx) => (
+                            // index key safe: fixed-order static list
                             <tr key={idx} className="hover:bg-slate-50/40">
                               <td className="p-3 text-slate-800">{row.name}</td>
                               {[0, 1, 2, 3].map((colIdx) => (
@@ -4912,6 +4919,7 @@ export default function BankingAndLoanView({
                             { doc: 'Goods Received Note Voucher', prefix: 'GRN-2026-', start: 50001, next: 50119, step: 1 },
                             { doc: 'Double-Entry General Journal', prefix: 'JV-2026-', start: 30001, next: 30104, step: 1 }
                           ].map((ser, i) => (
+                            // index key safe: fixed-order static list
                             <tr key={i} className="hover:bg-slate-50/40">
                               <td className="p-3 font-bold text-slate-800">{ser.doc}</td>
                               <td className="p-3 font-mono text-indigo-600">{ser.prefix}</td>
@@ -5030,6 +5038,7 @@ export default function BankingAndLoanView({
                             { date: '2026-07-10 10:41 AM', sec: 'MED', user: 'mizanur.rahman', desc: 'Modified starting index sequence for Document Class Invoice', ip: '192.168.1.102' },
                             { date: '2026-07-10 09:15 AM', sec: 'LOW', user: 'supervisor', desc: 'Toggled automatic scheduler job safety alert scanner to ACTIVE', ip: '127.0.0.1' }
                           ].map((log, i) => (
+                            // index key safe: fixed-order static list
                             <tr key={i} className="hover:bg-slate-50/40">
                               <td className="p-3 font-mono text-[10px] text-slate-500 whitespace-nowrap">{log.date}</td>
                               <td className="p-3">
@@ -5451,9 +5460,9 @@ export default function BankingAndLoanView({
                       );
                     } catch (err: any) {
                       console.error("Reset password link error:", err);
-                      setPasswordModalError(
-                        `লিঙ্ক পাঠাতে ব্যর্থ হয়েছে: ${err.message || err}. (নোট: আপনার ফায়ারবেস অথেনটিকেশন ডোমেন বা কনফিগারেশন সঠিক আছে কিনা চেক করুন)`
-                      );
+                      const msg = `লিঙ্ক পাঠাতে ব্যর্থ হয়েছে: ${err.message || err}. (নোট: আপনার ফায়ারবেস অথেনটিকেশন ডোমেন বা কনফিগারেশন সঠিক আছে কিনা চেক করুন)`;
+                      setPasswordModalError(msg);
+                      alert(msg);
                     } finally {
                       setPasswordModalLoading(false);
                     }
@@ -5507,9 +5516,9 @@ export default function BankingAndLoanView({
                             }
                           } catch (err: any) {
                             console.error("Change password error:", err);
-                            setPasswordModalError(
-                              `পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে: ${err.message || err}`
-                            );
+                            const msg = `পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে: ${err.message || err}`;
+                            setPasswordModalError(msg);
+                            alert(msg);
                           } finally {
                             setPasswordModalLoading(false);
                           }

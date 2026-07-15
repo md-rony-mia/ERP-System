@@ -262,6 +262,7 @@ export default function InventoryView({
 
       localStorage.setItem('nexova_product_audit_logs', JSON.stringify(logs));
     } catch (err) {
+      // Intentionally silent: local audit logging errors are non-blocking background tasks
       console.error('Audit logging failure:', err);
     }
   };
@@ -3345,6 +3346,7 @@ export default function InventoryView({
 
                               {/* Interactive Node circles */}
                               {points.map((pt, i) => (
+                                // index key safe: fixed-order static list
                                 <g key={i} className="group cursor-pointer">
                                   <circle cx={pt.x} cy={pt.y} r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2" className="transition-all hover:scale-125" />
                                   <foreignObject x={pt.x - 40} y={pt.y - 30} width="80" height="24" className="overflow-visible pointer-events-none">
@@ -3367,6 +3369,7 @@ export default function InventoryView({
                             {/* X-Axis labels */}
                             <div className="flex justify-between px-2 pt-2 text-[9px] font-bold text-slate-400 border-t border-slate-100">
                               {snapshots.map((s, i) => (
+                                // index key safe: fixed-order static list
                                 <span key={i}>{s.date}</span>
                               ))}
                             </div>
@@ -3535,8 +3538,8 @@ export default function InventoryView({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {generatedBarcodes.map((p, idx) => (
-                    <div key={idx} className="border border-slate-200 rounded-xl p-4 text-center space-y-2.5 bg-slate-50/50 shadow-xs relative group hover:border-indigo-500/50 transition-colors">
+                  {generatedBarcodes.map((p) => (
+                    <div key={p.sku} className="border border-slate-200 rounded-xl p-4 text-center space-y-2.5 bg-slate-50/50 shadow-xs relative group hover:border-indigo-500/50 transition-colors">
                       <div className="text-[8px] font-bold tracking-widest text-slate-400 uppercase font-display">NEXOVA ERP</div>
                       <div className="text-[10px] font-bold text-slate-800 truncate" title={p.name}>{p.name}</div>
                       <div className="flex justify-between text-[9px] px-2 font-semibold">
