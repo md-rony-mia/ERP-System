@@ -84,64 +84,58 @@ export default function FinanceDashboard({
     .filter(inv => !inv.isPaid)
     .reduce((sum, inv) => sum + inv.total, 0);
 
+  // We are completely blank if there are no invoices in the system
+  const hasRealData = invoices.length > 0;
+
   // Fallback / Merged stats to ensure high-fidelity UI visual pop (like the user's screenshot)
-  const totalRevenueVal = Math.max(125000, systemPaidRevenue);
-  const totalExpensesVal = 89500;
-  const pendingInvoicesCount = Math.max(12, invoices.filter(inv => !inv.isPaid).length);
+  const totalRevenueVal = hasRealData ? Math.max(125000, systemPaidRevenue) : 0;
+  const totalExpensesVal = hasRealData ? 89500 : 0;
+  const pendingInvoicesCount = hasRealData ? Math.max(12, invoices.filter(inv => !inv.isPaid).length) : 0;
   const netProfitVal = totalRevenueVal - totalExpensesVal;
-  const budgetUtilizationVal = 65; // %
+  const budgetUtilizationVal = hasRealData ? 65 : 0; // %
 
   // High-fidelity chart data mirroring the user's requested layout exactly
   const revenueVsExpenseData = [
-    { month: 'Jan', Revenue: 45000, Expense: 32000 },
-    { month: 'Feb', Revenue: 52000, Expense: 36000 },
-    { month: 'Mar', Revenue: 49000, Expense: 34000 },
-    { month: 'Apr', Revenue: 61000, Expense: 41000 },
-    { month: 'May', Revenue: 58000, Expense: 39000 },
-    { month: 'Jun', Revenue: 65000, Expense: 45000 },
-    { month: 'Jul', Revenue: 72000, Expense: 48000 },
-    { month: 'Aug', Revenue: 68000, Expense: 46000 },
-    { month: 'Sep', Revenue: 75000, Expense: 51000 },
-    { month: 'Oct', Revenue: 82000, Expense: 55000 },
-    { month: 'Nov', Revenue: 90000, Expense: 62000 },
+    { month: 'Jan', Revenue: hasRealData ? 45000 : 0, Expense: hasRealData ? 32000 : 0 },
+    { month: 'Feb', Revenue: hasRealData ? 52000 : 0, Expense: hasRealData ? 36000 : 0 },
+    { month: 'Mar', Revenue: hasRealData ? 49000 : 0, Expense: hasRealData ? 34000 : 0 },
+    { month: 'Apr', Revenue: hasRealData ? 61000 : 0, Expense: hasRealData ? 41000 : 0 },
+    { month: 'May', Revenue: hasRealData ? 58000 : 0, Expense: hasRealData ? 39000 : 0 },
+    { month: 'Jun', Revenue: hasRealData ? 65000 : 0, Expense: hasRealData ? 45000 : 0 },
+    { month: 'Jul', Revenue: hasRealData ? 72000 : 0, Expense: hasRealData ? 48000 : 0 },
+    { month: 'Aug', Revenue: hasRealData ? 68000 : 0, Expense: hasRealData ? 46000 : 0 },
+    { month: 'Sep', Revenue: hasRealData ? 75000 : 0, Expense: hasRealData ? 51000 : 0 },
+    { month: 'Oct', Revenue: hasRealData ? 82000 : 0, Expense: hasRealData ? 55000 : 0 },
+    { month: 'Nov', Revenue: hasRealData ? 90000 : 0, Expense: hasRealData ? 62000 : 0 },
     { month: 'Dec', Revenue: totalRevenueVal, Expense: totalExpensesVal },
   ];
 
   const profitMarginVsSalesData = [
-    { month: 'Jan', Sales: 45000, Margin: 28.8 },
-    { month: 'Feb', Sales: 52000, Margin: 30.7 },
-    { month: 'Mar', Sales: 49000, Margin: 30.6 },
-    { month: 'Apr', Sales: 61000, Margin: 32.7 },
-    { month: 'May', Sales: 58000, Margin: 32.7 },
-    { month: 'Jun', Sales: 65000, Margin: 30.7 },
-    { month: 'Jul', Sales: 72000, Margin: 33.3 },
-    { month: 'Aug', Sales: 68000, Margin: 32.3 },
-    { month: 'Sep', Sales: 75000, Margin: 32.0 },
-    { month: 'Oct', Sales: 82000, Margin: 32.9 },
-    { month: 'Nov', Sales: 90000, Margin: 31.1 },
-    { month: 'Dec', Sales: totalRevenueVal, Margin: 28.4 },
+    { month: 'Jan', Sales: hasRealData ? 45000 : 0, Margin: hasRealData ? 28.8 : 0 },
+    { month: 'Feb', Sales: hasRealData ? 52000 : 0, Margin: hasRealData ? 30.7 : 0 },
+    { month: 'Mar', Sales: hasRealData ? 49000 : 0, Margin: hasRealData ? 30.6 : 0 },
+    { month: 'Apr', Sales: hasRealData ? 61000 : 0, Margin: hasRealData ? 32.7 : 0 },
+    { month: 'May', Sales: hasRealData ? 58000 : 0, Margin: hasRealData ? 32.7 : 0 },
+    { month: 'Jun', Sales: hasRealData ? 65000 : 0, Margin: hasRealData ? 30.7 : 0 },
+    { month: 'Jul', Sales: hasRealData ? 72000 : 0, Margin: hasRealData ? 33.3 : 0 },
+    { month: 'Aug', Sales: hasRealData ? 68000 : 0, Margin: hasRealData ? 32.3 : 0 },
+    { month: 'Sep', Sales: hasRealData ? 75000 : 0, Margin: hasRealData ? 32.0 : 0 },
+    { month: 'Oct', Sales: hasRealData ? 82000 : 0, Margin: hasRealData ? 32.9 : 0 },
+    { month: 'Nov', Sales: hasRealData ? 90000 : 0, Margin: hasRealData ? 31.1 : 0 },
+    { month: 'Dec', Sales: totalRevenueVal, Margin: hasRealData ? 28.4 : 0 },
   ];
 
   // High-fidelity circular chart data
   const revenueDonutData = [
-    { name: 'Sales', value: 90000, color: COLORS.revenue },
-    { name: 'Recurring', value: 22500, color: COLORS.recurring },
-    { name: 'Service Fees', value: 12500, color: COLORS.serviceFees },
+    { name: 'Sales', value: hasRealData ? 90000 : 0, color: COLORS.revenue },
+    { name: 'Recurring', value: hasRealData ? 22500 : 0, color: COLORS.recurring },
+    { name: 'Service Fees', value: hasRealData ? 12500 : 0, color: COLORS.serviceFees },
   ];
 
   const expensesDonutData = [
-    { name: 'Salaries', value: 44750, percentage: 50, color: COLORS.salaries },
-    { name: 'Marketing', value: 26850, percentage: 30, color: COLORS.marketing },
-    { name: 'Miscellaneous', value: 17900, percentage: 20, color: COLORS.miscellaneous },
-  ];
-
-  // Map real invoices + fallback mock to populate high visual quality
-  const mockRecentInvoices = [
-    { id: '1', invoiceNo: '#INVO0020', customerName: 'Apex Computers', total: 10000, status: 'Paid' },
-    { id: '2', invoiceNo: '#INVO0019', customerName: 'Zenith Supplies', total: 6500, status: 'Unpaid' },
-    { id: '3', invoiceNo: '#INVO0018', customerName: 'Nexa Corp', total: 12400, status: 'Paid' },
-    { id: '4', invoiceNo: '#INVO0017', customerName: 'Orion Solutions', total: 4200, status: 'Overdue' },
-    { id: '5', invoiceNo: '#INVO0016', customerName: 'Matrix Technologies', total: 8900, status: 'Paid' }
+    { name: 'Salaries', value: hasRealData ? 44750 : 0, percentage: hasRealData ? 50 : 0, color: COLORS.salaries },
+    { name: 'Marketing', value: hasRealData ? 26850 : 0, percentage: hasRealData ? 30 : 0, color: COLORS.marketing },
+    { name: 'Miscellaneous', value: hasRealData ? 17900 : 0, percentage: hasRealData ? 20 : 0, color: COLORS.miscellaneous },
   ];
 
   const displayedRecentInvoices = invoices.length > 0 
@@ -152,15 +146,15 @@ export default function FinanceDashboard({
         total: inv.total,
         status: inv.isPaid ? 'Paid' : 'Unpaid'
       }))
-    : mockRecentInvoices;
+    : [];
 
   // Payments high visual fidelity
-  const paymentsData = [
+  const paymentsData = hasRealData ? [
     { id: '#PAYO0020', date: '11 Sep 2025', payee: 'Zenith Supplies', desc: 'Office Stationery', invoiceId: '#INVO0020', amount: 10000, bank: 'BOA - 4567329878', method: 'Cash', status: 'Paid' },
     { id: '#PAYO0019', date: '10 Sep 2025', payee: 'Apex Computers', desc: 'Server Hosting', invoiceId: '#INVO0019', amount: 12500, bank: 'CHASE - 1102987342', method: 'Card', status: 'Paid' },
     { id: '#PAYO0018', date: '08 Sep 2025', payee: 'Orion Solutions', desc: 'Consultation', invoiceId: '#INVO0018', amount: 4200, bank: 'HSBC - 9988223412', method: 'Transfer', status: 'Pending' },
     { id: '#PAYO0017', date: '05 Sep 2025', payee: 'Nexa Corp', desc: 'Software Licenses', invoiceId: '#INVO0017', amount: 8900, bank: 'BOA - 4567329878', method: 'Mobile Wallet', status: 'Paid' },
-  ];
+  ] : [];
 
   const triggerExport = () => {
     setShowExportSuccess(true);
@@ -304,32 +298,39 @@ export default function FinanceDashboard({
           </div>
 
           <div className="space-y-4 flex-1 overflow-y-auto max-h-[17.5rem] pr-1.5 custom-scrollbar font-sans">
-            {displayedRecentInvoices.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between p-3 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
-                    <FileText className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-100 block">{inv.customerName}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">{inv.invoiceNo}</span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <span className="text-xs font-black text-slate-100 block">${inv.total.toLocaleString()}</span>
-                  <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded-full border mt-1 ${
-                    inv.status === 'Paid' 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                      : inv.status === 'Overdue'
-                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  }`}>
-                    {inv.status}
-                  </span>
-                </div>
+            {displayedRecentInvoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-xs">
+                <p>কোনো ইনভয়েস পাওয়া যায়নি।</p>
+                <p className="text-[10px] text-slate-600 mt-1">নতুন সেলস এন্ট্রি দিতে ইনভয়েস তৈরি করুন।</p>
               </div>
-            ))}
+            ) : (
+              displayedRecentInvoices.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between p-3 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
+                      <FileText className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-100 block">{inv.customerName}</span>
+                      <span className="text-[10px] text-slate-500 font-mono mt-0.5">{inv.invoiceNo}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-xs font-black text-slate-100 block">${inv.total.toLocaleString()}</span>
+                    <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded-full border mt-1 ${
+                      inv.status === 'Paid' 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                        : inv.status === 'Overdue'
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    }`}>
+                      {inv.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -667,36 +668,44 @@ export default function FinanceDashboard({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {paymentsData.map((row) => (
-                <tr key={row.id} className="hover:bg-[#0f111a]/50 transition-colors">
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.id}</td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-400 font-medium">{row.date}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="inline-block bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 font-bold px-2.5 py-1 rounded-md">
-                      {row.payee}
-                    </span>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.desc}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="text-[#3b82f6] hover:underline font-mono font-bold cursor-pointer">
-                      {row.invoiceId}
-                    </span>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.amount.toLocaleString()}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-[#3b82f6]">{row.bank}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded-md text-[10px] uppercase">
-                      {row.method}
-                    </span>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="inline-flex items-center gap-1 text-emerald-400 font-extrabold">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <span>{row.status}</span>
-                    </span>
+              {paymentsData.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4.5 py-12 text-center text-xs text-slate-500 font-medium">
+                    কোনো পেমেন্ট রেকর্ড পাওয়া যায়নি।
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paymentsData.map((row) => (
+                  <tr key={row.id} className="hover:bg-[#0f111a]/50 transition-colors">
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.id}</td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-400 font-medium">{row.date}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="inline-block bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 font-bold px-2.5 py-1 rounded-md">
+                        {row.payee}
+                      </span>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.desc}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="text-[#3b82f6] hover:underline font-mono font-bold cursor-pointer">
+                        {row.invoiceId}
+                      </span>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.amount.toLocaleString()}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-[#3b82f6]">{row.bank}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded-md text-[10px] uppercase">
+                        {row.method}
+                      </span>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="inline-flex items-center gap-1 text-emerald-400 font-extrabold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>{row.status}</span>
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

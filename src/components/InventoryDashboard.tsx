@@ -70,58 +70,50 @@ export default function InventoryDashboard({
   const realInventoryValue = products.reduce((sum, p) => sum + p.stock * p.cost, 0);
 
   // High-fidelity fallback / hybrid stats to match exact screenshot layout with dynamic backing
-  const totalStockVal = Math.max(250, realTotalStock);
-  const inventoryValueVal = Math.max(2300, realInventoryValue);
+  const hasRealProducts = products.length > 0;
+  const totalStockVal = hasRealProducts ? Math.max(250, realTotalStock) : 0;
+  const inventoryValueVal = hasRealProducts ? Math.max(2300, realInventoryValue) : 0;
 
   // Sparkline data for cards
-  const totalStockSparkData = [
+  const totalStockSparkData = hasRealProducts ? [
     { value: 120 }, { value: 140 }, { value: 135 }, { value: 180 }, { value: 165 }, 
     { value: 210 }, { value: 190 }, { value: 230 }, { value: 215 }, { value: 250 }
-  ];
+  ] : Array(10).fill({ value: 0 });
 
-  const inventoryValueSparkData = [
+  const inventoryValueSparkData = hasRealProducts ? [
     { value: 1800 }, { value: 2100 }, { value: 1600 }, { value: 2400 }, { value: 1950 }, 
     { value: 2200 }, { value: 1500 }, { value: 2350 }, { value: 1700 }, { value: 2300 }
-  ];
+  ] : Array(10).fill({ value: 0 });
 
   // Middle Row charts
-  const categoryDistributionData = [
+  const categoryDistributionData = hasRealProducts ? [
     { category: 'Electronics', count: 110 },
     { category: 'Clothing', count: 95 },
     { category: 'Machines', count: 80 },
     { category: 'Sports', count: 65 },
     { category: 'Bikes', count: 50 },
     { category: 'Books', count: 40 },
-  ];
+  ] : [];
 
   const productStockLevelsData = [
-    { month: 'Jan', 'Total Products': 180, 'Out of Stock': 20 },
-    { month: 'Feb', 'Total Products': 210, 'Out of Stock': 25 },
-    { month: 'Mar', 'Total Products': 195, 'Out of Stock': 15 },
-    { month: 'Apr', 'Total Products': 240, 'Out of Stock': 18 },
-    { month: 'May', 'Total Products': 450, 'Out of Stock': 40 },
-    { month: 'Jun', 'Total Products': 280, 'Out of Stock': 28 },
-    { month: 'Jul', 'Total Products': 260, 'Out of Stock': 22 },
-    { month: 'Aug', 'Total Products': 310, 'Out of Stock': 30 },
-    { month: 'Sep', 'Total Products': 340, 'Out of Stock': 35 },
-    { month: 'Oct', 'Total Products': 320, 'Out of Stock': 24 },
-    { month: 'Nov', 'Total Products': 300, 'Out of Stock': 20 },
-    { month: 'Dec', 'Total Products': 350, 'Out of Stock': 18 },
+    { month: 'Jan', 'Total Products': hasRealProducts ? 180 : 0, 'Out of Stock': hasRealProducts ? 20 : 0 },
+    { month: 'Feb', 'Total Products': hasRealProducts ? 210 : 0, 'Out of Stock': hasRealProducts ? 25 : 0 },
+    { month: 'Mar', 'Total Products': hasRealProducts ? 195 : 0, 'Out of Stock': hasRealProducts ? 15 : 0 },
+    { month: 'Apr', 'Total Products': hasRealProducts ? 240 : 0, 'Out of Stock': hasRealProducts ? 18 : 0 },
+    { month: 'May', 'Total Products': hasRealProducts ? 450 : 0, 'Out of Stock': hasRealProducts ? 40 : 0 },
+    { month: 'Jun', 'Total Products': hasRealProducts ? 280 : 0, 'Out of Stock': hasRealProducts ? 28 : 0 },
+    { month: 'Jul', 'Total Products': hasRealProducts ? 260 : 0, 'Out of Stock': hasRealProducts ? 22 : 0 },
+    { month: 'Aug', 'Total Products': hasRealProducts ? 310 : 0, 'Out of Stock': hasRealProducts ? 30 : 0 },
+    { month: 'Sep', 'Total Products': hasRealProducts ? 340 : 0, 'Out of Stock': hasRealProducts ? 35 : 0 },
+    { month: 'Oct', 'Total Products': hasRealProducts ? 320 : 0, 'Out of Stock': hasRealProducts ? 24 : 0 },
+    { month: 'Nov', 'Total Products': hasRealProducts ? 300 : 0, 'Out of Stock': hasRealProducts ? 20 : 0 },
+    { month: 'Dec', 'Total Products': hasRealProducts ? 350 : 0, 'Out of Stock': hasRealProducts ? 18 : 0 },
   ];
 
   const fullInventoryValueTrend = [
-    { label: 'Mar', value: 360 },
-    { label: 'Apr', value: 480 },
-    { label: 'May', value: 560 }
-  ];
-
-  // High-fidelity supplier lists matching user's screenshot
-  const screenshotSuppliers = [
-    { id: '#SUP0020', name: 'Apex Computers', supplied: 40000, status: 'Active' },
-    { id: '#SUP0019', name: 'Beats Headphones', supplied: 34000, status: 'Inactive' },
-    { id: '#SUP0018', name: 'Dazzle Shoes', supplied: 32000, status: 'Active' },
-    { id: '#SUP0017', name: 'Best Accessories', supplied: 27000, status: 'Active' },
-    { id: '#SUP0016', name: 'A-Z Store', supplied: 13000, status: 'Inactive' }
+    { label: 'Mar', value: hasRealProducts ? 360 : 0 },
+    { label: 'Apr', value: hasRealProducts ? 480 : 0 },
+    { label: 'May', value: hasRealProducts ? 560 : 0 }
   ];
 
   const displayedSuppliers = suppliers.length > 0 
@@ -131,24 +123,15 @@ export default function InventoryDashboard({
         supplied: sup.outstandingBalance > 0 ? sup.outstandingBalance : (40000 - idx * 6000),
         status: idx % 2 === 0 ? 'Active' : 'Inactive'
       }))
-    : screenshotSuppliers;
+    : [];
 
   // High-fidelity Warehouse lists matching user's screenshot
   const displayedWarehouses = [
-    { id: '#WHR0020', name: 'Smart Stock Hub', manager: 'Ethan Walker', capacity: 30000, percentage: 85, color: '#10b981' },
-    { id: '#WHR0019', name: 'Flow Grid Storage', manager: 'Madison Clark', capacity: 20000, percentage: 70, color: '#f97316' },
-    { id: '#WHR0018', name: 'Prime Storage Solutions', manager: 'James Harris', capacity: 300000, percentage: 61, color: '#eab308' },
-    { id: '#WHR0017', name: 'Global Supply Depot', manager: 'Avery Thompson', capacity: 25000, percentage: 40, color: '#06b6d4' },
-    { id: '#WHR0015', name: 'Silverline Storage', manager: 'Benjamin Wright', capacity: 16000, percentage: 22, color: '#ef4444' }
-  ];
-
-  // High-fidelity Recent Stocks products matching user's screenshot
-  const screenshotRecentStocks = [
-    { code: '#PRD0020', name: 'Apple iPhone 15', sku: 'APP-PH-15', category: 'Smartphones', brand: 'Apple', unit: 'Piece', qty: 2, sellPrice: 250, purchasePrice: 230, status: 'In Stock' },
-    { code: '#PRD0019', name: 'Dell XPS 13 9310', sku: 'DEL-LAP-9310', category: 'Computers', brand: 'Dell', unit: 'Piece', qty: 12, sellPrice: 300, purchasePrice: 280, status: 'In Stock' },
-    { code: '#PRD0018', name: 'Bose QuietComfort 45', sku: 'BOS-HD-45', category: 'Headphones', brand: 'Bose', unit: 'Piece', qty: 15, sellPrice: 100, purchasePrice: 80, status: 'In Stock' },
-    { code: '#PRD0017', name: 'Adidas Running Shoe', sku: 'ADI-SHO-RUN', category: 'Footwear', brand: 'Adidas', unit: 'Pack', qty: 20, sellPrice: 400, purchasePrice: 380, status: 'In Stock' },
-    { code: '#PRD0016', name: 'Dyson Vacuum Cleaner', sku: 'DYS-VC-100', category: 'Appliances', brand: 'Dyson', unit: 'Piece', qty: 8, sellPrice: 750, purchasePrice: 730, status: 'Out of Stock' }
+    { id: '#WHR0020', name: 'Smart Stock Hub', manager: 'Ethan Walker', capacity: 30000, percentage: hasRealProducts ? 85 : 0, color: '#10b981' },
+    { id: '#WHR0019', name: 'Flow Grid Storage', manager: 'Madison Clark', capacity: 20000, percentage: hasRealProducts ? 70 : 0, color: '#f97316' },
+    { id: '#WHR0018', name: 'Prime Storage Solutions', manager: 'James Harris', capacity: 300000, percentage: hasRealProducts ? 61 : 0, color: '#eab308' },
+    { id: '#WHR0017', name: 'Global Supply Depot', manager: 'Avery Thompson', capacity: 25000, percentage: hasRealProducts ? 40 : 0, color: '#06b6d4' },
+    { id: '#WHR0015', name: 'Silverline Storage', manager: 'Benjamin Wright', capacity: 16000, percentage: hasRealProducts ? 22 : 0, color: '#ef4444' }
   ];
 
   const displayedRecentStocks = products.length > 0
@@ -164,7 +147,7 @@ export default function InventoryDashboard({
         purchasePrice: p.cost,
         status: p.stock > 0 ? 'In Stock' : 'Out of Stock'
       }))
-    : screenshotRecentStocks;
+    : [];
 
   const triggerExport = () => {
     setShowExportSuccess(true);
@@ -436,33 +419,40 @@ export default function InventoryDashboard({
           </div>
 
           <div className="space-y-3.5 flex-1 max-h-[18rem] overflow-y-auto pr-1.5 custom-scrollbar font-sans">
-            {displayedSuppliers.map((sup, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
-                    <Briefcase className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-100 block">{sup.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">{sup.id}</span>
-                  </div>
-                </div>
-
-                <div className="text-right flex items-center gap-6">
-                  <div>
-                    <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Goods Supplied</span>
-                    <span className="text-xs font-black text-slate-100 block mt-0.5">${sup.supplied.toLocaleString()}</span>
-                  </div>
-                  <span className={`inline-block px-3 py-0.5 text-[9px] font-black rounded-full border ${
-                    sup.status === 'Active' 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                      : 'bg-slate-800/50 text-slate-500 border-slate-800'
-                  }`}>
-                    {sup.status}
-                  </span>
-                </div>
+            {displayedSuppliers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-xs">
+                <p>কোনো সাপ্লাইয়ার পাওয়া যায়নি।</p>
+                <p className="text-[10px] text-slate-600 mt-1">নতুন সাপ্লাইয়ার যুক্ত করতে পারচেজ মেনু ব্যবহার করুন।</p>
               </div>
-            ))}
+            ) : (
+              displayedSuppliers.map((sup, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
+                      <Briefcase className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-100 block">{sup.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono mt-0.5">{sup.id}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex items-center gap-6">
+                    <div>
+                      <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Goods Supplied</span>
+                      <span className="text-xs font-black text-slate-100 block mt-0.5">${sup.supplied.toLocaleString()}</span>
+                    </div>
+                    <span className={`inline-block px-3 py-0.5 text-[9px] font-black rounded-full border ${
+                      sup.status === 'Active' 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                        : 'bg-slate-800/50 text-slate-500 border-slate-800'
+                    }`}>
+                      {sup.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -609,39 +599,47 @@ export default function InventoryDashboard({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {displayedRecentStocks.map((row, idx) => (
-                <tr key={idx} className="hover:bg-[#0f111a]/50 transition-colors">
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.code}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/15">
-                        <ShoppingBag className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="font-extrabold text-slate-100">{row.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">{row.sku}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded text-[10px] uppercase">
-                      {row.category}
-                    </span>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.brand}</td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-400 font-mono">{row.unit}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-black text-slate-100">{row.qty.toString().padStart(2, '0')}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.sellPrice}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">${row.purchasePrice}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded border ${
-                      row.status === 'In Stock' 
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                    }`}>
-                      {row.status}
-                    </span>
+              {displayedRecentStocks.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-4.5 py-12 text-center text-xs text-slate-500 font-medium">
+                    কোনো প্রোডাক্ট স্টক পাওয়া যায়নি।
                   </td>
                 </tr>
-              ))}
+              ) : (
+                displayedRecentStocks.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-[#0f111a]/50 transition-colors">
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.code}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/15">
+                          <ShoppingBag className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="font-extrabold text-slate-100">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">{row.sku}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded text-[10px] uppercase">
+                        {row.category}
+                      </span>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.brand}</td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-400 font-mono">{row.unit}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-black text-slate-100">{row.qty.toString().padStart(2, '0')}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.sellPrice}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">${row.purchasePrice}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded border ${
+                        row.status === 'In Stock' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
