@@ -282,38 +282,85 @@ export default function App() {
         }
 
         // Seed or load collections
-        const seededProducts = await seedCollectionIfEmpty('products', INITIAL_PRODUCTS);
-        setProducts(seededProducts);
+        const isDbSeeded = appSettingsDoc?.isDbSeeded === true;
 
-        const seededCustomers = await seedCollectionIfEmpty('customers', INITIAL_CUSTOMERS);
-        setCustomers(seededCustomers);
+        if (isDbSeeded) {
+          // Database is marked as seeded/initialized. Directly load the data without automatic seeding
+          const loadedProducts = await fetchCollectionFromFirestore<Product>('products');
+          setProducts(loadedProducts || []);
 
-        const seededSuppliers = await seedCollectionIfEmpty('suppliers', INITIAL_SUPPLIERS);
-        setSuppliers(seededSuppliers);
+          const loadedCustomers = await fetchCollectionFromFirestore<Customer>('customers');
+          setCustomers(loadedCustomers || []);
 
-        const seededInvoices = await seedCollectionIfEmpty('invoices', INITIAL_INVOICES);
-        setInvoices(seededInvoices);
+          const loadedSuppliers = await fetchCollectionFromFirestore<Supplier>('suppliers');
+          setSuppliers(loadedSuppliers || []);
 
-        const seededPOs = await seedCollectionIfEmpty('purchaseOrders', INITIAL_PO);
-        setPurchaseOrders(seededPOs);
+          const loadedInvoices = await fetchCollectionFromFirestore<Invoice>('invoices');
+          setInvoices(loadedInvoices || []);
 
-        const seededBankAccounts = await seedCollectionIfEmpty('bankAccounts', INITIAL_BANK_ACCOUNTS);
-        setBankAccounts(seededBankAccounts);
+          const loadedPOs = await fetchCollectionFromFirestore<PurchaseOrder>('purchaseOrders');
+          setPurchaseOrders(loadedPOs || []);
 
-        const seededTransactions = await seedCollectionIfEmpty('transactions', INITIAL_TRANSACTIONS);
-        setTransactions(seededTransactions);
+          const loadedBankAccounts = await fetchCollectionFromFirestore<BankAccount>('bankAccounts');
+          setBankAccounts(loadedBankAccounts || []);
 
-        const seededAccountHeads = await seedCollectionIfEmpty('accountHeads', INITIAL_ACCOUNT_HEADS);
-        setAccountHeads(seededAccountHeads);
+          const loadedTransactions = await fetchCollectionFromFirestore<Transaction>('transactions');
+          setTransactions(loadedTransactions || []);
 
-        const seededEmployees = await seedCollectionIfEmpty('employees', INITIAL_EMPLOYEES);
-        setEmployees(seededEmployees);
+          const loadedAccountHeads = await fetchCollectionFromFirestore<AccountHead>('accountHeads');
+          setAccountHeads(loadedAccountHeads || []);
 
-        const seededAttendances = await seedCollectionIfEmpty('attendances', INITIAL_ATTENDANCE);
-        setAttendances(seededAttendances);
+          const loadedEmployees = await fetchCollectionFromFirestore<Employee>('employees');
+          setEmployees(loadedEmployees || []);
 
-        const seededLoans = await seedCollectionIfEmpty('loanAccounts', INITIAL_LOANS);
-        setLoanAccounts(seededLoans);
+          const loadedAttendances = await fetchCollectionFromFirestore<Attendance>('attendances');
+          setAttendances(loadedAttendances || []);
+
+          const loadedLoans = await fetchCollectionFromFirestore<LoanAccount>('loanAccounts');
+          setLoanAccounts(loadedLoans || []);
+        } else {
+          // Brand new database, run initial seeding
+          const seededProducts = await seedCollectionIfEmpty('products', INITIAL_PRODUCTS);
+          setProducts(seededProducts || []);
+
+          const seededCustomers = await seedCollectionIfEmpty('customers', INITIAL_CUSTOMERS);
+          setCustomers(seededCustomers || []);
+
+          const seededSuppliers = await seedCollectionIfEmpty('suppliers', INITIAL_SUPPLIERS);
+          setSuppliers(seededSuppliers || []);
+
+          const seededInvoices = await seedCollectionIfEmpty('invoices', INITIAL_INVOICES);
+          setInvoices(seededInvoices || []);
+
+          const seededPOs = await seedCollectionIfEmpty('purchaseOrders', INITIAL_PO);
+          setPurchaseOrders(seededPOs || []);
+
+          const seededBankAccounts = await seedCollectionIfEmpty('bankAccounts', INITIAL_BANK_ACCOUNTS);
+          setBankAccounts(seededBankAccounts || []);
+
+          const seededTransactions = await seedCollectionIfEmpty('transactions', INITIAL_TRANSACTIONS);
+          setTransactions(seededTransactions || []);
+
+          const seededAccountHeads = await seedCollectionIfEmpty('accountHeads', INITIAL_ACCOUNT_HEADS);
+          setAccountHeads(seededAccountHeads || []);
+
+          const seededEmployees = await seedCollectionIfEmpty('employees', INITIAL_EMPLOYEES);
+          setEmployees(seededEmployees || []);
+
+          const seededAttendances = await seedCollectionIfEmpty('attendances', INITIAL_ATTENDANCE);
+          setAttendances(seededAttendances || []);
+
+          const seededLoans = await seedCollectionIfEmpty('loanAccounts', INITIAL_LOANS);
+          setLoanAccounts(seededLoans || []);
+
+          // Save settings with isDbSeeded: true to prevent automatic re-seeding next time
+          const initialSettingsWithSeed: AppSettings = {
+            ...DEFAULT_SETTINGS,
+            isDbSeeded: true
+          };
+          await saveSettingsToFirestore(initialSettingsWithSeed);
+          setSettings(initialSettingsWithSeed);
+        }
       } catch (e) {
         console.error('Error loading Firestore data on mount:', e);
       } finally {
@@ -719,22 +766,41 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all data to default demo values? All your changes will be lost!')) {
-      setProducts(INITIAL_PRODUCTS);
-      setCustomers(INITIAL_CUSTOMERS);
-      setSuppliers(INITIAL_SUPPLIERS);
-      setInvoices(INITIAL_INVOICES);
-      setPurchaseOrders(INITIAL_PO);
-      setBankAccounts(INITIAL_BANK_ACCOUNTS);
-      setTransactions(INITIAL_TRANSACTIONS);
-      setAccountHeads(INITIAL_ACCOUNT_HEADS);
-      setEmployees(INITIAL_EMPLOYEES);
-      setAttendances(INITIAL_ATTENDANCE);
-      setLoanAccounts(INITIAL_LOANS);
-      setSettings(DEFAULT_SETTINGS);
-      localStorage.removeItem('nexova_app_settings');
-      alert('Database successfully reset to demo defaults!');
-    }
+    setProducts(INITIAL_PRODUCTS);
+    setCustomers(INITIAL_CUSTOMERS);
+    setSuppliers(INITIAL_SUPPLIERS);
+    setInvoices(INITIAL_INVOICES);
+    setPurchaseOrders(INITIAL_PO);
+    setBankAccounts(INITIAL_BANK_ACCOUNTS);
+    setTransactions(INITIAL_TRANSACTIONS);
+    setAccountHeads(INITIAL_ACCOUNT_HEADS);
+    setEmployees(INITIAL_EMPLOYEES);
+    setAttendances(INITIAL_ATTENDANCE);
+    setLoanAccounts(INITIAL_LOANS);
+    setSettings(DEFAULT_SETTINGS);
+    localStorage.removeItem('nexova_app_settings');
+  };
+
+  const handleClearAllData = async () => {
+    setProducts([]);
+    setCustomers([]);
+    setSuppliers([]);
+    setInvoices([]);
+    setPurchaseOrders([]);
+    setBankAccounts([]);
+    setTransactions([]);
+    setAccountHeads([]);
+    setEmployees([]);
+    setAttendances([]);
+    setLoanAccounts([]);
+    
+    const emptySettings: AppSettings = {
+      ...DEFAULT_SETTINGS,
+      isDbSeeded: true
+    };
+    setSettings(emptySettings);
+    localStorage.setItem('nexova_app_settings', JSON.stringify(emptySettings));
+    await saveSettingsToFirestore(emptySettings);
   };
 
   const handleImportData = (importedData: any) => {
@@ -947,6 +1013,7 @@ export default function App() {
                   settings={settings}
                   onUpdateSettings={handleUpdateSettings}
                   onResetData={handleResetData}
+                  onClearAllData={handleClearAllData}
                   onImportData={handleImportData}
                   systemData={systemData}
                   currentUser={currentUser}

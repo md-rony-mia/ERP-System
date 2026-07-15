@@ -23,9 +23,8 @@ export default function Header({
   currentUser,
   onLogout,
 }: HeaderProps) {
-  const [time, setTime] = useState(new Date('2026-07-06T19:54:10')); // Seed with image time
+  const [time, setTime] = useState(new Date('2026-07-06T19:54:10'));
 
-  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setTime((prevTime) => new Date(prevTime.getTime() + 1000));
@@ -51,7 +50,6 @@ export default function Header({
     });
   };
 
-  // Human friendly breadcrumb names
   const getTabLabel = (tab: string) => {
     const labels: Record<string, string> = {
       dashboard: 'Dashboard',
@@ -67,6 +65,14 @@ export default function Header({
       settings: 'Settings',
       employee: 'Employee',
       salary: 'Salary',
+      crm: 'CRM',
+      projects: 'Projects',
+      manufacturing: 'Manufacturing',
+      service: 'Service & RMA',
+      documents: 'Document Center',
+      workflow: 'Workflow Approval',
+      ai: 'AI Assistant',
+      integration: 'System Integration',
     };
     return labels[tab] || tab;
   };
@@ -79,16 +85,16 @@ export default function Header({
   };
 
   return (
-    <header className="h-16 border-b border-slate-200/80 bg-white px-6 flex items-center justify-between shrink-0 select-none">
+    <header className="h-16 glass-header px-6 flex items-center justify-between shrink-0 select-none z-40">
       {/* Breadcrumb / Section indicator */}
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-slate-800 font-display">
+        <span className="text-sm font-extrabold text-slate-800 font-display tracking-tight uppercase">
           {getTabLabel(currentTab)}
         </span>
         {currentSubTab && (
           <>
-            <span className="text-slate-400 text-xs">/</span>
-            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+            <span className="text-slate-300 text-xs font-semibold">/</span>
+            <span className="text-[10px] font-black text-brand-orange bg-brand-orange/10 border border-brand-orange/15 px-2.5 py-0.5 rounded-full font-sans tracking-wide uppercase">
               {getSubTabLabel(currentSubTab)}
             </span>
           </>
@@ -98,27 +104,27 @@ export default function Header({
       {/* Right side items */}
       <div className="flex items-center gap-4">
         {/* Live clock and date */}
-        <div className="hidden md:flex items-center gap-3 text-xs font-mono text-slate-500 bg-slate-50/80 border border-slate-100 rounded-lg px-3 py-1.5 shadow-sm">
+        <div className="hidden md:flex items-center gap-3 text-xs font-mono text-slate-500 bg-white/60 border border-slate-200/50 rounded-xl px-3 py-1.5 shadow-sm">
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-emerald-500" />
+            <Calendar className="h-3.5 w-3.5 text-brand-orange" />
             <span>{formatDate(time)}</span>
           </div>
           <span className="text-slate-300">|</span>
           <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-emerald-500" />
+            <Clock className="h-3.5 w-3.5 text-brand-orange" />
             <span className="font-semibold text-slate-700">{formatTime(time)}</span>
           </div>
         </div>
 
-        {/* Store branch switcher matching screenshot */}
+        {/* Store branch switcher */}
         <div className="flex items-center gap-2">
           {onToggleVisualEditMode && (
             <button
               onClick={onToggleVisualEditMode}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all border cursor-pointer ${
                 isVisualEditMode
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-500/10 animate-pulse'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-100'
+                  ? 'bg-brand-orange hover:bg-brand-orange-hover text-white border-brand-orange shadow-md shadow-brand-orange/20 animate-pulse'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
               }`}
               title="Toggle Drag & Drop Page/Form Customizer"
             >
@@ -128,8 +134,8 @@ export default function Header({
           )}
 
           <div className="relative group">
-            <button className="flex items-center gap-2 border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 bg-slate-50 text-xs font-semibold text-slate-700 transition-all cursor-pointer">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <button className="flex items-center gap-2 border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 bg-white/80 text-xs font-semibold text-slate-700 transition-all cursor-pointer shadow-xs">
+              <div className="h-2 w-2 rounded-full bg-brand-orange animate-pulse active-glow-orange"></div>
               <span>MAIN — {settings?.companyName || 'M/S Madani Traders'}</span>
               <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </button>
@@ -139,36 +145,36 @@ export default function Header({
         {/* User profile with initials avatar */}
         <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
           <div className="flex flex-col text-right hidden sm:flex">
-            <span className="text-xs font-bold text-slate-800">{currentUser?.name || 'Rony Mia'}</span>
-            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded uppercase self-end">{currentUser?.role || 'Admin'}</span>
+            <span className="text-xs font-black text-slate-800 tracking-tight">{currentUser?.name || 'Rony Mia'}</span>
+            <span className="text-[9px] font-black text-brand-orange bg-brand-orange/10 border border-brand-orange/15 px-1.5 py-0.5 rounded uppercase mt-0.5 tracking-wider self-end">{currentUser?.role || 'Admin'}</span>
           </div>
           <div className="relative group">
-            <button className="h-9 w-9 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center cursor-pointer hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-600/10 uppercase">
+            <button className="h-9 w-9 rounded-full bg-gradient-to-br from-brand-orange to-amber-500 text-white font-black text-xs flex items-center justify-center cursor-pointer shadow-md shadow-brand-orange/10 uppercase transition-transform hover:scale-105 active:scale-95 duration-150">
               {currentUser?.avatar || (currentUser?.name ? currentUser.name[0] : 'RM')}
             </button>
             {/* Quick dropdown menu on hover / click */}
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200/80 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50 p-1">
               <div className="p-3 border-b border-slate-100 text-xs text-left">
-                <p className="font-bold text-slate-800">{currentUser?.name || 'Rony Mia'}</p>
-                <p className="text-slate-400 mt-0.5">{currentUser?.email || 'ronymia2022@gmail.com'}</p>
+                <p className="font-extrabold text-slate-800">{currentUser?.name || 'Rony Mia'}</p>
+                <p className="text-slate-400 font-mono mt-0.5 text-[10px] truncate">{currentUser?.email || 'ronymia2022@gmail.com'}</p>
               </div>
               <div className="p-1 space-y-0.5">
                 <button
                   onClick={() => onTabChange('settings', 'system_settings')}
-                  className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-md transition-colors font-medium"
+                  className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-brand-orange/10 hover:text-brand-orange rounded-lg transition-colors font-semibold cursor-pointer"
                 >
                   System Settings
                 </button>
                 <button
                   onClick={() => onTabChange('employee', 'employees_list')}
-                  className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 rounded-md transition-colors font-medium"
+                  className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-brand-orange/10 hover:text-brand-orange rounded-lg transition-colors font-semibold cursor-pointer"
                 >
                   My Profile
                 </button>
-                <div className="border-t border-slate-100 my-1"></div>
+                <div className="border-t border-slate-100 my-1 mx-2"></div>
                 <button
                   onClick={onLogout}
-                  className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-md transition-colors font-semibold"
+                  className="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors font-bold cursor-pointer"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   <span>Logout Session</span>
