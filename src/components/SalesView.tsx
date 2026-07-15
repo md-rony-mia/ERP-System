@@ -1915,7 +1915,7 @@ export default function SalesView({
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
                       {retCart.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 text-slate-700">
+                        <tr key={item.productId || item.sku || idx} className="hover:bg-slate-50 text-slate-700">
                           <td className="py-1.5 px-2 border-r border-slate-200">0{idx + 1}</td>
                           <td className="py-1.5 px-2 border-r border-slate-200">{item.sku}</td>
                           <td className="py-1.5 px-2 border-r border-slate-200 font-bold">{item.name}</td>
@@ -3979,7 +3979,7 @@ export default function SalesView({
                           {invoiceToPrint.items.map((item, idx) => {
                             const originalProd = products.find(p => p.id === item.productId);
                             return (
-                              <tr key={idx} className="hover:bg-slate-50/20">
+                              <tr key={`${item.productId}-${idx}`} className="hover:bg-slate-50/20">
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{idx + 1}</td>
                                 <td className="py-2 px-2 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{localGetItemClass(item.name)}</td>
@@ -4064,7 +4064,7 @@ export default function SalesView({
                           {invoiceToPrint.items.map((item, idx) => {
                             const originalProd = products.find(p => p.id === item.productId);
                             return (
-                              <tr key={idx} className="hover:bg-slate-50/20">
+                              <tr key={`godown-${item.productId}-${idx}`} className="hover:bg-slate-50/20">
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{idx + 1}</td>
                                 <td className="py-2 px-2 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{localGetItemClass(item.name)}</td>

@@ -4,12 +4,12 @@ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, creat
 import { AppSettings } from '../types';
 
 const firebaseConfig = {
-  projectId: "gen-lang-client-0450547040",
-  appId: "1:1084420946916:web:e473796d2be091d01425f1",
-  apiKey: "AIzaSyBuW_riXThjgxEciGOYoeUORji6lP_-F9A",
-  authDomain: "gen-lang-client-0450547040.firebaseapp.com",
-  storageBucket: "gen-lang-client-0450547040.firebasestorage.app",
-  messagingSenderId: "1084420946916"
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID
 };
 
 // Initialize Firebase
