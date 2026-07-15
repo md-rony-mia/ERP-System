@@ -35,7 +35,7 @@ export default function AccountingView({
   activeSubTab = 'chart_accounts',
 }: AccountingViewProps) {
   // Map sidebar activeSubTab to internal views
-  const currentTab = ['chart_accounts', 'journal_entries', 'payments', 'income', 'income_categories', 'expenses', 'expense_categories'].includes(activeSubTab)
+  const currentTab = ['chart_accounts', 'journal_entries', 'payments', 'income', 'income_categories', 'expenses', 'expense_categories', 'ledger', 'budget'].includes(activeSubTab)
     ? activeSubTab
     : 'chart_accounts';
 
@@ -57,6 +57,56 @@ export default function AccountingView({
     'Wages & Salaries',
     'Entertainment',
   ]);
+
+  // Ledger Audit State & Budget Allocation State
+  const [ledgerAuditEntries, setLedgerAuditEntries] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_ledger_audit_entries');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: "tx_01", date: "2026-07-01", refNo: "JV-2026-001", debitAccount: "Cash in Hand", creditAccount: "Sales Income", amount: 25000, status: "Matched", notes: "Standard cash sale ledger match" },
+      { id: "tx_02", date: "2026-07-04", refNo: "JV-2026-002", debitAccount: "Office Rent Expense", creditAccount: "MTB Bank Account", amount: 15000, status: "Matched", notes: "Monthly rental settlement" },
+      { id: "tx_03", date: "2026-07-05", refNo: "JV-2026-003", debitAccount: "Raw Materials Purchase", creditAccount: "Accounts Payable", amount: 48000, status: "Discrepancy", notes: "Pending supplier invoice matching" }
+    ];
+  });
+
+  const [budgetAllocations, setBudgetAllocations] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_budget_allocations');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: "b_1", department: "Marketing", allocated: 120000, spent: 85000, quarter: "Q3 2026" },
+      { id: "b_2", department: "Operations", allocated: 350000, spent: 310000, quarter: "Q3 2026" },
+      { id: "b_3", department: "IT & Infrastructure", allocated: 200000, spent: 145000, quarter: "Q3 2026" },
+      { id: "b_4", department: "HR & Admin", allocated: 90000, spent: 88000, quarter: "Q3 2026" }
+    ];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('nexova_ledger_audit_entries', JSON.stringify(ledgerAuditEntries));
+  }, [ledgerAuditEntries]);
+
+  React.useEffect(() => {
+    localStorage.setItem('nexova_budget_allocations', JSON.stringify(budgetAllocations));
+  }, [budgetAllocations]);
+
+  // Ledger Add Entry Forms
+  const [showNewLedgerModal, setShowNewLedgerModal] = useState(false);
+  const [newLgRef, setNewLgRef] = useState('');
+  const [newLgDebit, setNewLgDebit] = useState('');
+  const [newLgCredit, setNewLgCredit] = useState('');
+  const [newLgAmount, setNewLgAmount] = useState(0);
+  const [newLgNotes, setNewLgNotes] = useState('');
+  const [ledgerFilterStatus, setLedgerFilterStatus] = useState('All');
+
+  // Budget Modals
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [newBgDept, setNewBgDept] = useState('');
+  const [newBgAllocated, setNewBgAllocated] = useState(0);
+  const [newBgQuarter, setNewBgQuarter] = useState('Q3 2026');
+  const [budgetEditObj, setBudgetEditObj] = useState<any>(null);
 
   // Account Heads state extension
   const [localAccountHeads, setLocalAccountHeads] = useState<AccountHead[]>(accountHeads);
@@ -719,6 +769,494 @@ export default function AccountingView({
           </div>
         </div>
       )}
+
+      {/* =========================================
+          TAB 8: LEDGER AUDIT (লেজার অডিট ও ডাবল এন্ট্রি)
+          ========================================= */}
+      {currentTab === 'ledger' && (() => {
+        const filteredLedgers = ledgerAuditEntries.filter(entry => {
+          if (ledgerFilterStatus !== 'All' && entry.status !== ledgerFilterStatus) return false;
+          return true;
+        });
+
+        const totalAuditMatched = ledgerAuditEntries.filter(e => e.status === 'Matched').reduce((sum, e) => sum + e.amount, 0);
+        const totalDiscrepancies = ledgerAuditEntries.filter(e => e.status === 'Discrepancy').reduce((sum, e) => sum + e.amount, 0);
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">General Ledger Audit & Double-Entry</h2>
+                <p className="text-xs text-slate-400 mt-1">Cross-examine ledger postings, verify debit-credit alignment, and reconcile accounting discrepancies.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const randomSuffix = Math.floor(100 + Math.random() * 900);
+                  setNewLgRef(`JV-2026-${randomSuffix}`);
+                  setShowNewLedgerModal(true);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন লেজার এডজাস্টমেন্ট যোগ করুন</span>
+              </button>
+            </div>
+
+            {/* Summaries */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-slate-400 font-medium">মোট অডিটেড ভলিউম (Total Audited Volume)</p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">
+                  ৳{ledgerAuditEntries.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-emerald-700 font-medium">মিলিত পোস্ট (Matched Postings)</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">৳{totalAuditMatched.toLocaleString()}</p>
+              </div>
+              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-rose-700 font-medium">মিলহীন পোস্ট (Active Discrepancies)</p>
+                <p className="text-2xl font-bold text-rose-800 mt-1">৳{totalDiscrepancies.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">স্ট্যাটাস ফিল্টার:</span>
+                <select
+                  value={ledgerFilterStatus}
+                  onChange={(e) => setLedgerFilterStatus(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="All">All Postings (সব লেজার এন্ট্রি)</option>
+                  <option value="Matched">Matched</option>
+                  <option value="Discrepancy">Discrepancy</option>
+                </select>
+              </div>
+              <span className="text-xs text-slate-400 font-medium">
+                লেজার অডিটিং সিস্টেমে ডাবল-এন্ট্রি নিয়মকানুন যাচাই করা হয়।
+              </span>
+            </div>
+
+            {/* Ledger Audit Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3 px-4">Ref No</th>
+                    <th className="py-3 px-4">Post Date</th>
+                    <th className="py-3 px-4">Debit Account (Dr.)</th>
+                    <th className="py-3 px-4">Credit Account (Cr.)</th>
+                    <th className="py-3 px-4 text-right">Transaction Amount</th>
+                    <th className="py-3 px-4">Compliance Audit Notes</th>
+                    <th className="py-3 px-4 text-center">Audit Status</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredLedgers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">কোনো লেজার রেকর্ড পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    filteredLedgers.map((e) => (
+                      <tr key={e.id} className="hover:bg-slate-50/30">
+                        <td className="py-3 px-4 font-bold text-rose-600 font-mono">{e.refNo}</td>
+                        <td className="py-3 px-4 text-slate-500 font-mono font-medium">{e.date}</td>
+                        <td className="py-3 px-4 font-bold text-slate-800">{e.debitAccount}</td>
+                        <td className="py-3 px-4 font-bold text-slate-800">{e.creditAccount}</td>
+                        <td className="py-3 px-4 text-right font-extrabold text-indigo-700 font-mono">৳{e.amount.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-slate-500 font-medium">{e.notes}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase ${
+                            e.status === 'Matched' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                            {e.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {e.status === 'Discrepancy' && (
+                              <button
+                                onClick={() => {
+                                  const updated = ledgerAuditEntries.map(itm => itm.id === e.id ? { ...itm, status: 'Matched', notes: 'Manually Audited & Verified ' + itm.notes } : itm);
+                                  setLedgerAuditEntries(updated);
+                                  localStorage.setItem('nexova_ledger_audit_entries', JSON.stringify(updated));
+                                }}
+                                className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded text-[10px] text-emerald-700 hover:bg-emerald-100 font-bold cursor-pointer"
+                              >
+                                Approve Match
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (window.confirm('আপনি কি এই লেজার এন্ট্রি ডিলিট করতে চান?')) {
+                                  const updated = ledgerAuditEntries.filter(itm => itm.id !== e.id);
+                                  setLedgerAuditEntries(updated);
+                                  localStorage.setItem('nexova_ledger_audit_entries', JSON.stringify(updated));
+                                }
+                              }}
+                              className="text-slate-400 hover:text-rose-600 font-bold ml-1 text-xs cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* New Ledger Entry Modal */}
+            {showNewLedgerModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowNewLedgerModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">নতুন লেজার পোস্ট ফরম</h4>
+                    <button onClick={() => setShowNewLedgerModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer font-bold">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newLgDebit || !newLgCredit) {
+                      window.alert('ডেবিট এবং ক্রেডিট অ্যাকাউন্ট নির্বাচন করুন!');
+                      return;
+                    }
+                    if (newLgAmount <= 0) {
+                      window.alert('পরিমাণ অবশ্যই ০ এর বেশি হতে হবে!');
+                      return;
+                    }
+
+                    const newEntry = {
+                      id: `lg_${Date.now()}`,
+                      date: new Date().toISOString().substring(0, 10),
+                      refNo: newLgRef || `JV-2026-${Math.floor(100+Math.random()*900)}`,
+                      debitAccount: newLgDebit,
+                      creditAccount: newLgCredit,
+                      amount: Number(newLgAmount),
+                      status: 'Matched',
+                      notes: newLgNotes || 'Manual audit ledger reconciliation adjustment'
+                    };
+
+                    const updated = [newEntry, ...ledgerAuditEntries];
+                    setLedgerAuditEntries(updated);
+                    localStorage.setItem('nexova_ledger_audit_entries', JSON.stringify(updated));
+
+                    setShowNewLedgerModal(false);
+                    setNewLgDebit('');
+                    setNewLgCredit('');
+                    setNewLgAmount(0);
+                    setNewLgNotes('');
+                  }} className="p-5 space-y-4 text-xs text-left">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">জার্নাল রেফারেন্স নম্বর (Ref No) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newLgRef}
+                        onChange={(e) => setNewLgRef(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold font-mono"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ডেবিট অ্যাকাউন্ট (Debit Dr.) *</label>
+                        <select
+                          value={newLgDebit}
+                          onChange={(e) => setNewLgDebit(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold"
+                        >
+                          <option value="">-- Select Account --</option>
+                          <option value="Cash in Hand">Cash in Hand</option>
+                          <option value="Office Rent Expense">Office Rent Expense</option>
+                          <option value="Raw Materials Purchase">Raw Materials Purchase</option>
+                          <option value="Salary & Wages">Salary & Wages</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ক্রেডিট অ্যাকাউন্ট (Credit Cr.) *</label>
+                        <select
+                          value={newLgCredit}
+                          onChange={(e) => setNewLgCredit(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold"
+                        >
+                          <option value="">-- Select Account --</option>
+                          <option value="Sales Income">Sales Income</option>
+                          <option value="MTB Bank Account">MTB Bank Account</option>
+                          <option value="Accounts Payable">Accounts Payable</option>
+                          <option value="Bkash Merchant Wallet">Bkash Merchant Wallet</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">লেনদেনের মোট পরিমাণ (Amount) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="৳"
+                        value={newLgAmount}
+                        onChange={(e) => setNewLgAmount(parseInt(e.target.value) || 0)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">লেনদেনের নোট (Audit Notes) *</label>
+                      <textarea
+                        required
+                        value={newLgNotes}
+                        onChange={(e) => setNewLgNotes(e.target.value)}
+                        placeholder="পদ্ধতি বা পরিবর্তনের কারণ লিখুন..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 h-16"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button type="button" onClick={() => setShowNewLedgerModal(false)} className="px-4 py-2 border border-slate-200 text-slate-500 rounded-lg">Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">সংরক্ষণ করুন</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* =========================================
+          TAB 9: BUDGET ALLOCATOR (বাজেট বরাদ্দ ও নিয়ন্ত্রণ)
+          ========================================= */}
+      {currentTab === 'budget' && (() => {
+        const totalBudget = budgetAllocations.reduce((sum, b) => sum + b.allocated, 0);
+        const totalSpent = budgetAllocations.reduce((sum, b) => sum + b.spent, 0);
+        const totalRemaining = totalBudget - totalSpent;
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Departmental Budget Allocations</h2>
+                <p className="text-xs text-slate-400 mt-1">Configure financial limits for departments, track live operational spent metrics, and adjust resource funding.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setBudgetEditObj(null);
+                  setNewBgDept('');
+                  setNewBgAllocated(0);
+                  setShowBudgetModal(true);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন বাজেট বরাদ্দ করুন</span>
+              </button>
+            </div>
+
+            {/* Summaries */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-slate-400 font-medium">মোট বাজেট বরাদ্দ (Total Budget Allocated)</p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">৳{totalBudget.toLocaleString()}</p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-yellow-700 font-medium">মোট খরচ (Total Budget Spent)</p>
+                <p className="text-2xl font-bold text-yellow-800 mt-1">৳{totalSpent.toLocaleString()}</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-emerald-700 font-medium">অব্যবহৃত বাজেট (Remaining Resource Balance)</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">৳{totalRemaining.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Budget Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {budgetAllocations.map((b) => {
+                const spentPct = b.allocated > 0 ? (b.spent / b.allocated) * 100 : 0;
+                let pctColor = 'bg-emerald-500';
+                if (spentPct > 90) pctColor = 'bg-rose-500';
+                else if (spentPct > 70) pctColor = 'bg-amber-500';
+
+                return (
+                  <div key={b.id} className="bg-white border border-slate-200/85 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="bg-slate-100 text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase font-mono">{b.quarter}</span>
+                        <h3 className="text-base font-extrabold text-slate-800 mt-1">{b.department}</h3>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setBudgetEditObj(b);
+                            setNewBgDept(b.department);
+                            setNewBgAllocated(b.allocated);
+                            setNewBgQuarter(b.quarter);
+                            setShowBudgetModal(true);
+                          }}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg cursor-pointer"
+                        >
+                          Revise
+                        </button>
+                        <button
+                          onClick={() => {
+                            const spentAmtStr = window.prompt(`৳${b.department} বিভাগের খরচের তথ্য যোগ করুন (Enter Spent Amount to ADD):`);
+                            if (spentAmtStr) {
+                              const spentAmt = Number(spentAmtStr);
+                              if (isNaN(spentAmt) || spentAmt <= 0) {
+                                window.alert('সঠিক পজিটিভ সংখ্যা দিন!');
+                                return;
+                              }
+                              const updated = budgetAllocations.map(itm => itm.id === b.id ? { ...itm, spent: itm.spent + spentAmt } : itm);
+                              setBudgetAllocations(updated);
+                              localStorage.setItem('nexova_budget_allocations', JSON.stringify(updated));
+                              window.alert('খরচের তথ্য সফলভাবে আপডেট হয়েছে!');
+                            }
+                          }}
+                          className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg cursor-pointer"
+                        >
+                          Add Spent
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('আপনি কি এই বাজেটটি ডিলিট করতে চান?')) {
+                              const updated = budgetAllocations.filter(itm => itm.id !== b.id);
+                              setBudgetAllocations(updated);
+                              localStorage.setItem('nexova_budget_allocations', JSON.stringify(updated));
+                            }
+                          }}
+                          className="text-slate-400 hover:text-rose-600 font-bold text-xs p-1 ml-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-700">
+                        <span>বাজেট খরচ প্রগ্রেস (Spent Progress)</span>
+                        <span className="font-mono">{spentPct.toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-350 ${pctColor}`} style={{ width: `${Math.min(spentPct, 100)}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-50 text-left font-mono">
+                      <div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Allocated</span>
+                        <span className="text-xs font-bold text-slate-800">৳{b.allocated.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Spent Total</span>
+                        <span className="text-xs font-bold text-rose-600">৳{b.spent.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Remaining</span>
+                        <span className="text-xs font-bold text-emerald-600">৳{(b.allocated - b.spent).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Budget Form Modal */}
+            {showBudgetModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowBudgetModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      {budgetEditObj ? 'বাজেট সংশোধন করুন (Revise Budget)' : 'নতুন বাজেট বরাদ্দ করুন (Allocate Budget)'}
+                    </h4>
+                    <button onClick={() => setShowBudgetModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer font-bold">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newBgDept) {
+                      window.alert('বিভাগের নাম লিখুন!');
+                      return;
+                    }
+                    if (newBgAllocated <= 0) {
+                      window.alert('বরাদ্দ মূল্য অবশ্যই ০ এর বেশি হতে হবে!');
+                      return;
+                    }
+
+                    if (budgetEditObj) {
+                      const updated = budgetAllocations.map(itm => itm.id === budgetEditObj.id ? { ...itm, department: newBgDept, allocated: Number(newBgAllocated), quarter: newBgQuarter } : itm);
+                      setBudgetAllocations(updated);
+                      localStorage.setItem('nexova_budget_allocations', JSON.stringify(updated));
+                    } else {
+                      const newBg = {
+                        id: `b_${Date.now()}`,
+                        department: newBgDept,
+                        allocated: Number(newBgAllocated),
+                        spent: 0,
+                        quarter: newBgQuarter
+                      };
+                      const updated = [newBg, ...budgetAllocations];
+                      setBudgetAllocations(updated);
+                      localStorage.setItem('nexova_budget_allocations', JSON.stringify(updated));
+                    }
+
+                    setShowBudgetModal(false);
+                    setNewBgDept('');
+                    setNewBgAllocated(0);
+                    setBudgetEditObj(null);
+                  }} className="p-5 space-y-4 text-xs text-left">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">বিভাগ (Department / Sector) *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Research & Development"
+                        value={newBgDept}
+                        onChange={(e) => setNewBgDept(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">বরাদ্দকৃত ফান্ডের পরিমাণ BDT *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1000"
+                        placeholder="৳"
+                        value={newBgAllocated}
+                        onChange={(e) => setNewBgAllocated(parseInt(e.target.value) || 0)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">অর্থবছরের কোয়ার্টার (Quarter) *</label>
+                      <select
+                        value={newBgQuarter}
+                        onChange={(e) => setNewBgQuarter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold cursor-pointer"
+                      >
+                        <option value="Q3 2026">Q3 2026</option>
+                        <option value="Q4 2026">Q4 2026</option>
+                        <option value="Q1 2027">Q1 2027</option>
+                        <option value="Q2 2027">Q2 2027</option>
+                      </select>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button type="button" onClick={() => setShowBudgetModal(false)} className="px-4 py-2 border border-slate-200 text-slate-500 rounded-lg">Cancel</button>
+                      <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">সংরক্ষণ করুন</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* =========================================
           MODALS & RECORDERS

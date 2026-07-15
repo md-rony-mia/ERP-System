@@ -62,7 +62,10 @@ export default function SalesView({
     'due_report',
     'client_expense',
     'red_list_customers',
-    'product_wise_report'
+    'product_wise_report',
+    'delivery',
+    'commission',
+    'pricing'
   ].includes(activeSubTab || '')
     ? activeSubTab!
     : 'pos';
@@ -101,6 +104,58 @@ export default function SalesView({
   const [clientExpenses, setClientExpenses] = useState([
     { id: 'exp_1', customerName: 'Bari & Sons', date: '2026-07-04', amount: 2500, reason: 'Business dinner entertainment' },
   ]);
+
+  // --- STATES FOR NEW SALES SUB-TABS (Delivery, Commission, Pricing) ---
+  const [deliveryNotes, setDeliveryNotes] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_delivery_notes');
+    return saved ? JSON.parse(saved) : [
+      { id: 'dn_1', deliveryNo: 'DN-20260715-001', invoiceNo: 'INV-2026-001', customerName: 'Arif Hossain', deliveryDate: '2026-07-15', driverName: 'Milon', vehicleNo: 'Dhaka Metro-11-2222', deliveryStatus: 'Dispatched', notes: 'Urgent delivery' }
+    ];
+  });
+
+  const [commissionRates, setCommissionRates] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('nexova_commission_rates');
+    return saved ? JSON.parse(saved) : {
+      'Arif Hossain': 5,
+      'Salim Mahmud': 5,
+      'System Admin': 4,
+      'Hasan Ali': 2.5
+    };
+  });
+
+  const [pricingTiers, setPricingTiers] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_pricing_tiers');
+    return saved ? JSON.parse(saved) : [
+      { id: 'tier_retail', name: 'Retail', discountRate: 0, description: 'Standard consumer pricing' },
+      { id: 'tier_wholesale', name: 'Wholesale', discountRate: 10, description: 'Bulk buying discount' },
+      { id: 'tier_vip', name: 'VIP', discountRate: 15, description: 'Exclusive key clients' }
+    ];
+  });
+
+  const [customerTierMap, setCustomerTierMap] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('nexova_customer_tier_map');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // --- NEW SALES SUB-TABS INTERACTIVE STATES ---
+  const [showNewDeliveryModal, setShowNewDeliveryModal] = useState(false);
+  const [newDeliveryInvoiceNo, setNewDeliveryInvoiceNo] = useState('');
+  const [newDeliveryDriverName, setNewDeliveryDriverName] = useState('');
+  const [newDeliveryVehicleNo, setNewDeliveryVehicleNo] = useState('');
+  const [newDeliveryNotes, setNewDeliveryNotes] = useState('');
+  const [newDeliveryDate, setNewDeliveryDate] = useState(new Date().toISOString().substring(0, 10));
+  const [deliveryFilterStatus, setDeliveryFilterStatus] = useState('All');
+  const [deliveryFilterStart, setDeliveryFilterStart] = useState('');
+  const [deliveryFilterEnd, setDeliveryFilterEnd] = useState('');
+
+  const [commissionMonth, setCommissionMonth] = useState('All');
+
+  const [pricingSearch, setPricingSearch] = useState('');
+  const [pricingFilterTier, setPricingFilterTier] = useState('All');
+  const [showAddTierModal, setShowAddTierModal] = useState(false);
+  const [newTierName, setNewTierName] = useState('');
+  const [newTierDiscount, setNewTierDiscount] = useState('0');
+  const [newTierDesc, setNewTierDesc] = useState('');
 
   // --- ADDITIONAL MODAL FORM STATES ---
   const [showSoModal, setShowSoModal] = useState(false);
@@ -2293,6 +2348,660 @@ export default function SalesView({
           </div>
         </div>
       )}
+
+      {/* 10. DELIVERY NOTES (ডেলিভারি নোট ও লজিস্টিকস) */}
+      {salesTab === 'delivery' && (() => {
+        const filteredNotes = deliveryNotes.filter(note => {
+          if (deliveryFilterStatus !== 'All' && note.deliveryStatus !== deliveryFilterStatus) return false;
+          if (deliveryFilterStart && note.deliveryDate < deliveryFilterStart) return false;
+          if (deliveryFilterEnd && note.deliveryDate > deliveryFilterEnd) return false;
+          return true;
+        });
+
+        const totalNotes = deliveryNotes.length;
+        const pendingCount = deliveryNotes.filter(n => n.deliveryStatus === 'Pending').length;
+        const dispatchedCount = deliveryNotes.filter(n => n.deliveryStatus === 'Dispatched').length;
+        const deliveredCount = deliveryNotes.filter(n => n.deliveryStatus === 'Delivered').length;
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Delivery Notes & Logistics</h2>
+                <p className="text-xs text-slate-400 mt-1">Manage dispatch documents, assign drivers, vehicle tracking, and real-time delivery status.</p>
+              </div>
+              <button
+                onClick={() => setShowNewDeliveryModal(true)}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন ডেলিভারি নোট তৈরি করুন</span>
+              </button>
+            </div>
+
+            {/* Delivery Stats Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-slate-400 font-medium">সর্বমোট চালান (Total DN)</p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">{totalNotes}</p>
+              </div>
+              <div className="bg-yellow-50/50 border border-yellow-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-yellow-600 font-medium">অপেক্ষমান (Pending)</p>
+                <p className="text-2xl font-bold text-yellow-700 mt-1">{pendingCount}</p>
+              </div>
+              <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-blue-600 font-medium">পাঠানো হয়েছে (Dispatched)</p>
+                <p className="text-2xl font-bold text-blue-700 mt-1">{dispatchedCount}</p>
+              </div>
+              <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-emerald-600 font-medium">ডেলিভারড (Delivered)</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">{deliveredCount}</p>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex flex-wrap items-center gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">স্ট্যাটাস ফিল্টার (Status)</label>
+                <select
+                  value={deliveryFilterStatus}
+                  onChange={(e) => setDeliveryFilterStatus(e.target.value)}
+                  className="block w-40 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Dispatched">Dispatched</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Returned">Returned</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">শুরুর তারিখ (Start Date)</label>
+                <input
+                  type="date"
+                  value={deliveryFilterStart}
+                  onChange={(e) => setDeliveryFilterStart(e.target.value)}
+                  className="block w-40 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">শেষের তারিখ (End Date)</label>
+                <input
+                  type="date"
+                  value={deliveryFilterEnd}
+                  onChange={(e) => setDeliveryFilterEnd(e.target.value)}
+                  className="block w-40 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  setDeliveryFilterStatus('All');
+                  setDeliveryFilterStart('');
+                  setDeliveryFilterEnd('');
+                }}
+                className="mt-5 text-xs text-indigo-600 font-bold hover:underline cursor-pointer"
+              >
+                ফিল্টার রিসেট
+              </button>
+            </div>
+
+            {/* Delivery Notes Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3 px-4">DN Number</th>
+                    <th className="py-3 px-4">Invoice No</th>
+                    <th className="py-3 px-4">Customer Name</th>
+                    <th className="py-3 px-4 text-center">Delivery Date</th>
+                    <th className="py-3 px-4">Driver Name</th>
+                    <th className="py-3 px-4">Vehicle No</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4">Notes</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredNotes.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 text-center text-slate-400 font-medium">কোনো ডেলিভারি নোট খুঁজে পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    filteredNotes.map((note) => (
+                      <tr key={note.id} className="hover:bg-slate-50/30">
+                        <td className="py-3 px-4 font-bold text-slate-800">{note.deliveryNo}</td>
+                        <td className="py-3 px-4 font-semibold text-indigo-600">{note.invoiceNo}</td>
+                        <td className="py-3 px-4 font-bold text-slate-700">{note.customerName}</td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-600">{note.deliveryDate}</td>
+                        <td className="py-3 px-4 text-slate-600">{note.driverName}</td>
+                        <td className="py-3 px-4 font-mono text-slate-500">{note.vehicleNo}</td>
+                        <td className="py-3 px-4 text-center">
+                          <select
+                            value={note.deliveryStatus}
+                            onChange={(e) => {
+                              const updated = deliveryNotes.map(n => n.id === note.id ? { ...n, deliveryStatus: e.target.value } : n);
+                              setDeliveryNotes(updated);
+                              localStorage.setItem('nexova_delivery_notes', JSON.stringify(updated));
+                            }}
+                            className={`text-[11px] font-bold rounded-full px-2.5 py-1 border outline-none cursor-pointer ${
+                              note.deliveryStatus === 'Delivered' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                              note.deliveryStatus === 'Dispatched' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                              note.deliveryStatus === 'Returned' ? 'bg-rose-50 border-rose-200 text-rose-700' :
+                              'bg-yellow-50 border-yellow-200 text-yellow-700'
+                            }`}
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Dispatched">Dispatched</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Returned">Returned</option>
+                          </select>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 max-w-xs truncate" title={note.notes}>{note.notes || '-'}</td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => {
+                              if (window.confirm('আপনি কি এই ডেলিভারি নোটটি মুছে ফেলতে চান?')) {
+                                const updated = deliveryNotes.filter(n => n.id !== note.id);
+                                setDeliveryNotes(updated);
+                                localStorage.setItem('nexova_delivery_notes', JSON.stringify(updated));
+                              }
+                            }}
+                            className="text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer"
+                          >
+                            মুছে ফেলুন
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Create Delivery Note Modal */}
+            {showNewDeliveryModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowNewDeliveryModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">নতুন ডেলিভারি নোট যোগ করুন</h4>
+                    <button onClick={() => setShowNewDeliveryModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newDeliveryInvoiceNo) {
+                      window.alert('অনুগ্রহ করে একটি ইনভয়েস সিলেক্ট করুন!');
+                      return;
+                    }
+                    const matchedInvoice = invoices.find(inv => inv.invoiceNo === newDeliveryInvoiceNo);
+                    const customerName = matchedInvoice ? matchedInvoice.customerName : 'Unknown Customer';
+                    
+                    const randomSuffix = Math.floor(100 + Math.random() * 900);
+                    const todayStr = newDeliveryDate.replace(/-/g, '');
+                    const deliveryNo = `DN-${todayStr}-${randomSuffix}`;
+
+                    const newNote = {
+                      id: `dn_${Date.now()}`,
+                      deliveryNo,
+                      invoiceNo: newDeliveryInvoiceNo,
+                      customerName,
+                      deliveryDate: newDeliveryDate,
+                      driverName: newDeliveryDriverName || 'N/A',
+                      vehicleNo: newDeliveryVehicleNo || 'N/A',
+                      deliveryStatus: 'Pending',
+                      notes: newDeliveryNotes || ''
+                    };
+
+                    const updated = [newNote, ...deliveryNotes];
+                    setDeliveryNotes(updated);
+                    localStorage.setItem('nexova_delivery_notes', JSON.stringify(updated));
+
+                    // Reset form fields
+                    setNewDeliveryInvoiceNo('');
+                    setNewDeliveryDriverName('');
+                    setNewDeliveryVehicleNo('');
+                    setNewDeliveryNotes('');
+                    setShowNewDeliveryModal(false);
+                  }} className="p-5 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">লিংকড ইনভয়েস (Select Invoice) *</label>
+                      <select
+                        required
+                        value={newDeliveryInvoiceNo}
+                        onChange={(e) => setNewDeliveryInvoiceNo(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      >
+                        <option value="">-- ইনভয়েস সিলেক্ট করুন --</option>
+                        {invoices.map((inv) => (
+                          <option key={inv.id} value={inv.invoiceNo}>
+                            {inv.invoiceNo} - {inv.customerName} (৳{inv.total.toLocaleString()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">ডেলিভারি তারিখ *</label>
+                        <input
+                          type="date"
+                          required
+                          value={newDeliveryDate}
+                          onChange={(e) => setNewDeliveryDate(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">ড্রাইভারের নাম</label>
+                        <input
+                          type="text"
+                          placeholder="Milon Mia"
+                          value={newDeliveryDriverName}
+                          onChange={(e) => setNewDeliveryDriverName(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">গাড়ির নম্বর (Vehicle No)</label>
+                      <input
+                        type="text"
+                        placeholder="Dhaka Metro-11-2222"
+                        value={newDeliveryVehicleNo}
+                        onChange={(e) => setNewDeliveryVehicleNo(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">ডেলিভারি নোট / মন্তব্য</label>
+                      <textarea
+                        placeholder="যেকোনো বিশেষ নির্দেশনা এখানে লিখুন..."
+                        rows={2}
+                        value={newDeliveryNotes}
+                        onChange={(e) => setNewDeliveryNotes(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 resize-none"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewDeliveryModal(false)}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      >
+                        সংরক্ষণ করুন
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* 11. SALES COMMISSIONS (বিক্রয় কমিশন ট্র্যাকার) */}
+      {salesTab === 'commission' && (() => {
+        // Find unique months for filter
+        const uniqueMonths = Array.from(new Set(invoices.map(inv => inv.date.substring(0, 7)))).sort();
+
+        // Calculate commissions
+        const repsMap: Record<string, { totalSales: number; invoicesCount: number }> = {};
+        invoices.forEach(inv => {
+          const rep = (inv as any).enteredBy || inv.customerName || 'System Admin';
+          
+          if (commissionMonth !== 'All') {
+            const invMonth = inv.date.substring(0, 7);
+            if (invMonth !== commissionMonth) return;
+          }
+
+          if (!repsMap[rep]) {
+            repsMap[rep] = { totalSales: 0, invoicesCount: 0 };
+          }
+          repsMap[rep].totalSales += inv.total || 0;
+          repsMap[rep].invoicesCount += 1;
+        });
+
+        const repNames = Object.keys(repsMap);
+
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 font-display">Sales Commissions & Targets</h2>
+              <p className="text-xs text-slate-400 mt-1">Compute and manage sales representative commission based on real invoice data.</p>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">মাস ফিল্টার করুন:</span>
+                <select
+                  value={commissionMonth}
+                  onChange={(e) => setCommissionMonth(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="All">All Months (সব মাস)</option>
+                  {uniqueMonths.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-xs text-slate-400 font-medium">
+                Note: grouping by <span className="font-bold text-indigo-600">enteredBy / customerName</span>. Rates are saved in localStorage.
+              </div>
+            </div>
+
+            {/* Commission Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3.5 px-6">Rep / Group Name</th>
+                    <th className="py-3.5 px-6 text-center">Invoices Solved</th>
+                    <th className="py-3.5 px-6 text-right">Total Sales (BDT)</th>
+                    <th className="py-3.5 px-6 text-center">Commission Rate (%)</th>
+                    <th className="py-3.5 px-6 text-right">Commission Earned (BDT)</th>
+                    <th className="py-3.5 px-6 text-center">Period</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {repNames.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400 font-medium">কোনো ইনভয়েস ডেটা পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    repNames.map((name) => {
+                      const data = repsMap[name];
+                      const currentRate = commissionRates[name] ?? 3; // default 3%
+                      const commissionEarned = (data.totalSales * currentRate) / 100;
+
+                      return (
+                        <tr key={name} className="hover:bg-slate-50/30">
+                          <td className="py-3.5 px-6 font-bold text-slate-800">{name}</td>
+                          <td className="py-3.5 px-6 text-center font-medium text-slate-600">{data.invoicesCount} Invoices</td>
+                          <td className="py-3.5 px-6 text-right font-bold text-slate-700">৳{data.totalSales.toLocaleString()}</td>
+                          <td className="py-3.5 px-6 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                value={currentRate}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  const updated = { ...commissionRates, [name]: val };
+                                  setCommissionRates(updated);
+                                  localStorage.setItem('nexova_commission_rates', JSON.stringify(updated));
+                                }}
+                                className="w-16 text-center font-bold text-slate-800 border border-slate-200 rounded bg-slate-50/50 p-1"
+                              />
+                              <span className="font-bold text-slate-400">%</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-6 text-right font-black text-indigo-600">৳{Math.round(commissionEarned).toLocaleString()}</td>
+                          <td className="py-3.5 px-6 text-center text-slate-500 font-medium">
+                            {commissionMonth === 'All' ? 'All Time' : commissionMonth}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 12. CUSTOMER PRICING LEVELS (গ্রাহক মূল্য নির্ধারণের স্তর) */}
+      {salesTab === 'pricing' && (() => {
+        const filteredCustomers = customers.filter(c => {
+          const tierId = customerTierMap[c.id] || 'tier_retail';
+          if (pricingFilterTier !== 'All' && tierId !== pricingFilterTier) return false;
+          if (pricingSearch) {
+            const searchLower = pricingSearch.toLowerCase();
+            const matchesName = c.name.toLowerCase().includes(searchLower);
+            const matchesPhone = c.phone.toLowerCase().includes(searchLower);
+            const matchesGroup = (c.group || '').toLowerCase().includes(searchLower);
+            return matchesName || matchesPhone || matchesGroup;
+          }
+          return true;
+        });
+
+        // Compute counts per tier
+        const counts: Record<string, number> = {};
+        pricingTiers.forEach(tier => {
+          counts[tier.id] = 0;
+        });
+        customers.forEach(c => {
+          const tierId = customerTierMap[c.id] || 'tier_retail';
+          counts[tierId] = (counts[tierId] || 0) + 1;
+        });
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Customer Pricing Levels</h2>
+                <p className="text-xs text-slate-400 mt-1">Assign customers to wholesale, retail, or custom VIP pricing discount brackets dynamically.</p>
+              </div>
+              <button
+                onClick={() => setShowAddTierModal(true)}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন প্রাইসিং টিয়ার যোগ করুন</span>
+              </button>
+            </div>
+
+            {/* Pricing Tiers summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {pricingTiers.map(tier => {
+                const count = counts[tier.id] || 0;
+                return (
+                  <div key={tier.id} className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full -mr-8 -mt-8 -z-10 group-hover:scale-110 transition-transform"></div>
+                    <p className="text-xs text-indigo-600 font-black uppercase tracking-wider">{tier.name}</p>
+                    <p className="text-2xl font-black text-slate-800 mt-2">{count} <span className="text-xs font-bold text-slate-400">গ্রাহক</span></p>
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+                      <span className="text-[10px] text-slate-400 font-medium">{tier.description || 'Custom discount bracket'}</span>
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                        {tier.discountRate}% Discount
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex flex-wrap items-center gap-4">
+              <div className="flex-1 min-w-[240px] relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="গ্রাহকের নাম, ফোন বা গ্রুপ দিয়ে খুঁজুন..."
+                  value={pricingSearch}
+                  onChange={(e) => setPricingSearch(e.target.value)}
+                  className="pl-9 pr-4 py-2 text-xs w-full font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <select
+                  value={pricingFilterTier}
+                  onChange={(e) => setPricingFilterTier(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="All">All Tiers (সব টিয়ার)</option>
+                  {pricingTiers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Customers Tier Assignments Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3.5 px-6">Customer Name</th>
+                    <th className="py-3.5 px-6">Phone Number</th>
+                    <th className="py-3.5 px-6">Group</th>
+                    <th className="py-3.5 px-6 text-center">Assigned Tier</th>
+                    <th className="py-3.5 px-6 text-center">Discount %</th>
+                    <th className="py-3.5 px-6 text-right">Outstanding Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400 font-medium">কোনো গ্রাহক খুঁজে পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    filteredCustomers.map((cust) => {
+                      const tierId = customerTierMap[cust.id] || 'tier_retail';
+                      const currentTier = pricingTiers.find(t => t.id === tierId) || pricingTiers[0];
+
+                      return (
+                        <tr key={cust.id} className="hover:bg-slate-50/30">
+                          <td className="py-3.5 px-6 font-bold text-slate-800">{cust.name}</td>
+                          <td className="py-3.5 px-6 font-mono text-slate-600">{cust.phone || '-'}</td>
+                          <td className="py-3.5 px-6">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/50">
+                              {cust.group || 'General'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-6 text-center">
+                            <select
+                              value={tierId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = { ...customerTierMap, [cust.id]: val };
+                                setCustomerTierMap(updated);
+                                localStorage.setItem('nexova_customer_tier_map', JSON.stringify(updated));
+                              }}
+                              className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-1.5 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                            >
+                              {pricingTiers.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="py-3.5 px-6 text-center">
+                            <span className="font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                              {currentTier.discountRate}%
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-6 text-right font-bold text-rose-600">
+                            ৳{cust.outstandingBalance.toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add Custom Pricing Tier Modal */}
+            {showAddTierModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowAddTierModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">নতুন প্রাইসিং টিয়ার যোগ করুন</h4>
+                    <button onClick={() => setShowAddTierModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newTierName) {
+                      window.alert('টিয়ার নাম আবশ্যক!');
+                      return;
+                    }
+                    const newTier = {
+                      id: `tier_custom_${Date.now()}`,
+                      name: newTierName,
+                      discountRate: parseInt(newTierDiscount) || 0,
+                      description: newTierDesc
+                    };
+                    const updated = [...pricingTiers, newTier];
+                    setPricingTiers(updated);
+                    localStorage.setItem('nexova_pricing_tiers', JSON.stringify(updated));
+
+                    setNewTierName('');
+                    setNewTierDiscount('0');
+                    setNewTierDesc('');
+                    setShowAddTierModal(false);
+                  }} className="p-5 space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">টিয়ার নাম (Tier Name) *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Premium Distributor"
+                        value={newTierName}
+                        onChange={(e) => setNewTierName(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">ডিসকাউন্ট হার (Discount Rate %) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        max="100"
+                        placeholder="12"
+                        value={newTierDiscount}
+                        onChange={(e) => setNewTierDiscount(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-500">বিবরণ (Description)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Special tier for high value clients"
+                        value={newTierDesc}
+                        onChange={(e) => setNewTierDesc(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddTierModal(false)}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      >
+                        সংরক্ষণ করুন
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* =========================================================
           NEW ADDITIONAL OVERLAY MODALS

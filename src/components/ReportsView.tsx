@@ -116,6 +116,64 @@ export default function ReportsView({
   const [adjDesc, setAdjDesc] = useState('');
   const [adjRef, setAdjRef] = useState('');
 
+  // --- NEW REPORTS STATE VARIABLES ---
+  const [cashFlowAdjustments, setCashFlowAdjustments] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_cash_flow_adjustments');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'cf_1', type: 'Operating', description: 'Advanced Supplier Adjustment Deposit', amount: 35000, date: '2026-07-08' },
+      { id: 'cf_2', type: 'Investing', description: 'HQ Office Laptop Procurement', amount: -65000, date: '2026-07-10' },
+      { id: 'cf_3', type: 'Financing', description: 'Short-term Bank Credit Inflow', amount: 150000, date: '2026-07-12' }
+    ];
+  });
+
+  const [mfgResourceLogs, setMfgResourceLogs] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_mfg_resource_logs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'rl_1', resource: 'PP Granules Raw Plastic', type: 'Raw Material', qty: 250, unit: 'kg', unitCost: 180, totalCost: 45000, line: 'Extrusion Line 1', timestamp: '2026-07-07 10:30' },
+      { id: 'rl_2', resource: 'Machine Setup Operator', type: 'Labor Hours', qty: 12, unit: 'hrs', unitCost: 350, totalCost: 4200, line: 'Blow Molding Unit B', timestamp: '2026-07-08 14:15' },
+      { id: 'rl_3', resource: 'HQ Cardboard Packaging Box', type: 'Packaging', qty: 1500, unit: 'pcs', unitCost: 15, totalCost: 22500, line: 'Assembly Line 3', timestamp: '2026-07-11 09:00' }
+    ];
+  });
+
+  const [showMfgLogModal, setShowMfgLogModal] = useState(false);
+  const [newMfgResource, setNewMfgResource] = useState('');
+  const [newMfgType, setNewMfgType] = useState('Raw Material');
+  const [newMfgQty, setNewMfgQty] = useState(0);
+  const [newMfgUnit, setNewMfgUnit] = useState('kg');
+  const [newMfgUnitCost, setNewMfgUnitCost] = useState(0);
+  const [newMfgLine, setNewMfgLine] = useState('Extrusion Line 1');
+
+  // Custom Report Builder State
+  const [customEntity, setCustomEntity] = useState<'invoices' | 'transactions' | 'employees' | 'products'>('invoices');
+  const [customFields, setCustomFields] = useState<string[]>(['invoiceNo', 'customerName', 'total', 'isPaid']);
+  const [customFilterValue, setCustomFilterValue] = useState('');
+  const [customSortField, setCustomSortField] = useState('total');
+  const [customSortOrder, setCustomSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Multi-Variance Analytics
+  const [analyticsDept, setAnalyticsDept] = useState('All');
+  const [analyticsTargetYear, setAnalyticsTargetYear] = useState('2026');
+
+  // Cash Flow Custom Input state
+  const [showNewCashFlowModal, setShowNewCashFlowModal] = useState(false);
+  const [newCfType, setNewCfType] = useState('Operating');
+  const [newCfDesc, setNewCfDesc] = useState('');
+  const [newCfAmount, setNewCfAmount] = useState(0);
+
+  React.useEffect(() => {
+    localStorage.setItem('nexova_cash_flow_adjustments', JSON.stringify(cashFlowAdjustments));
+  }, [cashFlowAdjustments]);
+
+  React.useEffect(() => {
+    localStorage.setItem('nexova_mfg_resource_logs', JSON.stringify(mfgResourceLogs));
+  }, [mfgResourceLogs]);
+
   // 1. Sales Report
   const renderSalesReport = () => {
     const filteredInvoices = invoices.filter(
@@ -3107,6 +3165,777 @@ export default function ReportsView({
     );
   };
 
+  // ========================================================
+  // A. CASH FLOW STATEMENT (ক্যাশ ফ্লো স্টেটমেন্ট)
+  // ========================================================
+  const renderCashFlow = () => {
+    // 1. Operating: Cash in from paid Invoices, Cash out from expense transactions
+    const invoiceInflow = invoices.filter(inv => inv.isPaid).reduce((sum, inv) => sum + inv.total, 0);
+    const expenseOutflow = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    const customOperating = cashFlowAdjustments.filter(cf => cf.type === 'Operating').reduce((sum, cf) => sum + cf.amount, 0);
+    const operatingTotal = invoiceInflow - expenseOutflow + customOperating;
+
+    // 2. Investing: Custom adjustments
+    const investingTotal = cashFlowAdjustments.filter(cf => cf.type === 'Investing').reduce((sum, cf) => sum + cf.amount, 0);
+
+    // 3. Financing: Custom adjustments
+    const financingTotal = cashFlowAdjustments.filter(cf => cf.type === 'Financing').reduce((sum, cf) => sum + cf.amount, 0);
+
+    const netCashFlow = operatingTotal + investingTotal + financingTotal;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-800">Statement of Cash Flows</h3>
+            <p className="text-xs text-slate-400">Quarterly and daily cash flows, grouped into Operating, Investing, and Financing channels.</p>
+          </div>
+          <button
+            onClick={() => setShowNewCashFlowModal(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>ম্যানুয়াল ক্যাশ এডজাস্টমেন্ট</span>
+          </button>
+        </div>
+
+        {/* Cash Flow Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Operating Cash Flows</span>
+            <span className="text-base font-extrabold text-slate-800 block mt-1">৳{operatingTotal.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-400">Invoices & Direct Expenses</span>
+          </div>
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Investing Activities</span>
+            <span className="text-base font-extrabold text-slate-850 block mt-1">
+              {investingTotal >= 0 ? '+' : ''}৳{investingTotal.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-slate-400">Capital investments & assets</span>
+          </div>
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Financing Activities</span>
+            <span className="text-base font-extrabold text-slate-850 block mt-1">
+              {financingTotal >= 0 ? '+' : ''}৳{financingTotal.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-slate-400">Loans, Equity & Fundings</span>
+          </div>
+          <div className={`p-4 rounded-xl shadow-xs border ${
+            netCashFlow >= 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-950' : 'bg-rose-50 border-rose-100 text-rose-950'
+          }`}>
+            <span className="text-[9px] font-black uppercase tracking-wider block">Net Cash Flow Balance</span>
+            <span className="text-lg font-black block mt-1">৳{netCashFlow.toLocaleString()}</span>
+            <span className="text-[10px] font-medium opacity-80">মিলিত মোট ক্যাশ তারল্য</span>
+          </div>
+        </div>
+
+        {/* Detailed Breakdown */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="p-4 bg-slate-50/50 border-b border-slate-200">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Cash Flow Breakdown Structure</h4>
+          </div>
+          <div className="p-6 space-y-6 text-xs">
+            {/* Operating */}
+            <div className="space-y-2">
+              <h5 className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px]">1. Operating Activities (পরিচালন কার্যক্রম)</h5>
+              <div className="border border-slate-100 rounded-lg divide-y divide-slate-50 font-medium text-slate-600 bg-slate-50/20">
+                <div className="flex justify-between p-3">
+                  <span>(+) Customer Invoice Payments (গৃহীত বিক্রয় মূল্য)</span>
+                  <span className="text-emerald-650 font-bold font-mono">৳{invoiceInflow.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between p-3">
+                  <span>(−) Supplier & Operational Expenses (ব্যবসায়িক খরচ)</span>
+                  <span className="text-rose-600 font-bold font-mono">−৳{expenseOutflow.toLocaleString()}</span>
+                </div>
+                {cashFlowAdjustments.filter(cf => cf.type === 'Operating').map(cf => (
+                  <div key={cf.id} className="flex justify-between p-3">
+                    <span>{cf.amount >= 0 ? '(+)' : '(−)'} {cf.description} ({cf.date})</span>
+                    <span className={`font-bold font-mono ${cf.amount >= 0 ? 'text-emerald-650' : 'text-rose-600'}`}>
+                      {cf.amount >= 0 ? '+' : ''}৳{cf.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex justify-between p-3 font-bold bg-slate-100/40 text-slate-800">
+                  <span>Net Cash from Operating Activities</span>
+                  <span className="font-mono">৳{operatingTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Investing */}
+            <div className="space-y-2">
+              <h5 className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px]">2. Investing Activities (বিনিয়োগ কার্যক্রম)</h5>
+              <div className="border border-slate-100 rounded-lg divide-y divide-slate-50 font-medium text-slate-600 bg-slate-50/20">
+                {cashFlowAdjustments.filter(cf => cf.type === 'Investing').length === 0 ? (
+                  <div className="p-3 text-slate-450 italic">কোনো বিনিয়োগ এন্ট্রি পাওয়া যায়নি।</div>
+                ) : (
+                  cashFlowAdjustments.filter(cf => cf.type === 'Investing').map(cf => (
+                    <div key={cf.id} className="flex justify-between p-3">
+                      <span>{cf.amount >= 0 ? '(+)' : '(−)'} {cf.description} ({cf.date})</span>
+                      <span className={`font-bold font-mono ${cf.amount >= 0 ? 'text-emerald-650' : 'text-rose-600'}`}>
+                        {cf.amount >= 0 ? '+' : ''}৳{cf.amount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-between p-3 font-bold bg-slate-100/40 text-slate-800">
+                  <span>Net Cash from Investing Activities</span>
+                  <span className="font-mono">৳{investingTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Financing */}
+            <div className="space-y-2">
+              <h5 className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px]">3. Financing Activities (অর্থায়ন কার্যক্রম)</h5>
+              <div className="border border-slate-100 rounded-lg divide-y divide-slate-50 font-medium text-slate-600 bg-slate-50/20">
+                {cashFlowAdjustments.filter(cf => cf.type === 'Financing').length === 0 ? (
+                  <div className="p-3 text-slate-450 italic">কোনো অর্থায়ন এন্ট্রি পাওয়া যায়নি।</div>
+                ) : (
+                  cashFlowAdjustments.filter(cf => cf.type === 'Financing').map(cf => (
+                    <div key={cf.id} className="flex justify-between p-3">
+                      <span>{cf.amount >= 0 ? '(+)' : '(−)'} {cf.description} ({cf.date})</span>
+                      <span className={`font-bold font-mono ${cf.amount >= 0 ? 'text-emerald-650' : 'text-rose-600'}`}>
+                        {cf.amount >= 0 ? '+' : ''}৳{cf.amount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-between p-3 font-bold bg-slate-100/40 text-slate-800">
+                  <span>Net Cash from Financing Activities</span>
+                  <span className="font-mono">৳{financingTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal form */}
+        {showNewCashFlowModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowNewCashFlowModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-slate-100" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">ম্যানুয়াল ক্যাশ ফ্লো এডজাস্টমেন্ট</h4>
+                <button onClick={() => setShowNewCashFlowModal(false)} className="text-slate-400 font-bold cursor-pointer">✕</button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!newCfDesc || !newCfAmount) {
+                  window.alert('বিবরণ এবং টাকার পরিমাণ লিখুন!');
+                  return;
+                }
+
+                const newAdj = {
+                  id: `cf_${Date.now()}`,
+                  type: newCfType,
+                  description: newCfDesc,
+                  amount: Number(newCfAmount),
+                  date: new Date().toISOString().substring(0, 10)
+                };
+
+                const updated = [...cashFlowAdjustments, newAdj];
+                setCashFlowAdjustments(updated);
+                localStorage.setItem('nexova_cash_flow_adjustments', JSON.stringify(updated));
+
+                setShowNewCashFlowModal(false);
+                setNewCfDesc('');
+                setNewCfAmount(0);
+              }} className="p-5 space-y-4 text-xs text-left">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ক্যাশ ফ্লো চ্যানেল (Activities Segment) *</label>
+                  <select
+                    value={newCfType}
+                    onChange={(e) => setNewCfType(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold cursor-pointer"
+                  >
+                    <option value="Operating">Operating Activities (পরিচালন)</option>
+                    <option value="Investing">Investing Activities (বিনিয়োগ)</option>
+                    <option value="Financing">Financing Activities (অর্থায়ন)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">এডজাস্টমেন্ট বিবরণ (Description) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Purchase of machine spare, loan repayment"
+                    value={newCfDesc}
+                    onChange={(e) => setNewCfDesc(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">পরিমাণ BDT (Amount) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="পজিটিভ মানে ক্যাশ ইন, নেগেটিভ মানে ক্যাশ আউট"
+                    onChange={(e) => setNewCfAmount(Number(e.target.value) || 0)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-mono font-bold"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">পজিটিভ (+) ইনকাম নির্দেশ করে এবং নেগেটিভ (−) খরচ নির্দেশ করে।</p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button type="button" onClick={() => setShowNewCashFlowModal(false)} className="px-3.5 py-1.5 border border-slate-200 text-slate-500 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">সংরক্ষণ করুন</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ========================================================
+  // B. MANUFACTURING RESOURCE LOGS (ম্যানুফ্যাকচারিং রিসোর্স লগ)
+  // ========================================================
+  const renderMfgReport = () => {
+    const totalCostSpent = mfgResourceLogs.reduce((sum, l) => sum + l.totalCost, 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-800">Manufacturing Resource Logs</h3>
+            <p className="text-xs text-slate-400">Track raw materials consumed, electrical units, molding machine hours, and manual labor wages.</p>
+          </div>
+          <button
+            onClick={() => {
+              setNewMfgResource('');
+              setNewMfgQty(0);
+              setNewMfgUnitCost(0);
+              setShowMfgLogModal(true);
+            }}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>নতুন রিসোর্স ব্যবহার লগ করুন</span>
+          </button>
+        </div>
+
+        {/* Dynamic Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Resource Value Spent</span>
+            <span className="text-base font-extrabold text-slate-800 block mt-1">৳{totalCostSpent.toLocaleString()}</span>
+            <span className="text-[10px] text-indigo-600">মোট ব্যবহৃত কাঁচামাল ও ইউটিলিটি মূল্য</span>
+          </div>
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Active Plant Stations</span>
+            <span className="text-base font-extrabold text-slate-850 block mt-1">4 Production Lines</span>
+            <span className="text-[10px] text-slate-400">Continuous heavy-molding active</span>
+          </div>
+          <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Logged Entries</span>
+            <span className="text-base font-extrabold text-emerald-700 block mt-1">{mfgResourceLogs.length} Records</span>
+            <span className="text-[10px] text-slate-400">Audit-ready production trail</span>
+          </div>
+        </div>
+
+        {/* List Grid */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-100/60 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="py-2.5 px-4">Resource Logged</th>
+                <th className="py-2.5 px-4">Category Type</th>
+                <th className="py-2.5 px-4">Logged Station Line</th>
+                <th className="py-2.5 px-4 text-right">Quantity</th>
+                <th className="py-2.5 px-4 text-right">Unit Rate</th>
+                <th className="py-2.5 px-4 text-right">Total Cost Spent</th>
+                <th className="py-2.5 px-4">Timestamp</th>
+                <th className="py-2.5 px-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              {mfgResourceLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400">কোনো ম্যানুফ্যাকচারিং রিসোর্স ব্যবহারের ডাটা পাওয়া যায়নি।</td>
+                </tr>
+              ) : (
+                mfgResourceLogs.map((l) => (
+                  <tr key={l.id} className="hover:bg-slate-50/40">
+                    <td className="py-3 px-4 font-bold text-slate-800">{l.resource}</td>
+                    <td className="py-3 px-4">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase tracking-wider">{l.type}</span>
+                    </td>
+                    <td className="py-3 px-4 text-indigo-650 font-semibold">{l.line}</td>
+                    <td className="py-3 px-4 text-right font-mono font-bold">{l.qty} {l.unit}</td>
+                    <td className="py-3 px-4 text-right font-mono">৳{l.unitCost.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-right font-bold text-rose-600 font-mono">৳{l.totalCost.toLocaleString()}</td>
+                    <td className="py-3 px-4 text-slate-400 font-mono text-[10px]">{l.timestamp}</td>
+                    <td className="py-3 px-4 text-center">
+                      <button
+                        onClick={() => {
+                          if (window.confirm('আপনি কি এই ব্যবহারের রেকর্ডটি মুছে ফেলতে চান?')) {
+                            const updated = mfgResourceLogs.filter(itm => itm.id !== l.id);
+                            setMfgResourceLogs(updated);
+                            localStorage.setItem('nexova_mfg_resource_logs', JSON.stringify(updated));
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-600 font-black"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Modal Dialog */}
+        {showMfgLogModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowMfgLogModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-slate-100" onClick={(e) => e.stopPropagation()}>
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">রিসোর্স ব্যবহার ডাটা যোগ করুন</h4>
+                <button onClick={() => setShowMfgLogModal(false)} className="text-slate-400 font-bold cursor-pointer">✕</button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!newMfgResource || newMfgQty <= 0 || newMfgUnitCost <= 0) {
+                  window.alert('সঠিক রিসোর্স নাম, সংখ্যা ও একক রেট দিন!');
+                  return;
+                }
+
+                const newLog = {
+                  id: `rl_${Date.now()}`,
+                  resource: newMfgResource,
+                  type: newMfgType,
+                  qty: Number(newMfgQty),
+                  unit: newMfgUnit,
+                  unitCost: Number(newMfgUnitCost),
+                  totalCost: Number(newMfgQty) * Number(newMfgUnitCost),
+                  line: newMfgLine,
+                  timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16)
+                };
+
+                const updated = [newLog, ...mfgResourceLogs];
+                setMfgResourceLogs(updated);
+                localStorage.setItem('nexova_mfg_resource_logs', JSON.stringify(updated));
+
+                setShowMfgLogModal(false);
+                setNewMfgResource('');
+                setNewMfgQty(0);
+                setNewMfgUnitCost(0);
+              }} className="p-5 space-y-4 text-xs text-left">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">রিসোর্স নাম (Resource Name) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. PP Raw Plastic Granules Grade-A"
+                    value={newMfgResource}
+                    onChange={(e) => setNewMfgResource(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">রিসোর্স ধরণ *</label>
+                    <select
+                      value={newMfgType}
+                      onChange={(e) => setNewMfgType(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold cursor-pointer"
+                    >
+                      <option value="Raw Material">Raw Material</option>
+                      <option value="Labor Hours">Labor Hours</option>
+                      <option value="Electricity / Utility">Electricity / Utility</option>
+                      <option value="Packaging">Packaging</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">স্টেশন / প্ল্যান্ট লাইন *</label>
+                    <select
+                      value={newMfgLine}
+                      onChange={(e) => setNewMfgLine(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold cursor-pointer"
+                    >
+                      <option value="Extrusion Line 1">Extrusion Line 1</option>
+                      <option value="Blow Molding Unit B">Blow Molding Unit B</option>
+                      <option value="Assembly Line 3">Assembly Line 3</option>
+                      <option value="Finishing Station D">Finishing Station D</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ব্যবহার পরিমাণ *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={newMfgQty}
+                      onChange={(e) => setNewMfgQty(parseInt(e.target.value) || 0)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">একক (Unit) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="kg, hrs, units"
+                      value={newMfgUnit}
+                      onChange={(e) => setNewMfgUnit(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">একক রেট / খরচ (Unit Rate Cost BDT) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="৳"
+                    value={newMfgUnitCost}
+                    onChange={(e) => setNewMfgUnitCost(parseInt(e.target.value) || 0)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-bold font-mono text-slate-800"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button type="button" onClick={() => setShowMfgLogModal(false)} className="px-3.5 py-1.5 border border-slate-200 text-slate-500 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">সংরক্ষণ করুন</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ========================================================
+  // C. CUSTOM REPORTS BUILDER (কাস্টম রিপোর্টস নির্মাতা)
+  // ========================================================
+  const renderCustomReports = () => {
+    // Determine dynamic list to display
+    let sourceList: any[] = [];
+    if (customEntity === 'invoices') sourceList = invoices;
+    else if (customEntity === 'transactions') sourceList = transactions;
+    else if (customEntity === 'employees') sourceList = employees;
+    else if (customEntity === 'products') sourceList = products;
+
+    // Filter by text
+    const filtered = sourceList.filter(item => {
+      const matchStr = customFilterValue.toLowerCase();
+      if (!matchStr) return true;
+      return Object.values(item).some(val => String(val).toLowerCase().includes(matchStr));
+    });
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      const valA = a[customSortField];
+      const valB = b[customSortField];
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return customSortOrder === 'asc' ? valA - valB : valB - valA;
+      }
+      return customSortOrder === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-800">Dynamic Custom Reports Builder</h3>
+          <p className="text-xs text-slate-400">Design your own layout. Filter, sort, and display customizable tabular reports instantly.</p>
+        </div>
+
+        {/* Configuration Panel */}
+        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-4 text-xs text-left">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">১. প্রাইমারি ডেটা উৎস (Data Entity)</label>
+              <select
+                value={customEntity}
+                onChange={(e) => {
+                  const ent = e.target.value as any;
+                  setCustomEntity(ent);
+                  if (ent === 'invoices') {
+                    setCustomFields(['invoiceNo', 'customerName', 'total', 'isPaid']);
+                    setCustomSortField('total');
+                  } else if (ent === 'transactions') {
+                    setCustomFields(['referenceNo', 'description', 'amount', 'type']);
+                    setCustomSortField('amount');
+                  } else if (ent === 'employees') {
+                    setCustomFields(['name', 'designation', 'salary', 'status']);
+                    setCustomSortField('salary');
+                  } else if (ent === 'products') {
+                    setCustomFields(['name', 'sku', 'price', 'stock']);
+                    setCustomSortField('stock');
+                  }
+                }}
+                className="w-full bg-white border border-slate-250 p-2 rounded-lg font-bold cursor-pointer text-slate-800"
+              >
+                <option value="invoices">Customer Invoices (বিক্রয় চালান)</option>
+                <option value="transactions">GL Ledger Postings (সাধারণ লেজার)</option>
+                <option value="employees">HR Employee Roster (কর্মকর্তা তালিকা)</option>
+                <option value="products">Inventory Raw/Fin Products (পণ্য স্টক)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">২. সর্টিং ফিল্ড (Sorting Key)</label>
+              <select
+                value={customSortField}
+                onChange={(e) => setCustomSortField(e.target.value)}
+                className="w-full bg-white border border-slate-250 p-2 rounded-lg font-mono font-bold cursor-pointer"
+              >
+                {customFields.map(fld => (
+                  <option key={fld} value={fld}>{fld}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">৩. ক্রমানুসারে (Sorting Order)</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCustomSortOrder('asc')}
+                  className={`flex-1 p-2 rounded-lg font-bold border transition-all cursor-pointer ${
+                    customSortOrder === 'asc' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-250 text-slate-600'
+                  }`}
+                >
+                  Ascending
+                </button>
+                <button
+                  onClick={() => setCustomSortOrder('desc')}
+                  className={`flex-1 p-2 rounded-lg font-bold border transition-all cursor-pointer ${
+                    customSortOrder === 'desc' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-250 text-slate-600'
+                  }`}
+                >
+                  Descending
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">৪. টেক্সট ফিল্টার (Live Query Search)</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Type to filter rows..."
+                  value={customFilterValue}
+                  onChange={(e) => setCustomFilterValue(e.target.value)}
+                  className="w-full bg-white border border-slate-250 p-2 pl-8 rounded-lg font-bold text-slate-800"
+                />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
+            <span>
+              জেনারেট হচ্ছে: <strong className="text-slate-800 uppercase font-mono">{customEntity}</strong> ডাটা সোর্স। মোট রেজাল্টস: <strong>{sorted.length} সারি</strong>
+            </span>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>মুদ্রণ ও পিডিএফ তৈরি করুন (Print / PDF)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Generated Report Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-150 text-slate-600 border-b border-slate-250 text-[10px] font-bold uppercase tracking-wider">
+                {customFields.map(fld => (
+                  <th key={fld} className="py-2.5 px-4">{fld.replace(/([A-Z])/g, ' $1')}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              {sorted.length === 0 ? (
+                <tr>
+                  <td colSpan={customFields.length} className="py-8 text-center text-slate-400 font-bold">ফিল্টার ক্রাইটেরিয়ার সাথে মিলে এমন কোনো ডেটা পাওয়া যায়নি।</td>
+                </tr>
+              ) : (
+                sorted.map((item, idx) => (
+                  <tr key={item.id || idx} className="hover:bg-slate-50/50">
+                    {customFields.map(fld => {
+                      const val = item[fld];
+                      let displayVal = String(val === undefined || val === null ? '' : val);
+
+                      // formatting improvements
+                      if (fld === 'isPaid') displayVal = val ? 'PAID' : 'DUE';
+                      if (typeof val === 'number') {
+                        if (['price', 'salary', 'total', 'amount'].includes(fld)) {
+                          displayVal = '৳' + val.toLocaleString();
+                        } else {
+                          displayVal = val.toLocaleString();
+                        }
+                      }
+
+                      return (
+                        <td key={fld} className={`py-3 px-4 ${
+                          ['invoiceNo', 'referenceNo', 'id'].includes(fld) ? 'font-mono text-indigo-600 font-bold' : ''
+                        } ${
+                          displayVal === 'PAID' ? 'text-emerald-600 font-bold' : displayVal === 'DUE' ? 'text-rose-500 font-bold' : ''
+                        }`}>
+                          {displayVal}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // ========================================================
+  // D. MULTI-VARIANCE CORE ANALYTICS (মাল্টি-ভেরিয়েন্স কোর অ্যানালিটিক্স)
+  // ========================================================
+  const renderAnalytics = () => {
+    // 1. Budget vs Actual Variance
+    // Try to load budget allocations from localstorage or use a reliable default
+    const rawBg = localStorage.getItem('nexova_budget_allocations');
+    let localBudgets: any[] = [];
+    if (rawBg) {
+      try { localBudgets = JSON.parse(rawBg); } catch(e){}
+    }
+    if (localBudgets.length === 0) {
+      localBudgets = [
+        { id: "b_1", department: "Marketing", allocated: 120000, spent: 85000, quarter: "Q3 2026" },
+        { id: "b_2", department: "Operations", allocated: 350000, spent: 310000, quarter: "Q3 2026" },
+        { id: "b_3", department: "IT & Infrastructure", allocated: 200000, spent: 145000, quarter: "Q3 2026" },
+        { id: "b_4", department: "HR & Admin", allocated: 90000, spent: 88000, quarter: "Q3 2026" }
+      ];
+    }
+
+    // 2. HR Efficiency: Revenue generated per employee
+    const totalRev = invoices.filter(inv => inv.isPaid).reduce((sum, inv) => sum + inv.total, 0);
+    const activeStaffCount = employees.length || 4;
+    const revPerEmployee = totalRev / activeStaffCount;
+
+    // 3. Asset coverage ratio: total bank balance / total due invoices
+    const bankSum = bankAccounts.reduce((sum, b) => sum + b.balance, 0);
+    const dueSum = invoices.filter(inv => !inv.isPaid).reduce((sum, inv) => sum + inv.total, 0);
+    const liquidityRatio = dueSum > 0 ? (bankSum / dueSum) : 10;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-800">Multi-Variance Corporate Intelligence</h3>
+          <p className="text-xs text-slate-400">Deep comparative financial metrics comparing department spending variance, employee efficiency multipliers, and asset-to-debt coverages.</p>
+        </div>
+
+        {/* Multi-Variance Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left text-xs">
+          
+          {/* Variance Box 1: Budget vs Actual Spent Variance */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+            <h4 className="font-extrabold text-slate-800 flex items-center gap-1.5 uppercase text-[10px] tracking-wider text-indigo-700">
+              <Sliders className="h-4 w-4" />
+              <span>Budget Spending Variance Analysis</span>
+            </h4>
+            <div className="space-y-3">
+              {localBudgets.map(bg => {
+                const variance = bg.allocated - bg.spent;
+                const variancePct = bg.allocated > 0 ? (variance / bg.allocated) * 100 : 0;
+                return (
+                  <div key={bg.id} className="space-y-1">
+                    <div className="flex justify-between font-bold text-slate-700 text-[11px]">
+                      <span>{bg.department}</span>
+                      <span className={variance >= 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                        {variance >= 0 ? 'Surplus' : 'Deficit'} {variancePct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 text-[10px]">
+                      <span>Budget: ৳{bg.allocated.toLocaleString()}</span>
+                      <span>Spent: ৳{bg.spent.toLocaleString()}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${variance >= 0 ? 'bg-indigo-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, (bg.spent / bg.allocated) * 100)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Variance Box 2: HR Wage Multiplier & Efficiency */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+            <h4 className="font-extrabold text-slate-800 flex items-center gap-1.5 uppercase text-[10px] tracking-wider text-emerald-700">
+              <Activity className="h-4 w-4" />
+              <span>HR Productivity Multipliers</span>
+            </h4>
+            <div className="space-y-4">
+              <div className="bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl space-y-1">
+                <span className="text-slate-500 font-medium block">Realized Revenue Per Staff</span>
+                <span className="text-lg font-extrabold text-slate-800 block">৳{revPerEmployee.toFixed(2)}</span>
+                <span className="text-[10px] text-slate-400">Total revenue divided by active roster size</span>
+              </div>
+              <div className="space-y-2 font-medium text-slate-600">
+                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                  <span>Active Roster Size</span>
+                  <span className="font-bold text-slate-800">{activeStaffCount} Employees</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                  <span>Monthly Payroll Roll</span>
+                  <span className="font-bold text-slate-800">৳{employees.reduce((sum, e) => sum + e.salary, 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Productivity Factor</span>
+                  <span className="font-bold text-emerald-600">৳{(revPerEmployee / 12).toFixed(1)} / mo avg</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Variance Box 3: Liquidity Debt Coverage Ratio */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+            <h4 className="font-extrabold text-slate-800 flex items-center gap-1.5 uppercase text-[10px] tracking-wider text-indigo-700">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Liquidity Debt & Risk Coverage</span>
+            </h4>
+            <div className="space-y-4">
+              <div className="bg-indigo-50/50 border border-indigo-100 p-3.5 rounded-xl space-y-1">
+                <span className="text-slate-500 font-medium block">Liquid Assets vs Receivable Debt</span>
+                <span className="text-lg font-extrabold text-indigo-900 block">{liquidityRatio.toFixed(2)}x Covered</span>
+                <span className="text-[10px] text-slate-400">Healthy threshold is above 1.0x</span>
+              </div>
+              <div className="space-y-2 font-medium text-slate-600 text-[11px]">
+                <div className="flex justify-between border-b border-slate-100 pb-1">
+                  <span>Total Liquid Assets</span>
+                  <span className="font-bold font-mono text-slate-800">৳{bankSum.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-1">
+                  <span>Outstanding Receivable Debt</span>
+                  <span className="font-bold font-mono text-rose-500">৳{dueSum.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>System Solvency Status</span>
+                  <span className="px-2 py-0.2 bg-emerald-50 text-emerald-700 rounded-full font-black text-[9px] uppercase">Highly Solvent</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const getSubTabTitle = () => {
     switch (activeSubTab) {
       case 'sales_report':
@@ -3147,6 +3976,14 @@ export default function ReportsView({
         return 'Product Wise Total Realized Profit';
       case 'master_ledger':
         return 'Master Transaction Ledger';
+      case 'cash_flow':
+        return 'Statement of Cash Flows (ক্যাশ ফ্লো স্টেটমেন্ট)';
+      case 'mfg_report':
+        return 'Manufacturing Resource Logs (ম্যানুফ্যাকচারিং রিসোর্স)';
+      case 'custom_reports':
+        return 'Custom Reports Builder (কাস্টম রিপোর্ট বিল্ডার)';
+      case 'analytics':
+        return 'Multi-Variance Core Analytics (মাল্টি-ভেরিয়েন্স অ্যানালিটিক্স)';
       default:
         return 'Analytical Ledger Report';
     }
@@ -3192,6 +4029,14 @@ export default function ReportsView({
         return renderProductWiseTotalProfit();
       case 'master_ledger':
         return renderMasterLedger();
+      case 'cash_flow':
+        return renderCashFlow();
+      case 'mfg_report':
+        return renderMfgReport();
+      case 'custom_reports':
+        return renderCustomReports();
+      case 'analytics':
+        return renderAnalytics();
       default:
         return (
           <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-12 text-center max-w-md mx-auto space-y-4">

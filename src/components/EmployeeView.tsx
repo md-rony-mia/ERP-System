@@ -111,8 +111,64 @@ export default function EmployeeView({
     payroll: 335000
   });
 
+  // --- HR & WAGE ALLOCATION REPORT STATES ---
+  const [allocationForm, setAllocationForm] = useState({
+    employeeId: '',
+    overtimeHours: 0,
+    overtimeRate: 500,
+    bonus: 0,
+    taxRate: 10
+  });
+  const [allocSearch, setAllocSearch] = useState('');
+  const [allocDept, setAllocDept] = useState('All');
+  const [selectedPayslip, setSelectedPayslip] = useState<any | null>(null);
+
+  const handleUpdateAllocation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationForm.employeeId) return;
+
+    const updated = employeesList.map(emp => {
+      if (emp.id === allocationForm.employeeId) {
+        return {
+          ...emp,
+          overtimeHours: Number(allocationForm.overtimeHours) || 0,
+          overtimeRate: Number(allocationForm.overtimeRate) || 0,
+          bonus: Number(allocationForm.bonus) || 0,
+          taxRate: Number(allocationForm.taxRate) || 0
+        };
+      }
+      return emp;
+    });
+
+    setEmployeesList(updated);
+    localStorage.setItem('nexova_crud_employees', JSON.stringify(updated));
+
+    // Reset form
+    setAllocationForm({
+      employeeId: '',
+      overtimeHours: 0,
+      overtimeRate: 500,
+      bonus: 0,
+      taxRate: 10
+    });
+  };
+
+  const handleResetAllocations = () => {
+    if (window.confirm('Are you sure you want to clear overtime and bonuses for all employees? (আপনি কি নিশ্চিত সব কর্মীর ওভারটাইম এবং বোনাস মুছে ফেলতে চান?)')) {
+      const updated = employeesList.map(emp => ({
+        ...emp,
+        overtimeHours: 0,
+        overtimeRate: 500,
+        bonus: 0,
+        taxRate: 10
+      }));
+      setEmployeesList(updated);
+      localStorage.setItem('nexova_crud_employees', JSON.stringify(updated));
+    }
+  };
+
   // --- COMPUTE ACTIVE TAB ---
-  const currentTab = ['employees_list', 'attendance', 'leave', 'payroll', 'recruitment', 'appraisal'].includes(activeSubTab)
+  const currentTab = ['employees_list', 'attendance', 'leave', 'payroll', 'recruitment', 'appraisal', 'employee_report'].includes(activeSubTab)
     ? activeSubTab
     : 'employees_list';
 
@@ -1007,6 +1063,309 @@ export default function EmployeeView({
           </div>
         )}
 
+        {/* 7. HR & WAGE ALLOCATIONS REPORT TAB */}
+        {currentTab === 'employee_report' && (
+          <div className="space-y-6">
+            {/* Top Stats Row */}
+            {(() => {
+              // Calculate live aggregates from filtered list
+              const filteredEmps = employeesList.filter(emp => {
+                const matchesSearch = emp.name.toLowerCase().includes(allocSearch.toLowerCase()) || 
+                                     (emp.designation || '').toLowerCase().includes(allocSearch.toLowerCase());
+                const matchesDept = allocDept === 'All' || emp.department === allocDept;
+                return matchesSearch && matchesDept;
+              });
+
+              const totalBase = employeesList.reduce((acc, emp) => acc + (Number(emp.salary) || 0), 0);
+              const totalOtAndBonus = employeesList.reduce((acc, emp) => {
+                const ot = (Number(emp.overtimeHours) || 0) * (Number(emp.overtimeRate) || 0);
+                const bonus = Number(emp.bonus) || 0;
+                return acc + ot + bonus;
+              }, 0);
+              const totalTax = employeesList.reduce((acc, emp) => {
+                const base = Number(emp.salary) || 0;
+                const ot = (Number(emp.overtimeHours) || 0) * (Number(emp.overtimeRate) || 0);
+                const bonus = Number(emp.bonus) || 0;
+                const gross = base + ot + bonus;
+                const rate = emp.taxRate !== undefined ? Number(emp.taxRate) : 10;
+                return acc + (gross * rate) / 100;
+              }, 0);
+              const netWageBill = totalBase + totalOtAndBonus - totalTax;
+
+              return (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs relative overflow-hidden">
+                      <div className="absolute top-0 right-0 h-16 w-16 bg-blue-500/5 rounded-full translate-x-4 -translate-y-4"></div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">মোট বেসিক বেতন (Base Payroll)</span>
+                      <h3 className="text-xl font-extrabold text-slate-800 mt-1 font-mono">৳{totalBase.toLocaleString('en-IN')}</h3>
+                      <p className="text-[10px] text-slate-400 mt-1">সব কর্মকর্তার মাসিক মূল বেতন</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs relative overflow-hidden">
+                      <div className="absolute top-0 right-0 h-16 w-16 bg-emerald-500/5 rounded-full translate-x-4 -translate-y-4"></div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ওভারটাইম ও বোনাস (OT & Bonus)</span>
+                      <h3 className="text-xl font-extrabold text-slate-800 mt-1 font-mono">৳{totalOtAndBonus.toLocaleString('en-IN')}</h3>
+                      <p className="text-[10px] text-slate-400 mt-1">অতিরিক্ত কর্মঘণ্টা ও উৎসব ভাতা</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs relative overflow-hidden">
+                      <div className="absolute top-0 right-0 h-16 w-16 bg-red-500/5 rounded-full translate-x-4 -translate-y-4"></div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">মোট ট্যাক্স কর্তন (Tax Deductions)</span>
+                      <h3 className="text-xl font-extrabold text-slate-800 mt-1 font-mono">৳{totalTax.toLocaleString('en-IN')}</h3>
+                      <p className="text-[10px] text-slate-400 mt-1">১০% হারে আনুমানিক উবাদা কর্তন</p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200/80 p-5 rounded-2xl shadow-xs relative overflow-hidden">
+                      <div className="absolute top-0 right-0 h-16 w-16 bg-indigo-500/5 rounded-full translate-x-4 -translate-y-4"></div>
+                      <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">মোট নিট প্রদেয় (Net Payroll Bill)</span>
+                      <h3 className="text-xl font-extrabold text-indigo-600 mt-1 font-mono">৳{netWageBill.toLocaleString('en-IN')}</h3>
+                      <p className="text-[10px] text-indigo-400 mt-1">কর্তন পরবর্তী চূড়ান্ত ব্যাংক পে-রোল</p>
+                    </div>
+                  </div>
+
+                  {/* Form and Filters Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left: Allocation Form */}
+                    <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4 shadow-sm h-fit">
+                      <div className="border-b border-slate-100 pb-2">
+                        <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-indigo-600" />
+                          <span>ভাতা ও বোনাস বন্টন (Wage Allocation Form)</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">কোনো কর্মকর্তার ওভারটাইম ও ইনসেনティブ বোনাস আপডেট করতে এই ফর্ম ব্যবহার করুন।</p>
+                      </div>
+
+                      <form onSubmit={handleUpdateAllocation} className="space-y-3.5 text-xs font-sans">
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-500">কর্মকর্তা নির্বাচন করুন (Select Employee) *</label>
+                          <select
+                            required
+                            value={allocationForm.employeeId}
+                            onChange={e => setAllocationForm({ ...allocationForm, employeeId: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-slate-700 font-sans"
+                          >
+                            <option value="">-- কর্মকর্তা নির্বাচন করুন --</option>
+                            {employeesList.map(emp => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.name} ({emp.department} - {emp.designation})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-500">ওভারটাইম ঘণ্টা (Hours)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={allocationForm.overtimeHours || ''}
+                              onChange={e => setAllocationForm({ ...allocationForm, overtimeHours: Math.max(0, Number(e.target.value)) })}
+                              placeholder="e.g. 15"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none font-sans"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-500">ঘণ্টাপ্রতি হার (Rate/Hr)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={allocationForm.overtimeRate || ''}
+                              onChange={e => setAllocationForm({ ...allocationForm, overtimeRate: Math.max(0, Number(e.target.value)) })}
+                              placeholder="e.g. 500"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none font-sans"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-500">উৎসব / পারফরম্যান্স বোনাস</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={allocationForm.bonus || ''}
+                              onChange={e => setAllocationForm({ ...allocationForm, bonus: Math.max(0, Number(e.target.value)) })}
+                              placeholder="৳ e.g. 15000"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none font-sans"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="font-bold text-slate-500">ট্যাক্স কর্তন হার (Tax %)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={allocationForm.taxRate}
+                              onChange={e => setAllocationForm({ ...allocationForm, taxRate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none font-sans"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={handleResetAllocations}
+                            className="w-1/3 border border-red-200 hover:bg-red-50 text-red-600 font-bold py-2 rounded-lg text-center cursor-pointer text-xs font-sans"
+                          >
+                            রিসেট অল
+                          </button>
+                          <button
+                            type="submit"
+                            className="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-center cursor-pointer text-xs font-sans shadow-xs"
+                          >
+                            ডিস্ট্রিবিউশন আপডেট
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Right: Roster / Table and Filters */}
+                    <div className="lg:col-span-2 bg-white border border-slate-200 p-5 rounded-2xl space-y-4 shadow-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-sm">कर्मকর্তা বেতন বিল তালিকা (HR Wage Roster)</h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5">সব কর্মকর্তার বন্টনকৃত ভাতাদি ও চূড়ান্ত নিট প্রদেয় বেতনের হিসাব তালিকা।</p>
+                        </div>
+                        <button
+                          onClick={() => window.print()}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 self-start cursor-pointer font-sans"
+                        >
+                          <Printer className="h-3.5 w-3.5" /> প্রিন্ট তালিকা (Print List)
+                        </button>
+                      </div>
+
+                      {/* Filters */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="कर्मকর্তার নাম বা পদবি দিয়ে খুঁজুন..."
+                            value={allocSearch}
+                            onChange={e => setAllocSearch(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-xs outline-none focus:border-indigo-500 focus:bg-white text-slate-700 font-sans"
+                          />
+                        </div>
+                        <select
+                          value={allocDept}
+                          onChange={e => setAllocDept(e.target.value)}
+                          className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none text-slate-700 font-sans min-w-[120px]"
+                        >
+                          <option value="All">সকল ডিপার্টমেন্ট</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="HR">HR & Operations</option>
+                          <option value="Sales">Sales & Marketing</option>
+                          <option value="Accounts">Finance & Ledger</option>
+                          <option value="Logistics">Logistics</option>
+                        </select>
+                      </div>
+
+                      {/* Data Table */}
+                      <div className="overflow-x-auto border border-slate-100 rounded-xl">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-50/70 border-b border-slate-200 text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                              <th className="py-3 px-4">কর্মকর্তা (Employee)</th>
+                              <th className="py-3 px-4 text-right">মূল বেতন (Base)</th>
+                              <th className="py-3 px-4 text-center">ওভারটাইম ঘণ্টা/হার</th>
+                              <th className="py-3 px-4 text-right">বোনাস (Bonus)</th>
+                              <th className="py-3 px-4 text-right">ট্যাক্স কর্তন</th>
+                              <th className="py-3 px-4 text-right font-bold text-indigo-600">চূড়ান্ত প্রদেয় (Net)</th>
+                              <th className="py-3 px-4 text-center">অ্যাকশন</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-600 font-sans">
+                            {filteredEmps.map(emp => {
+                              const baseSalary = Number(emp.salary) || 0;
+                              const otHrs = Number(emp.overtimeHours) || 0;
+                              const otRate = Number(emp.overtimeRate) || 0;
+                              const otPay = otHrs * otRate;
+                              const bonus = Number(emp.bonus) || 0;
+                              const taxRate = emp.taxRate !== undefined ? Number(emp.taxRate) : 10;
+                              const gross = baseSalary + otPay + bonus;
+                              const deduction = (gross * taxRate) / 100;
+                              const net = gross - deduction;
+
+                              return (
+                                <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-3 px-4">
+                                    <span className="font-bold text-slate-800 block text-xs">{emp.name}</span>
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">{emp.department} • {emp.designation}</span>
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono font-medium">৳{baseSalary.toLocaleString('en-IN')}</td>
+                                  <td className="py-3 px-4 text-center">
+                                    {otHrs > 0 ? (
+                                      <div className="inline-block">
+                                        <span className="font-bold text-slate-700 font-mono block text-[11px]">{otHrs} hrs</span>
+                                        <span className="text-[9px] text-slate-400 font-mono block">@ ৳{otRate}/hr</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-300 font-mono">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono">
+                                    {bonus > 0 ? (
+                                      <span className="text-emerald-600 font-medium">৳{bonus.toLocaleString('en-IN')}</span>
+                                    ) : (
+                                      <span className="text-slate-300">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono text-slate-400">
+                                    {deduction > 0 ? (
+                                      <div className="inline-block">
+                                        <span className="text-red-500 font-medium block text-[11px]">৳{deduction.toLocaleString('en-IN')}</span>
+                                        <span className="text-[9px] text-slate-400 font-mono block">{taxRate}% rate</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-300">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600 text-[13px]">
+                                    ৳{Math.round(net).toLocaleString('en-IN')}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <button
+                                      onClick={() => setSelectedPayslip({
+                                        ...emp,
+                                        baseSalary,
+                                        otHrs,
+                                        otRate,
+                                        otPay,
+                                        bonus,
+                                        taxRate,
+                                        deduction,
+                                        net
+                                      })}
+                                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-indigo-100 transition-all cursor-pointer font-sans"
+                                    >
+                                      পে-স্লিপ (Payslip)
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+
+                            {filteredEmps.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="py-12 text-center text-slate-400 italic font-sans">
+                                  কোনো কর্মকর্তা পাওয়া যায়নি। (No employee matching active filters)
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
       </div>
 
       {/* --- LEAVE MODAL OVERLAY --- */}
@@ -1517,6 +1876,120 @@ export default function EmployeeView({
               >
                 <Printer className="h-3.5 w-3.5" />
                 <span>Print Document</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- WAGE PAYSLIP VIEW & PRINT MODAL --- */}
+      {selectedPayslip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 print:p-0 print:bg-white print:relative print:z-0">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 w-full max-w-lg shadow-xl space-y-6 animate-in zoom-in duration-150 print:border-none print:shadow-none print:p-0 print:max-w-full">
+            
+            {/* Header / Company Branding */}
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-lg text-slate-800 tracking-tight font-display">NEXOVA ERP SOLUTION</h3>
+                <span className="text-[10px] text-slate-400 block font-sans tracking-wide">HR & CORPORATE PAYROLL DEPT</span>
+                <span className="text-[9px] text-slate-400 block font-mono">Issued On: {new Date().toLocaleDateString('en-GB')}</span>
+              </div>
+              <div className="text-right">
+                <span className="bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full text-[10px] border border-indigo-100/50 print:hidden">
+                  অফিসিয়াল পে-স্লিপ
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-500 block mt-1">SLIP #{selectedPayslip.id?.toUpperCase()}</span>
+              </div>
+            </div>
+
+            {/* Employee Information card */}
+            <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-2 gap-4 text-xs font-sans print:bg-slate-50 print:border">
+              <div>
+                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">কর্মকর্তার নাম (Employee)</span>
+                <span className="font-extrabold text-slate-800 block text-sm mt-0.5">{selectedPayslip.name}</span>
+                <span className="text-slate-500 block mt-0.5">{selectedPayslip.designation}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[9px] uppercase font-bold tracking-wider">ডিপার্টমেন্ট (Department)</span>
+                <span className="font-extrabold text-slate-800 block text-sm mt-0.5">{selectedPayslip.department}</span>
+                <span className="text-slate-500 block mt-0.5">যোগদানের তারিখ: {selectedPayslip.joiningDate || 'N/A'}</span>
+              </div>
+            </div>
+
+            {/* Earnings and Deductions Breakdowns */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider border-b border-slate-100 pb-1">
+                বেতন ও ভাতাদি বিবরণী (Salary Breakdown)
+              </h4>
+              <div className="divide-y divide-slate-100 text-xs font-sans">
+                <div className="flex justify-between py-2 text-slate-600">
+                  <span>মাসিক মূল বেতন (Basic Salary)</span>
+                  <span className="font-mono font-medium text-slate-800">৳{selectedPayslip.baseSalary.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between py-2 text-slate-600">
+                  <span>ওভারটাইম ভাতা (Overtime Allowance) {selectedPayslip.otHrs > 0 ? `(${selectedPayslip.otHrs} hrs @ ৳${selectedPayslip.otRate}/hr)` : ''}</span>
+                  <span className="font-mono font-medium text-slate-800">
+                    ৳{selectedPayslip.otPay > 0 ? selectedPayslip.otPay.toLocaleString('en-IN') : '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 text-slate-600">
+                  <span>উৎসব ও পারফরম্যান্স বোনাস (Bonus)</span>
+                  <span className="font-mono font-medium text-emerald-600">
+                    ৳{selectedPayslip.bonus > 0 ? selectedPayslip.bonus.toLocaleString('en-IN') : '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 text-slate-600">
+                  <span>সর্বমোট অর্জিত বেতন (Gross Earnings)</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    ৳{(selectedPayslip.baseSalary + selectedPayslip.otPay + selectedPayslip.bonus).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 text-red-600 font-medium">
+                  <span>ট্যাক্স কর্তন (Tax Deduction - {selectedPayslip.taxRate}%)</span>
+                  <span className="font-mono">
+                    - ৳{selectedPayslip.deduction > 0 ? selectedPayslip.deduction.toLocaleString('en-IN') : '0'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Net Salary Payable */}
+            <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between items-center print:bg-slate-800 print:text-white">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-widest block opacity-80">চূড়ান্ত প্রদেয় নিট বেতন (Net Payable)</span>
+                <span className="text-xs opacity-75 font-sans mt-0.5">সব কর্তন পরবর্তী ব্যাংক ট্রান্সফার পরিমাণ</span>
+              </div>
+              <span className="text-2xl font-black font-mono">৳{Math.round(selectedPayslip.net).toLocaleString('en-IN')}</span>
+            </div>
+
+            {/* Corporate Signatures */}
+            <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-100 text-[10px] text-slate-400 font-sans">
+              <div className="text-center">
+                <div className="h-10 border-b border-dashed border-slate-200"></div>
+                <span className="block mt-1 font-bold">কর্মকর্তার স্বাক্ষর (Employee Signature)</span>
+              </div>
+              <div className="text-center">
+                <div className="h-10 border-b border-dashed border-slate-200"></div>
+                <span className="block mt-1 font-bold">অনুমোদনকারী স্বাক্ষর (HR / Finance Lead)</span>
+              </div>
+            </div>
+
+            {/* Print Instructions */}
+            <div className="flex gap-2 pt-2 border-t border-slate-100 print:hidden">
+              <button
+                type="button"
+                onClick={() => setSelectedPayslip(null)}
+                className="w-1/2 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold py-2.5 rounded-xl text-center cursor-pointer text-xs transition-all font-sans"
+              >
+                বন্ধ করুন (Close)
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-center cursor-pointer text-xs transition-all shadow-md flex items-center justify-center gap-1.5 font-sans"
+              >
+                <Printer className="h-4 w-4" /> স্লিপ প্রিন্ট করুন (Print Slip)
               </button>
             </div>
 

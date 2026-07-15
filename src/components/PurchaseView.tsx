@@ -62,7 +62,9 @@ export default function PurchaseView({
     'threeway_matching',
     'purchase_returns',
     'purchase_payments',
-    'supplier_scorecard'
+    'supplier_scorecard',
+    'quotations',
+    'invoices'
   ].includes(activeSubTab)
     ? activeSubTab
     : 'purchase_orders';
@@ -333,6 +335,94 @@ export default function PurchaseView({
     { id: 'pay_1', supplierName: 'Siam Glass Ltd.', date: '2026-07-02', amount: 45000, method: 'MTB Current Account' },
     { id: 'pay_2', supplierName: 'Bengal Plastics PLC', date: '2026-07-05', amount: 80000, method: 'Bkash Merchant Wallet' },
   ]);
+
+  // --- NEW PURCHASE FEATURE STATES (SUPPLIER QUOTATIONS & PURCHASE INVOICES) ---
+  const [supplierQuotations, setSupplierQuotations] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_supplier_quotations');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'quote_1',
+        quoteNo: 'RFQ-2026-001',
+        supplierName: 'Siam Glass Ltd.',
+        items: [
+          { productName: 'Standard Premium cement', qty: 100, targetPrice: 400, finalPrice: 395 }
+        ],
+        validUntil: '2026-08-15',
+        deliveryLeadTime: 3,
+        status: 'Approved'
+      },
+      {
+        id: 'quote_2',
+        quoteNo: 'RFQ-2026-002',
+        supplierName: 'Bengal Plastics PLC',
+        items: [
+          { productName: 'Deformed Steel Bar 60G (12mm)', qty: 10, targetPrice: 75000, finalPrice: 74500 }
+        ],
+        validUntil: '2026-08-20',
+        deliveryLeadTime: 5,
+        status: 'Pending Review'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nexova_supplier_quotations', JSON.stringify(supplierQuotations));
+  }, [supplierQuotations]);
+
+  const [purchaseInvoices, setPurchaseInvoices] = useState<any[]>(() => {
+    const saved = localStorage.getItem('nexova_purchase_invoices');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'pinv_1',
+        invoiceNo: 'PINV-2026-501',
+        invoiceDate: '2026-07-10',
+        dueDate: '2026-08-10',
+        supplierName: 'Siam Glass Ltd.',
+        totalAmt: 39500,
+        paidAmt: 39500,
+        paymentStatus: 'Paid',
+        linkedQuoteNo: 'RFQ-2026-001'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('nexova_purchase_invoices', JSON.stringify(purchaseInvoices));
+  }, [purchaseInvoices]);
+
+  // Quotations Form States
+  const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
+  const [newQuoteSupplier, setNewQuoteSupplier] = useState('');
+  const [newQuoteValidUntil, setNewQuoteValidUntil] = useState(new Date().toISOString().substring(0, 10));
+  const [newQuoteLeadTime, setNewQuoteLeadTime] = useState(3);
+  const [newQuoteItemName, setNewQuoteItemName] = useState('');
+  const [newQuoteItemQty, setNewQuoteItemQty] = useState(1);
+  const [newQuoteItemTargetPrice, setNewQuoteItemTargetPrice] = useState(100);
+  const [newQuoteItemFinalPrice, setNewQuoteItemFinalPrice] = useState(100);
+  const [newQuoteItemsList, setNewQuoteItemsList] = useState<any[]>([]);
+  const [quoteFilterStatus, setQuoteFilterStatus] = useState('All');
+
+  // Purchase Invoices Form States
+  const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
+  const [newInvoiceNo, setNewInvoiceNo] = useState('');
+  const [newInvoiceDate, setNewInvoiceDate] = useState(new Date().toISOString().substring(0, 10));
+  const [newInvoiceDueDate, setNewInvoiceDueDate] = useState(new Date().toISOString().substring(0, 10));
+  const [newInvoiceSupplier, setNewInvoiceSupplier] = useState('');
+  const [newInvoiceTotal, setNewInvoiceTotal] = useState(0);
+  const [newInvoicePaid, setNewInvoicePaid] = useState(0);
+  const [newInvoiceLinkedQuote, setNewInvoiceLinkedQuote] = useState('');
+  const [invoiceFilterStatus, setInvoiceFilterStatus] = useState('All');
+
+  // Pay invoice state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
+  const [paymentAmountInput, setPaymentAmountInput] = useState(0);
 
   // --- SAP PR-TO-PO WORKFLOW HELPERS ---
   const [activeRFQId, setActiveRFQId] = useState<string>('RFQ-2026-901');
@@ -2411,6 +2501,786 @@ export default function PurchaseView({
           </div>
         </div>
       )}
+
+      {/* =========================================================
+          TAB 11: SUPPLIER QUOTATIONS (সরবরাহকারী কোটেশন)
+          ========================================================= */}
+      {currentTab === 'quotations' && (() => {
+        const filteredQuotes = supplierQuotations.filter(q => {
+          if (quoteFilterStatus !== 'All' && q.status !== quoteFilterStatus) return false;
+          return true;
+        });
+
+        const totalQuoteVal = supplierQuotations.reduce((sum, q) => {
+          const qVal = q.items.reduce((iSum: number, i: any) => iSum + (i.qty * i.finalPrice), 0);
+          return sum + qVal;
+        }, 0);
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Supplier RFQs & Quotations</h2>
+                <p className="text-xs text-slate-400 mt-1">Manage, analyze, and approve quotations and RFQs submitted by supplier partners.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setNewQuoteItemsList([]);
+                  setShowNewQuoteModal(true);
+                }}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন কোটেশন যোগ করুন</span>
+              </button>
+            </div>
+
+            {/* Stats Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-slate-400 font-medium">কোটেশনের মোট মূল্য (Quotation Total Value)</p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">৳{totalQuoteVal.toLocaleString()}</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-emerald-700 font-medium">অনুমোদিত কোটেশন (Approved Quotes)</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">
+                  {supplierQuotations.filter(q => q.status === 'Approved').length}
+                </p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-yellow-700 font-medium">পর্যালোচনাধীন কোটেশন (Pending Review)</p>
+                <p className="text-2xl font-bold text-yellow-800 mt-1">
+                  {supplierQuotations.filter(q => q.status === 'Pending Review').length}
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">স্ট্যাটাস ফিল্টার করুন:</span>
+                <select
+                  value={quoteFilterStatus}
+                  onChange={(e) => setQuoteFilterStatus(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="All">All Statuses (সব কোটেশন)</option>
+                  <option value="Pending Review">Pending Review</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <span className="text-xs text-slate-400 font-medium">
+                অনুমোদিত কোটেশনগুলো পারচেজ ইনভয়েসের সাথে লিঙ্ক করা সম্ভব।
+              </span>
+            </div>
+
+            {/* Quotations Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3 px-4">Quote No</th>
+                    <th className="py-3 px-4">Supplier Name</th>
+                    <th className="py-3 px-4">Items Summary</th>
+                    <th className="py-3 px-4 text-center">Valid Until</th>
+                    <th className="py-3 px-4 text-center">Lead Time</th>
+                    <th className="py-3 px-4 text-right">Total Quote Value</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredQuotes.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">কোনো কোটেশন খুঁজে পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    filteredQuotes.map((q) => {
+                      const quoteTotal = q.items.reduce((sum: number, item: any) => sum + (item.qty * item.finalPrice), 0);
+
+                      return (
+                        <tr key={q.id} className="hover:bg-slate-50/30">
+                          <td className="py-3 px-4 font-bold text-slate-800">{q.quoteNo}</td>
+                          <td className="py-3 px-4 font-bold text-indigo-700">{q.supplierName}</td>
+                          <td className="py-3 px-4 text-slate-600 max-w-xs">
+                            <div className="space-y-1">
+                              {q.items.map((item: any, idx: number) => (
+                                <div key={idx} className="text-[10px]">
+                                  • {item.productName} ({item.qty} x ৳{item.finalPrice.toLocaleString()})
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center font-medium text-slate-600 font-mono">{q.validUntil}</td>
+                          <td className="py-3 px-4 text-center font-medium text-slate-700 font-mono">{q.deliveryLeadTime} Days</td>
+                          <td className="py-3 px-4 text-right font-bold text-slate-800">৳{quoteTotal.toLocaleString()}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                              q.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              q.status === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            }`}>
+                              {q.status === 'Approved' && <CheckCircle className="h-3 w-3" />}
+                              {q.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {q.status !== 'Approved' && (
+                                <button
+                                  onClick={() => {
+                                    const updated = supplierQuotations.map(quote => quote.id === q.id ? { ...quote, status: 'Approved' } : quote);
+                                    setSupplierQuotations(updated);
+                                    localStorage.setItem('nexova_supplier_quotations', JSON.stringify(updated));
+                                  }}
+                                  className="text-emerald-600 hover:text-emerald-800 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded hover:underline cursor-pointer"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {q.status !== 'Rejected' && (
+                                <button
+                                  onClick={() => {
+                                    const updated = supplierQuotations.map(quote => quote.id === q.id ? { ...quote, status: 'Rejected' } : quote);
+                                    setSupplierQuotations(updated);
+                                    localStorage.setItem('nexova_supplier_quotations', JSON.stringify(updated));
+                                  }}
+                                  className="text-rose-600 hover:text-rose-800 font-bold text-[10px] bg-rose-50 border border-rose-100 px-2 py-0.5 rounded hover:underline cursor-pointer"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('আপনি কি এই কোটেশনটি ডিলিট করতে চান?')) {
+                                    const updated = supplierQuotations.filter(quote => quote.id !== q.id);
+                                    setSupplierQuotations(updated);
+                                    localStorage.setItem('nexova_supplier_quotations', JSON.stringify(updated));
+                                  }
+                                }}
+                                className="text-slate-400 hover:text-rose-600 font-bold ml-1 text-xs cursor-pointer"
+                                title="Delete Quote"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Create Supplier Quotation Modal */}
+            {showNewQuoteModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowNewQuoteModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">নতুন কোটেশন ফর্ম</h4>
+                    <button onClick={() => setShowNewQuoteModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                  </div>
+                  <div className="p-5 max-h-[80vh] overflow-y-auto space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-500">সরবরাহকারী (Select Supplier) *</label>
+                        <select
+                          required
+                          value={newQuoteSupplier}
+                          onChange={(e) => setNewQuoteSupplier(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none"
+                        >
+                          <option value="">-- সরবরাহকারী নির্বাচন করুন --</option>
+                          {suppliers.map(s => (
+                            <option key={s.id} value={s.name}>{s.name} ({s.companyName})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-500">বৈধতার মেয়াদ (Valid Until) *</label>
+                        <input
+                          type="date"
+                          required
+                          value={newQuoteValidUntil}
+                          onChange={(e) => setNewQuoteValidUntil(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-500">ডেলিভারি লিড টাইম (Days) *</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          placeholder="3"
+                          value={newQuoteLeadTime}
+                          onChange={(e) => setNewQuoteLeadTime(parseInt(e.target.value) || 1)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quotation Items builder section */}
+                    <div className="border border-slate-100 p-4 rounded-xl bg-slate-50/50 space-y-3">
+                      <span className="text-xs font-black text-slate-700 block text-left uppercase tracking-wider">কোটেশন আইটেম যুক্ত করুন (Add Items)</span>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-left">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">পণ্য (Product)</label>
+                          <select
+                            value={newQuoteItemName}
+                            onChange={(e) => {
+                              const pName = e.target.value;
+                              setNewQuoteItemName(pName);
+                              const matched = products.find(p => p.name === pName);
+                              if (matched) {
+                                setNewQuoteItemTargetPrice(matched.price);
+                                setNewQuoteItemFinalPrice(matched.price);
+                              }
+                            }}
+                            className="block w-full text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                          >
+                            <option value="">-- পণ্য সিলেক্ট করুন --</option>
+                            {products.map(p => (
+                              <option key={p.id} value={p.name}>{p.name} ({p.sku})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">পরিমাণ (Quantity)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={newQuoteItemQty}
+                            onChange={(e) => setNewQuoteItemQty(parseInt(e.target.value) || 1)}
+                            className="block w-full text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-left">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">টার্গেট মূল্য (Target Price BDT)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={newQuoteItemTargetPrice}
+                            onChange={(e) => setNewQuoteItemTargetPrice(parseInt(e.target.value) || 0)}
+                            className="block w-full text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase">চূড়ান্ত প্রস্তাবিত মূল্য (Final Quoted Price)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={newQuoteItemFinalPrice}
+                            onChange={(e) => setNewQuoteItemFinalPrice(parseInt(e.target.value) || 0)}
+                            className="block w-full text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newQuoteItemName) {
+                            window.alert('অনুগ্রহ করে আইটেম সিলেক্ট করুন!');
+                            return;
+                          }
+                          const newItem = {
+                            productName: newQuoteItemName,
+                            qty: newQuoteItemQty,
+                            targetPrice: newQuoteItemTargetPrice,
+                            finalPrice: newQuoteItemFinalPrice
+                          };
+                          setNewQuoteItemsList([...newQuoteItemsList, newItem]);
+                          setNewQuoteItemName('');
+                          setNewQuoteItemQty(1);
+                        }}
+                        className="w-full py-2 bg-slate-700 hover:bg-slate-800 text-white text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                      >
+                        আইটেমটি তালিকায় যোগ করুন
+                      </button>
+
+                      {/* Display added items list */}
+                      {newQuoteItemsList.length > 0 && (
+                        <div className="mt-3 bg-white border border-slate-150 rounded-lg p-2 space-y-1 max-h-24 overflow-y-auto">
+                          {newQuoteItemsList.map((itm, index) => (
+                            <div key={index} className="flex justify-between items-center text-[11px] font-medium text-slate-700 py-1 border-b border-slate-50 last:border-b-0">
+                              <span>• {itm.productName} ({itm.qty} Units)</span>
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-slate-800">৳{(itm.qty * itm.finalPrice).toLocaleString()}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setNewQuoteItemsList(newQuoteItemsList.filter((_, i) => i !== index))}
+                                  className="text-rose-600 hover:text-rose-800 font-bold"
+                                >
+                                  মুছে ফেলুন
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewQuoteModal(false)}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newQuoteSupplier) {
+                            window.alert('সরবরাহকারী নির্বাচন করুন!');
+                            return;
+                          }
+                          if (newQuoteItemsList.length === 0) {
+                            window.alert('অনুগ্রহ করে অন্তত ১টি আইটেম যোগ করুন!');
+                            return;
+                          }
+
+                          const randomSuffix = Math.floor(100 + Math.random() * 900);
+                          const year = newQuoteValidUntil.split('-')[0] || '2026';
+                          const quoteNo = `RFQ-${year}-${randomSuffix}`;
+
+                          const newQuote = {
+                            id: `quote_${Date.now()}`,
+                            quoteNo,
+                            supplierName: newQuoteSupplier,
+                            items: newQuoteItemsList,
+                            validUntil: newQuoteValidUntil,
+                            deliveryLeadTime: newQuoteLeadTime,
+                            status: 'Pending Review'
+                          };
+
+                          const updated = [newQuote, ...supplierQuotations];
+                          setSupplierQuotations(updated);
+                          localStorage.setItem('nexova_supplier_quotations', JSON.stringify(updated));
+
+                          setShowNewQuoteModal(false);
+                          setNewQuoteSupplier('');
+                          setNewQuoteItemsList([]);
+                        }}
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      >
+                        কোটেশন সংরক্ষণ করুন
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* =========================================================
+          TAB 12: PURCHASE INVOICES (পারচেজ ইনভয়েস ও বিল)
+          ========================================================= */}
+      {currentTab === 'invoices' && (() => {
+        const filteredInvoices = purchaseInvoices.filter(i => {
+          if (invoiceFilterStatus !== 'All' && i.paymentStatus !== invoiceFilterStatus) return false;
+          return true;
+        });
+
+        // Calculations
+        const totalPurchased = purchaseInvoices.reduce((sum, i) => sum + i.totalAmt, 0);
+        const totalPaid = purchaseInvoices.reduce((sum, i) => sum + i.paidAmt, 0);
+        const totalLiabilities = totalPurchased - totalPaid;
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 font-display">Supplier Bills & Invoices</h2>
+                <p className="text-xs text-slate-400 mt-1">Audit vendor bills, link invoices to approved quotations, and manage payments.</p>
+              </div>
+              <button
+                onClick={() => setShowNewInvoiceModal(true)}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>নতুন পারচেজ ইনভয়েস যুক্ত করুন</span>
+              </button>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-slate-400 font-medium">মোট ক্রয় (Total Purchased)</p>
+                <p className="text-2xl font-bold text-slate-800 mt-1">৳{totalPurchased.toLocaleString()}</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <p className="text-xs text-emerald-700 font-medium">পরিশোধিত (Total Paid Amount)</p>
+                <p className="text-2xl font-bold text-emerald-800 mt-1">৳{totalPaid.toLocaleString()}</p>
+              </div>
+              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl shadow-xs animate-pulse">
+                <p className="text-xs text-rose-700 font-medium">বকেয়া দায় (Total Unpaid / Liabilities)</p>
+                <p className="text-2xl font-bold text-rose-700 mt-1">৳{totalLiabilities.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white border border-slate-200/85 p-4 rounded-2xl shadow-xs flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">পেমেন্ট ফিল্টার করুন:</span>
+                <select
+                  value={invoiceFilterStatus}
+                  onChange={(e) => setInvoiceFilterStatus(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="All">All Payments (সব ইনভয়েস)</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Partially Paid">Partially Paid</option>
+                  <option value="Unpaid">Unpaid</option>
+                </select>
+              </div>
+              <span className="text-xs text-slate-400 font-medium">
+                Approved Quotation সিলেক্ট করলে সরবরাহকারী এবং আইটেম টোটাল স্বয়ংক্রিয়ভাবে পূর্ণ হবে।
+              </span>
+            </div>
+
+            {/* Invoices Table */}
+            <div className="bg-white border border-slate-200/85 rounded-2xl shadow-xs overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold bg-slate-50/50 uppercase tracking-wider">
+                    <th className="py-3.5 px-4">Invoice No</th>
+                    <th className="py-3.5 px-4">Supplier</th>
+                    <th className="py-3.5 px-4 text-center">Invoice Date</th>
+                    <th className="py-3.5 px-4 text-center">Due Date</th>
+                    <th className="py-3.5 px-4 text-right">Total Bill Amount</th>
+                    <th className="py-3.5 px-4 text-right">Paid Amount</th>
+                    <th className="py-3.5 px-4 text-center">Payment Status</th>
+                    <th className="py-3.5 px-4">Linked Quote</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 text-center text-slate-400 font-medium">কোনো বিল খুঁজে পাওয়া যায়নি।</td>
+                    </tr>
+                  ) : (
+                    filteredInvoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-50/30">
+                        <td className="py-3 px-4 font-bold text-slate-800">{inv.invoiceNo}</td>
+                        <td className="py-3 px-4 font-bold text-slate-700">{inv.supplierName}</td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-600 font-mono">{inv.invoiceDate}</td>
+                        <td className="py-3 px-4 text-center font-medium text-rose-600 font-mono">{inv.dueDate}</td>
+                        <td className="py-3 px-4 text-right font-black text-slate-800">৳{inv.totalAmt.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-bold text-emerald-600">৳{inv.paidAmt.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                            inv.paymentStatus === 'Paid' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                            inv.paymentStatus === 'Partially Paid' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                            'bg-rose-50 border-rose-200 text-rose-700'
+                          }`}>
+                            {inv.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-indigo-600 font-mono">{inv.linkedQuoteNo || '-'}</td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {inv.paymentStatus !== 'Paid' && (
+                              <button
+                                onClick={() => {
+                                  setSelectedInvoiceForPayment(inv);
+                                  setPaymentAmountInput(inv.totalAmt - inv.paidAmt);
+                                  setShowPaymentModal(true);
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all shadow-xs cursor-pointer"
+                              >
+                                Pay Bill
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (window.confirm('আপনি কি এই বিলটি ডিলিট করতে চান?')) {
+                                  const updated = purchaseInvoices.filter(i => i.id !== inv.id);
+                                  setPurchaseInvoices(updated);
+                                  localStorage.setItem('nexova_purchase_invoices', JSON.stringify(updated));
+                                }
+                              }}
+                              className="text-slate-400 hover:text-rose-600 font-bold text-xs"
+                              title="Delete Invoice"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Create Purchase Invoice Modal */}
+            {showNewInvoiceModal && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setShowNewInvoiceModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">নতুন সরবরাহকারী বিল ফর্ম</h4>
+                    <button onClick={() => setShowNewInvoiceModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newInvoiceNo) {
+                      window.alert('বিল নম্বর লিখুন!');
+                      return;
+                    }
+                    if (!newInvoiceSupplier) {
+                      window.alert('সরবরাহকারী নির্বাচন করুন!');
+                      return;
+                    }
+                    if (newInvoiceTotal <= 0) {
+                      window.alert('মোট বিলের মূল্য অবশ্যই ০ এর বেশি হতে হবে!');
+                      return;
+                    }
+
+                    const paid = Number(newInvoicePaid) || 0;
+                    let pStatus = 'Unpaid';
+                    if (paid >= newInvoiceTotal) pStatus = 'Paid';
+                    else if (paid > 0) pStatus = 'Partially Paid';
+
+                    const newInv = {
+                      id: `pinv_${Date.now()}`,
+                      invoiceNo: newInvoiceNo,
+                      invoiceDate: newInvoiceDate,
+                      dueDate: newInvoiceDueDate,
+                      supplierName: newInvoiceSupplier,
+                      totalAmt: Number(newInvoiceTotal),
+                      paidAmt: paid,
+                      paymentStatus: pStatus,
+                      linkedQuoteNo: newInvoiceLinkedQuote || ''
+                    };
+
+                    const updated = [newInv, ...purchaseInvoices];
+                    setPurchaseInvoices(updated);
+                    localStorage.setItem('nexova_purchase_invoices', JSON.stringify(updated));
+
+                    setShowNewInvoiceModal(false);
+                    setNewInvoiceNo('');
+                    setNewInvoiceSupplier('');
+                    setNewInvoiceTotal(0);
+                    setNewInvoicePaid(0);
+                    setNewInvoiceLinkedQuote('');
+                  }} className="p-5 space-y-4 text-left">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500">অনুমোদিত কোটেশন লিঙ্ক করুন (Link Approved Quote)</label>
+                      <select
+                        value={newInvoiceLinkedQuote}
+                        onChange={(e) => {
+                          const quoteNo = e.target.value;
+                          setNewInvoiceLinkedQuote(quoteNo);
+                          const matchedQuote = supplierQuotations.find(q => q.quoteNo === quoteNo);
+                          if (matchedQuote) {
+                            setNewInvoiceSupplier(matchedQuote.supplierName);
+                            const calcTotal = matchedQuote.items.reduce((sum: number, itm: any) => sum + (itm.qty * itm.finalPrice), 0);
+                            setNewInvoiceTotal(calcTotal);
+                          }
+                        }}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      >
+                        <option value="">-- কোটেশন নির্বাচন করুন (ঐচ্ছিক) --</option>
+                        {supplierQuotations.filter(q => q.status === 'Approved').map(q => {
+                          const qVal = q.items.reduce((sum: number, itm: any) => sum + (itm.qty * itm.finalPrice), 0);
+                          return (
+                            <option key={q.id} value={q.quoteNo}>
+                              {q.quoteNo} - {q.supplierName} (৳{qVal.toLocaleString()})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500">বিল / ইনভয়েস নম্বর (Invoice No) *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. BILL-9902"
+                        value={newInvoiceNo}
+                        onChange={(e) => setNewInvoiceNo(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500">সরবরাহকারী (Supplier Name) *</label>
+                      <select
+                        required
+                        value={newInvoiceSupplier}
+                        onChange={(e) => setNewInvoiceSupplier(e.target.value)}
+                        className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                      >
+                        <option value="">-- সরবরাহকারী নির্বাচন করুন --</option>
+                        {suppliers.map(s => (
+                          <option key={s.id} value={s.name}>{s.name} ({s.companyName})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">বিল তারিখ *</label>
+                        <input
+                          type="date"
+                          required
+                          value={newInvoiceDate}
+                          onChange={(e) => setNewInvoiceDate(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">পরিশোধের শেষ তারিখ *</label>
+                        <input
+                          type="date"
+                          required
+                          value={newInvoiceDueDate}
+                          onChange={(e) => setNewInvoiceDueDate(e.target.value)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">বিলের মোট মূল্য BDT *</label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          value={newInvoiceTotal}
+                          onChange={(e) => setNewInvoiceTotal(parseInt(e.target.value) || 0)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500">পরিশোধিত মূল্য (Paid Amount)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newInvoicePaid}
+                          onChange={(e) => setNewInvoicePaid(parseInt(e.target.value) || 0)}
+                          className="block w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2.5"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewInvoiceModal(false)}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      >
+                        বিল সংরক্ষণ করুন
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Pay Bill Payment Modal */}
+            {showPaymentModal && selectedInvoiceForPayment && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => { setShowPaymentModal(false); setSelectedInvoiceForPayment(null); }}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">বিলের পেমেন্ট করুন</h4>
+                    <button onClick={() => { setShowPaymentModal(false); setSelectedInvoiceForPayment(null); }} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                  </div>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const amountToPay = Number(paymentAmountInput) || 0;
+                    if (amountToPay <= 0) {
+                      window.alert('বৈধ পেমেন্ট সংখ্যা দিন!');
+                      return;
+                    }
+
+                    const updated = purchaseInvoices.map(inv => {
+                      if (inv.id === selectedInvoiceForPayment.id) {
+                        const newPaid = inv.paidAmt + amountToPay;
+                        let pStatus = 'Unpaid';
+                        if (newPaid >= inv.totalAmt) pStatus = 'Paid';
+                        else if (newPaid > 0) pStatus = 'Partially Paid';
+
+                        return {
+                          ...inv,
+                          paidAmt: newPaid,
+                          paymentStatus: pStatus
+                        };
+                      }
+                      return inv;
+                    });
+
+                    setPurchaseInvoices(updated);
+                    localStorage.setItem('nexova_purchase_invoices', JSON.stringify(updated));
+
+                    window.alert(`৳${amountToPay.toLocaleString()} বিল পেমেন্ট সফলভাবে সম্পন্ন হয়েছে!`);
+                    setShowPaymentModal(false);
+                    setSelectedInvoiceForPayment(null);
+                  }} className="p-5 space-y-4 text-left">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">পেমেন্ট টার্গেট বিল (Target Bill)</p>
+                      <p className="text-xs font-bold text-slate-800">{selectedInvoiceForPayment.invoiceNo} - {selectedInvoiceForPayment.supplierName}</p>
+                      <p className="text-xs font-bold text-slate-600">৳{selectedInvoiceForPayment.paidAmt.toLocaleString()} Paid / ৳{selectedInvoiceForPayment.totalAmt.toLocaleString()} Total</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500">পরিশোধের পরিমাণ BDT *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        max={selectedInvoiceForPayment.totalAmt - selectedInvoiceForPayment.paidAmt}
+                        value={paymentAmountInput}
+                        onChange={(e) => setPaymentAmountInput(parseInt(e.target.value) || 0)}
+                        className="block w-full text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2.5 outline-none text-right font-mono"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => { setShowPaymentModal(false); setSelectedInvoiceForPayment(null); }}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-lg"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                      >
+                        পেমেন্ট কনফার্ম করুন
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* =========================================================
           MODALS & OVERLAY FORMS
