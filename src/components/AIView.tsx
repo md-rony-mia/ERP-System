@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Bot,
@@ -66,6 +66,24 @@ export default function AIView({
   const currentTab = ['copilot', 'forecast', 'recommendation', 'insights', 'ai_reports'].includes(activeSubTab)
     ? activeSubTab
     : 'copilot';
+
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then(res => res.json())
+      .then(data => {
+        if (typeof data.aiEnabled === "boolean") {
+          setAiEnabled(data.aiEnabled);
+        } else {
+          setAiEnabled(true);
+        }
+      })
+      .catch(err => {
+        console.error("AI check error:", err);
+        setAiEnabled(true);
+      });
+  }, []);
 
   // --- LOCAL PERSISTED / MOCK STATES ---
   const [messages, setMessages] = useState<Message[]>([
@@ -206,9 +224,15 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
                 <Bot className="h-5 w-5 text-indigo-600" />
                 <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Nexova ERP Copilot Terminal</span>
               </div>
-              <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Offline AI Model Active
-              </span>
+              {aiEnabled === false ? (
+                <span className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-slate-300"></span> AI Disabled
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Offline AI Model Active
+                </span>
+              )}
             </div>
 
             {/* MESSAGE CONTAINER */}
@@ -235,43 +259,59 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
             </div>
 
             {/* QUICK PRESET INQUIRIES */}
-            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setInputText('What is the price trend of steel?')}
-                className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
-              >
-                📊 Price trend of steel?
-              </button>
-              <button
-                onClick={() => setInputText('Give me August revenue forecast')}
-                className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
-              >
-                💰 August revenue forecast?
-              </button>
-              <button
-                onClick={() => setInputText('How are raw cement stocks?')}
-                className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
-              >
-                🏗️ Cement stocks?
-              </button>
-            </div>
+            {aiEnabled !== false && (
+              <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setInputText('What is the price trend of steel?')}
+                  className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
+                >
+                  📊 Price trend of steel?
+                </button>
+                <button
+                  onClick={() => setInputText('Give me August revenue forecast')}
+                  className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
+                >
+                  💰 August revenue forecast?
+                </button>
+                <button
+                  onClick={() => setInputText('How are raw cement stocks?')}
+                  className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
+                >
+                  🏗️ Cement stocks?
+                </button>
+              </div>
+            )}
 
             {/* INPUT PANEL */}
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex gap-2">
-              <input
-                type="text"
-                placeholder="Ask ERP Copilot..."
-                value={inputText}
-                onChange={e => setInputText(e.target.value)}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
-              />
-              <button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </form>
+            {aiEnabled === false ? (
+              <div className="p-5 border-t border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-center gap-1.5">
+                <Brain className="h-7 w-7 text-slate-400 animate-pulse" />
+                <p className="text-xs text-slate-600 font-semibold font-sans">
+                  এআই অ্যাসিস্ট্যান্ট বর্তমানে নিষ্ক্রিয় রয়েছে। এটি সক্রিয় করতে অনুগ্রহ করে অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন।
+                </p>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  AI Assistant is currently turned off. Contact your administrator to enable it.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ask ERP Copilot..."
+                  value={inputText}
+                  disabled={aiEnabled === null}
+                  onChange={e => setInputText(e.target.value)}
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={aiEnabled === null}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-lg transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="space-y-4">
