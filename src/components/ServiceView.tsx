@@ -204,8 +204,9 @@ export default function ServiceView({ activeSubTab = 'warranty', currentUser }: 
         remediationCost,
         slaCompliance: '98.6%'
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      window.alert(`Error loading service registry data: ${e.message || e}`);
     } finally {
       setLoading(false);
     }

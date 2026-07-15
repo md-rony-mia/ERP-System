@@ -249,7 +249,7 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => [`৳${value.toLocaleString()}`, 'BDT']} />
+                  <Tooltip formatter={(value) => [value ? `৳${Number(value).toLocaleString()}` : '', 'BDT']} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                   <Line type="monotone" dataKey="Actual" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                   <Line type="monotone" dataKey="Forecast" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
@@ -266,7 +266,7 @@ export default function AIView({ activeSubTab = 'copilot' }: AIViewProps) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="week" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} domain={[60000, 70000]} />
-                  <Tooltip formatter={(value) => [`৳${value.toLocaleString()}`, 'BDT']} />
+                  <Tooltip formatter={(value) => [value ? `৳${Number(value).toLocaleString()}` : '', 'BDT']} />
                   <Bar dataKey="price" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>

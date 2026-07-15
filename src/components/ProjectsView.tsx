@@ -175,8 +175,9 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
         highPriority,
         activeStage
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      window.alert(`Error loading projects portfolio registry data: ${e.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -378,11 +379,17 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
 
   // D. Calendar Logic (Generates days in July 2026 for a highly professional representation)
   const getDaysInJuly2026 = () => {
-    const days = [];
+    const days: Array<{
+      blank?: boolean;
+      day?: number;
+      dateStr?: string;
+      tasks?: typeof tasks;
+      milestones?: typeof milestones;
+    }> = [];
     // Start offset: Wed July 1st 2026 is Wed (offset index 3, if Sun is 0)
     const offset = 3; 
     for (let i = 1; i <= offset; i++) {
-      days.push({ blank: true });
+      days.push({ blank: true, tasks: [], milestones: [] });
     }
     for (let day = 1; day <= 31; day++) {
       const dateStr = `2026-07-${day < 10 ? '0' + day : day}`;
@@ -735,7 +742,9 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
                     return <div key={`blank_${idx}`} className="bg-slate-50/20 border border-slate-100 rounded-lg min-h-[70px]"></div>;
                   }
 
-                  const hasEvents = dayObj.tasks.length > 0 || dayObj.milestones.length > 0;
+                  const tasksList = dayObj.tasks || [];
+                  const milestonesList = dayObj.milestones || [];
+                  const hasEvents = tasksList.length > 0 || milestonesList.length > 0;
 
                   return (
                     <div
@@ -747,7 +756,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
                       <span className="text-[10px] font-mono font-extrabold text-slate-400">{dayObj.day}</span>
                       
                       <div className="space-y-1 my-1 flex-1 overflow-y-auto max-h-[60px] custom-scrollbar">
-                        {dayObj.tasks.map(t => (
+                        {tasksList.map(t => (
                           <div
                             key={t.id}
                             className="bg-indigo-50 border border-indigo-150 text-indigo-700 text-[8px] font-bold px-1 py-0.5 rounded truncate"
@@ -756,7 +765,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
                             {t.title}
                           </div>
                         ))}
-                        {dayObj.milestones.map(m => (
+                        {milestonesList.map(m => (
                           <div
                             key={m.id}
                             className="bg-emerald-50 border border-emerald-150 text-emerald-700 text-[8px] font-bold px-1 py-0.5 rounded truncate"
@@ -769,7 +778,7 @@ export default function ProjectsView({ activeSubTab = 'projects', currentUser }:
 
                       {hasEvents && (
                         <div className="text-[8px] font-mono font-extrabold text-indigo-600 tracking-wider">
-                          {dayObj.tasks.length + dayObj.milestones.length} Events
+                          {tasksList.length + milestonesList.length} Events
                         </div>
                       )}
                     </div>

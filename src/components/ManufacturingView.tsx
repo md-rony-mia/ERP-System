@@ -538,7 +538,7 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
               </thead>
               <tbody>
                 {mrpData.map((item, idx) => (
-                  <tr key={idx} className="border-b border-slate-100/60 hover:bg-slate-50/50 text-xs text-slate-600">
+                  <tr key={item.materialName} className="border-b border-slate-100/60 hover:bg-slate-50/50 text-xs text-slate-600">
                     <td className="py-3 px-4 font-bold text-slate-800">{item.materialName}</td>
                     <td className="py-3 px-4 text-center font-bold text-slate-500">{item.currentStock} Units</td>
                     <td className="py-3 px-4 text-center font-bold text-slate-700">{item.requiredForOrders} Units</td>

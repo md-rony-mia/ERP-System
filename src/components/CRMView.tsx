@@ -104,9 +104,9 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
       const campaigns = rawCampaigns ? JSON.parse(rawCampaigns) : [];
 
       // Calculate Metrics
-      const pipelineValue = parsedLeads.reduce((sum, l) => sum + (Number(l.value) || 0), 0);
+      const pipelineValue = parsedLeads.reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0);
       const totalLeads = parsedLeads.length;
-      const wonDeals = parsedLeads.filter(l => l.status === 'Approved' || l.status === 'Closed Won').length;
+      const wonDeals = parsedLeads.filter((l: any) => l.status === 'Approved' || l.status === 'Closed Won').length;
       const campaignsCount = campaigns.length || 2;
 
       setMetrics({
@@ -115,8 +115,9 @@ export default function CRMView({ activeSubTab = 'leads', currentUser }: CRMView
         wonDeals,
         campaignsCount
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      window.alert(`Error loading CRM database: ${e.message || e}`);
     }
   };
 

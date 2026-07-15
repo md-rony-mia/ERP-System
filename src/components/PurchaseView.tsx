@@ -1181,7 +1181,7 @@ export default function PurchaseView({
                       {poCart.map((item, idx) => {
                         const p = products.find((prod) => prod.id === item.productId);
                         return (
-                          <tr key={idx} className="hover:bg-slate-50 text-slate-700">
+                          <tr key={item.productId || idx} className="hover:bg-slate-50 text-slate-700">
                             <td className="py-1 px-2 border-r border-slate-200">0{idx + 1}</td>
                             <td className="py-1 px-2 border-r border-slate-200">{item.sku}</td>
                             <td className="py-1 px-2 border-r border-slate-200 font-bold">{item.name}</td>
@@ -1555,7 +1555,7 @@ export default function PurchaseView({
                       {pretCart.map((item, idx) => {
                         const p = products.find((prod) => prod.id === item.productId);
                         return (
-                          <tr key={idx} className="hover:bg-slate-50 text-slate-700">
+                          <tr key={item.productId || idx} className="hover:bg-slate-50 text-slate-700">
                             <td className="py-1 px-2 border-r border-slate-200">0{idx + 1}</td>
                             <td className="py-1 px-2 border-r border-slate-200">{item.sku}</td>
                             <td className="py-1 px-2 border-r border-slate-200 font-bold">{item.name}</td>

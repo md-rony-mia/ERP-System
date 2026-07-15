@@ -738,8 +738,9 @@ export function ManageCustomFieldsModal({ onClose, customFields, setCustomFields
       };
       
       localStorage.setItem('meta_form_products', JSON.stringify(metaSchema));
-    } catch (e) {
+    } catch (e: any) {
       console.error('Metadata db sync failed', e);
+      window.alert(`Error: Metadata db sync failed: ${e.message || e}`);
     }
 
     // Save version history entry
