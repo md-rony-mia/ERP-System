@@ -28,8 +28,20 @@ import {
   Edit3,
   Check,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { navEngine, NavigationItem } from '../lib/navigationEngine';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from 'recharts';
 
 interface DashboardViewProps {
   invoices: Invoice[];
@@ -41,6 +53,60 @@ interface DashboardViewProps {
   activeSubTab?: string;
 }
 
+// Lightweight custom animated counter for high visual polish
+function AnimatedNumber({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState<number>(0);
+  
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) {
+      setDisplayValue(end);
+      return;
+    }
+    
+    const duration = 1000; // ms
+    const startTime = performance.now();
+    
+    function update(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutCubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = Math.floor(start + (end - start) * ease);
+      setDisplayValue(current);
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    }
+    requestAnimationFrame(update);
+  }, [value]);
+
+  return <span>{displayValue.toLocaleString()}</span>;
+}
+
+// Sparkline component inside individual KPI cards
+function MiniSparkline({ color = '#f97316', seed = 1 }) {
+  const paths = [
+    "M 2 12 Q 12 4, 22 14 T 42 6 T 48 3",
+    "M 2 15 Q 12 10, 22 4 T 42 12 T 48 6",
+    "M 2 5 Q 12 15, 22 8 T 42 4 T 48 2",
+    "M 2 14 Q 12 2, 22 15 T 42 10 T 48 4"
+  ];
+  const path = paths[seed % paths.length];
+  return (
+    <svg className="w-12 h-6" viewBox="0 0 50 20">
+      <path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function DashboardView({
   invoices,
   products,
@@ -50,7 +116,7 @@ export default function DashboardView({
   isVisualEditMode = false,
   activeSubTab = '',
 }: DashboardViewProps) {
-  // Balance mask state matching the hide-reveal behavior in the image
+  // Balance mask state
   const [showValues, setShowValues] = useState(false);
 
   // Navigation states for extensions
@@ -96,14 +162,14 @@ export default function DashboardView({
   const [cardThemes, setCardThemes] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('nexova_dashboard_themes');
     return saved ? JSON.parse(saved) : {
-      welcome: 'bg-[#0d1c38] text-white',
-      today_revenue: 'bg-white border-slate-200/80 text-slate-800',
-      analytics_perf: 'bg-white border-slate-200/80',
-      analytics_mix: 'bg-white border-slate-200/80',
-      recent_sales: 'bg-white border-slate-200/80',
-      shortcuts: 'bg-white border-slate-200/80',
-      low_stock: 'bg-white border-slate-200/80',
-      outstanding: 'bg-white border-slate-200/80'
+      welcome: 'bg-gradient-to-br from-[#0c0d12] via-[#121520] to-[#07080d] border-[#1f2937]/35 text-white',
+      today_revenue: 'premium-card text-slate-800',
+      analytics_perf: 'premium-card',
+      analytics_mix: 'premium-card',
+      recent_sales: 'premium-card',
+      shortcuts: 'premium-card',
+      low_stock: 'premium-card',
+      outstanding: 'premium-card'
     };
   });
 
@@ -121,6 +187,8 @@ export default function DashboardView({
 
   const [editingTitleKey, setEditingTitleKey] = useState<string | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState<string>('');
+  const [isLowStockDrawerOpen, setIsLowStockDrawerOpen] = useState<boolean>(false);
+  const [activeLedgerCard, setActiveLedgerCard] = useState<'payable' | 'receivable'>('payable');
 
   // Save utility helpers
   const saveLayoutOrder = (newOrder: string[]) => {
@@ -155,15 +223,14 @@ export default function DashboardView({
     }
   };
 
-  // Color theme cycling
+  // Color theme cycling with modern premium gradients
   const cycleTheme = (key: string) => {
     const themesList = [
-      'bg-white border-slate-200/80 text-slate-800',
-      'bg-[#0d1c38] text-white border-slate-800',
-      'bg-indigo-900 text-white border-indigo-800',
-      'bg-emerald-950 text-emerald-100 border-emerald-900',
-      'bg-rose-950 text-rose-100 border-rose-900',
-      'bg-amber-50 text-amber-900 border-amber-200',
+      'premium-card text-slate-800',
+      'bg-gradient-to-br from-[#0c0d12] via-[#121520] to-[#07080d] border-slate-800 text-white shadow-xl',
+      'bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white border-indigo-800/40 shadow-xl',
+      'bg-gradient-to-br from-[#0a1512] via-[#0f241e] to-[#050a08] text-slate-100 border-emerald-950 shadow-xl',
+      'bg-slate-50 border-slate-300/80 text-slate-800 shadow-inner',
     ];
     const currentTheme = cardThemes[key] || themesList[0];
     const nextIdx = (themesList.indexOf(currentTheme) + 1) % themesList.length;
@@ -187,14 +254,14 @@ export default function DashboardView({
     setLayoutOrder(['welcome', 'kpis', 'analytics', 'shortcuts_recent', 'alerts_outstanding']);
     setHiddenSections([]);
     setCardThemes({
-      welcome: 'bg-[#0d1c38] text-white',
-      today_revenue: 'bg-white border-slate-200/80 text-slate-800',
-      analytics_perf: 'bg-white border-slate-200/80',
-      analytics_mix: 'bg-white border-slate-200/80',
-      recent_sales: 'bg-white border-slate-200/80',
-      shortcuts: 'bg-white border-slate-200/80',
-      low_stock: 'bg-white border-slate-200/80',
-      outstanding: 'bg-white border-slate-200/80'
+      welcome: 'bg-gradient-to-br from-[#0c0d12] via-[#121520] to-[#07080d] border-[#1f2937]/35 text-white',
+      today_revenue: 'premium-card text-slate-800',
+      analytics_perf: 'premium-card',
+      analytics_mix: 'premium-card',
+      recent_sales: 'premium-card',
+      shortcuts: 'premium-card',
+      low_stock: 'premium-card',
+      outstanding: 'premium-card'
     });
     setCustomTitles({
       welcome: "Here's your store at a glance today.",
@@ -216,7 +283,7 @@ export default function DashboardView({
   // Custom tooltips state for charts
   const [salesHoverIndex, setSalesHoverIndex] = useState<number | null>(null);
 
-  // 7 days sales data matching screenshot
+  // 7 days sales data
   const sales7Days = [
     { date: '30 Jun', sales: 0 },
     { date: '01 Jul', sales: 0 },
@@ -224,7 +291,7 @@ export default function DashboardView({
     { date: '03 Jul', sales: 0 },
     { date: '04 Jul', sales: 0 },
     { date: '05 Jul', sales: 0 },
-    { date: '06 Jul', sales: invoices.length > 4 ? invoices[invoices.length - 1].total : 21518 }, // Use actual loaded data
+    { date: '06 Jul', sales: invoices.length > 4 ? invoices[invoices.length - 1].total : 21518 },
   ];
 
   // Helper to format currency
@@ -245,11 +312,11 @@ export default function DashboardView({
   const renderControls = (sectionId: string, index: number) => {
     if (!isVisualEditMode) return null;
     return (
-      <div className="absolute top-2 right-2 bg-slate-900/95 text-white p-1 rounded-lg flex items-center gap-1 z-30 shadow-lg text-[10px] select-none pointer-events-auto">
+      <div className="absolute top-3 right-3 bg-slate-900/95 text-white p-1 rounded-xl flex items-center gap-1.5 z-30 shadow-lg text-[10px] select-none pointer-events-auto border border-slate-800">
         <button
           onClick={() => moveSection(index, 'up')}
           disabled={index === 0}
-          className="p-1 hover:bg-slate-800 disabled:opacity-30 rounded cursor-pointer"
+          className="p-1 hover:bg-slate-800 disabled:opacity-30 rounded-lg cursor-pointer transition-colors"
           title="Move Section Up"
         >
           <ArrowUp className="h-3 w-3" />
@@ -257,14 +324,14 @@ export default function DashboardView({
         <button
           onClick={() => moveSection(index, 'down')}
           disabled={index === layoutOrder.length - 1}
-          className="p-1 hover:bg-slate-800 disabled:opacity-30 rounded cursor-pointer"
+          className="p-1 hover:bg-slate-800 disabled:opacity-30 rounded-lg cursor-pointer transition-colors"
           title="Move Section Down"
         >
           <ArrowDown className="h-3 w-3" />
         </button>
         <button
           onClick={() => cycleTheme(sectionId)}
-          className="p-1 hover:bg-slate-800 rounded cursor-pointer text-amber-400"
+          className="p-1 hover:bg-slate-800 rounded-lg cursor-pointer text-brand-orange transition-colors"
           title="Cycle Theme Style"
         >
           <Palette className="h-3 w-3" />
@@ -274,7 +341,7 @@ export default function DashboardView({
             const updated = [...hiddenSections, sectionId];
             saveHiddenSections(updated);
           }}
-          className="p-1 hover:bg-slate-800 rounded cursor-pointer text-red-400"
+          className="p-1 hover:bg-slate-800 rounded-lg cursor-pointer text-red-400 transition-colors"
           title="Hide Section"
         >
           <X className="h-3 w-3" />
@@ -348,14 +415,14 @@ export default function DashboardView({
     };
 
     return (
-      <div className="space-y-6" id="favorites-tab-container">
+      <div className="space-y-6 animate-fade-up" id="favorites-tab-container">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="p-2 bg-amber-50 rounded-lg text-amber-500">
-                <Icons.Star className="h-6 w-6 fill-amber-400" />
+              <span className="p-2 bg-brand-orange/10 rounded-lg text-brand-orange">
+                <Icons.Star className="h-6 w-6 fill-brand-orange text-brand-orange" />
               </span>
-              <h1 className="text-xl font-bold text-slate-900 font-display">Bookmarked Favorites</h1>
+              <h1 className="text-xl font-black text-slate-900 font-display uppercase tracking-tight">Bookmarked Favorites</h1>
             </div>
             <p className="text-xs text-slate-400">
               Your customized operational deck. Keep your most used registers, POS checkout, or stock ledgers handy for instant access.
@@ -367,7 +434,7 @@ export default function DashboardView({
               <select
                 value={selectedFavToAdd}
                 onChange={(e) => setSelectedFavToAdd(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-orange/20 cursor-pointer"
               >
                 {availableToFavorite.map(item => (
                   <option key={item.id} value={item.id}>
@@ -377,7 +444,7 @@ export default function DashboardView({
               </select>
               <button
                 onClick={handleAddFavorite}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                className="px-4 py-2 bg-brand-orange hover:bg-brand-orange-hover text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-brand-orange/10 flex items-center gap-1 cursor-pointer"
               >
                 <Icons.Plus className="h-3.5 w-3.5" /> Bookmark Page
               </button>
@@ -392,7 +459,7 @@ export default function DashboardView({
             placeholder="Search within your bookmarked pages..."
             value={favSearchQuery}
             onChange={(e) => setFavSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-orange/20"
           />
         </div>
 
@@ -415,7 +482,7 @@ export default function DashboardView({
             {filteredFavs.map(item => (
               <div
                 key={item.id}
-                className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group relative"
+                className="premium-card p-5 flex flex-col justify-between group relative"
               >
                 <button
                   onClick={(e) => {
@@ -423,10 +490,10 @@ export default function DashboardView({
                     navEngine.toggleFavorite(item.id);
                     syncExtensions();
                   }}
-                  className="absolute top-3 right-3 p-1 rounded-full text-slate-300 hover:text-amber-500 hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="absolute top-3 right-3 p-1 rounded-full text-slate-300 hover:text-brand-orange hover:bg-slate-50 transition-colors cursor-pointer"
                   title="Remove Bookmark"
                 >
-                  <Icons.Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                  <Icons.Star className="h-4 w-4 fill-brand-orange text-brand-orange" />
                 </button>
 
                 <div className="space-y-4">
@@ -443,7 +510,7 @@ export default function DashboardView({
                       </h3>
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
                     Instantly load this operational register or screen. Fully integrated with standard workflows and real-time ledger updates.
                   </p>
                 </div>
@@ -452,7 +519,7 @@ export default function DashboardView({
                   <span className="text-[10px] text-slate-300 font-mono">ID: {item.id}</span>
                   <button
                     onClick={() => onTabChange(item.tab, item.subTab)}
-                    className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-600 hover:text-white text-indigo-600 font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-slate-50 hover:bg-brand-orange hover:text-white text-brand-orange font-bold text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer border border-slate-100"
                   >
                     Launch Page <Icons.ArrowRight className="h-3.5 w-3.5" />
                   </button>
@@ -476,14 +543,14 @@ export default function DashboardView({
     };
 
     return (
-      <div className="space-y-6" id="recents-tab-container">
+      <div className="space-y-6 animate-fade-up" id="recents-tab-container">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="p-2 bg-indigo-50 rounded-lg text-indigo-500">
+              <span className="p-2 bg-brand-orange/10 rounded-lg text-brand-orange">
                 <Icons.Clock className="h-6 w-6" />
               </span>
-              <h1 className="text-xl font-bold text-slate-900 font-display">Session Page History</h1>
+              <h1 className="text-xl font-black text-slate-900 font-display uppercase tracking-tight">Session Page History</h1>
             </div>
             <p className="text-xs text-slate-400">
               Audit log of screens and registers visited during this session. Tap any line to backtrack instantly.
@@ -516,9 +583,9 @@ export default function DashboardView({
           <div className="relative border-l-2 border-slate-200 pl-6 ml-4 space-y-6">
             {recentPages.map((item, idx) => (
               <div key={`${item.id}-${idx}`} className="relative group">
-                <span className="absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-indigo-600 bg-white group-hover:bg-indigo-600 transition-colors z-10 shadow-xs"></span>
+                <span className="absolute -left-[31px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-brand-orange bg-white group-hover:bg-brand-orange transition-colors z-10 shadow-xs"></span>
                 
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-indigo-200 transition-all shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="premium-card p-5 hover:border-brand-orange/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <span className={`p-2.5 rounded-xl border ${getGroupBadgeStyles(item.groupId)}`}>
                       {renderDynamicIcon(item.icon || 'Activity', 'h-5 w-5')}
@@ -539,12 +606,12 @@ export default function DashboardView({
                   </div>
 
                   <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <span className="text-[10px] text-slate-300 font-semibold bg-slate-50 px-2 py-1 rounded-md">
+                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-50 px-2 py-1 rounded-md">
                       {idx === 0 ? 'Active / Just Now' : `${idx * 2 + 1}m ago`}
                     </span>
                     <button
                       onClick={() => onTabChange(item.tab, item.subTab)}
-                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
+                      className="px-3.5 py-1.5 bg-brand-orange hover:bg-brand-orange-hover text-white font-bold text-xs rounded-xl shadow-md shadow-brand-orange/10 transition-colors cursor-pointer flex items-center gap-1"
                     >
                       Re-open <Icons.ExternalLink className="h-3 w-3" />
                     </button>
@@ -578,13 +645,13 @@ export default function DashboardView({
     };
 
     return (
-      <div className="space-y-8" id="pinned-tab-container">
+      <div className="space-y-8 animate-fade-up" id="pinned-tab-container">
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
           <div className="flex items-center gap-2">
-            <span className="p-2 bg-rose-50 rounded-lg text-rose-500">
+            <span className="p-2 bg-brand-orange/10 rounded-lg text-brand-orange">
               <Icons.Pin className="h-6 w-6 rotate-45" />
             </span>
-            <h1 className="text-xl font-bold text-slate-900 font-display">Pinned Actions Deck</h1>
+            <h1 className="text-xl font-black text-slate-900 font-display uppercase tracking-tight">Pinned Actions Deck</h1>
           </div>
           <p className="text-xs text-slate-400">
             Pin and construct your personalized executive actions deck. Click any card to launch immediately. Toggle pins below to modify this deck.
@@ -608,17 +675,17 @@ export default function DashboardView({
                 <div
                   key={item.id}
                   onClick={() => onTabChange(item.tab, item.subTab)}
-                  className="bg-white border border-slate-200/85 hover:border-rose-400 hover:shadow-sm rounded-xl p-4 transition-all duration-300 cursor-pointer group flex flex-col justify-between h-28 relative"
+                  className="bg-white border border-slate-200/85 hover:border-brand-orange hover:shadow-md rounded-xl p-4 transition-all duration-300 cursor-pointer group flex flex-col justify-between h-28 relative"
                 >
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTogglePin(item.id);
                     }}
-                    className="absolute top-2 right-2 p-1 text-slate-300 hover:text-rose-500 rounded-full hover:bg-slate-50 cursor-pointer"
+                    className="absolute top-2 right-2 p-1 text-slate-300 hover:text-brand-orange rounded-full hover:bg-slate-50 cursor-pointer"
                     title="Unpin Action"
                   >
-                    <Icons.Pin className="h-3.5 w-3.5 rotate-45 text-rose-500 fill-rose-500" />
+                    <Icons.Pin className="h-3.5 w-3.5 rotate-45 text-brand-orange fill-brand-orange" />
                   </button>
 
                   <span className={`p-1.5 rounded-lg border w-fit ${getGroupBadgeStyles(item.groupId)}`}>
@@ -629,7 +696,7 @@ export default function DashboardView({
                     <span className="text-[8px] font-extrabold uppercase text-slate-300 block">
                       {item.groupId}
                     </span>
-                    <h3 className="font-extrabold text-xs text-slate-800 tracking-tight mt-0.5 group-hover:text-rose-600 transition-colors">
+                    <h3 className="font-extrabold text-xs text-slate-800 tracking-tight mt-0.5 group-hover:text-brand-orange transition-colors">
                       {item.label}
                     </h3>
                   </div>
@@ -675,7 +742,7 @@ export default function DashboardView({
                     className="px-5 py-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">
+                      <span className="text-xs font-extrabold uppercase text-slate-400 tracking-wider">
                         {grpId} Group
                       </span>
                       <span className="text-[10px] font-bold text-slate-400 bg-slate-200/60 px-2 py-0.5 rounded-full">
@@ -741,49 +808,62 @@ export default function DashboardView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       {/* Visual Customize Toolbar */}
       {isVisualEditMode && (
-        <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center justify-between gap-4 text-amber-800 select-none">
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            <span>🔧</span>
-            <span><span className="font-bold">ERP Dashboard Visual Editor Active</span>: Shift panels, cycle theme paint brushes, or double-click headers to rewrite widget labels to match NetSuite-grade flexibility!</span>
+        <div className="bg-brand-orange/10 border border-brand-orange/25 p-4.5 rounded-2xl flex items-center justify-between gap-4 text-brand-orange select-none shadow-[0_0_20px_rgba(249,115,22,0.05)]">
+          <div className="flex items-center gap-2.5 text-xs font-semibold">
+            <span className="text-base">🔧</span>
+            <span><span className="font-black uppercase tracking-wider">Nexova Visual Customizer</span>: Move panels, cycle premium color styles, or double-click headers to rewrite labels to match enterprise flexibility!</span>
           </div>
           <button
             onClick={resetLayoutToDefaults}
-            className="px-3 py-1.5 bg-amber-500 text-white hover:bg-amber-600 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+            className="px-3.5 py-2 bg-brand-orange text-white hover:bg-brand-orange-hover rounded-xl text-xs font-bold shadow-md shadow-brand-orange/20 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Reset Layout
           </button>
         </div>
       )}
 
-      {/* Render layout items recursively based on customizable sequence order */}
+      {/* Render layout items recursively */}
       {layoutOrder.map((sectionId, index) => {
         if (hiddenSections.includes(sectionId)) return null;
 
         if (sectionId === 'welcome') {
+          const completedPct = Math.min(Math.round((totalRevenue / 50000) * 100), 100) || 65;
           return (
-            <div key="welcome" className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative group border border-transparent hover:border-indigo-400/30 rounded-2xl p-1">
+            <div key="welcome" className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative group border border-transparent hover:border-brand-orange/15 rounded-[2rem] p-1.5 transition-all duration-300 mb-8">
               {renderControls('welcome', index)}
-              {/* Welcome message card */}
-              <div className={`${cardThemes['welcome'] || 'bg-[#0d1c38] text-white'} p-6 rounded-2xl flex flex-col justify-between shadow-xs relative overflow-hidden flex-1 lg:col-span-2 min-h-[220px]`}>
-                <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none"></div>
+              
+              {/* Asymmetric Welcome Card Left (2/3 width) - Large Radius & Deep Shadow */}
+              <div className={`${cardThemes['welcome'] || 'bg-gradient-to-br from-[#0b0c13] via-[#141727] to-[#05060a] border-slate-800/80 text-white'} p-8 rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.35)] relative overflow-hidden flex flex-col justify-between min-h-[250px] border lg:col-span-2`}>
+                {/* Modern visual/neon gradients */}
+                <div className="absolute top-0 right-0 w-80 h-80 bg-brand-orange/10 blur-[120px] rounded-full pointer-events-none transform translate-x-20 -translate-y-20"></div>
+                <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-emerald-500/5 blur-[90px] rounded-full pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.01] to-transparent transform -skew-y-12 pointer-events-none"></div>
+                
                 <div>
-                  <span className="text-[10px] font-bold text-indigo-400 tracking-widest uppercase">
-                    Good Evening
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-orange opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-orange"></span>
+                    </span>
+                    <span className="text-[9px] font-black text-brand-orange tracking-widest uppercase">
+                      Nexova Enterprise Suite Active
+                    </span>
+                  </div>
+                  
                   {editingTitleKey === 'welcome' ? (
-                    <div className="flex items-center gap-2 mt-1 z-50 relative">
+                    <div className="flex items-center gap-2 mt-2 z-50 relative">
                       <input
                         type="text"
                         value={editingTitleValue}
                         onChange={(e) => setEditingTitleValue(e.target.value)}
-                        className="bg-slate-800 text-white text-xl font-bold rounded p-1.5 focus:outline-none"
+                        className="bg-slate-800 text-white text-xl font-bold rounded-xl p-2 focus:outline-none border border-slate-700"
                         autoFocus
                       />
-                      <button onClick={() => saveTitleEdit('welcome')} className="p-1 bg-emerald-500 text-white rounded"><Check className="h-4 w-4" /></button>
-                      <button onClick={() => setEditingTitleKey(null)} className="p-1 bg-slate-700 text-white rounded"><X className="h-4 w-4" /></button>
+                      <button onClick={() => saveTitleEdit('welcome')} className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors cursor-pointer"><Check className="h-4 w-4" /></button>
+                      <button onClick={() => setEditingTitleKey(null)} className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors cursor-pointer"><X className="h-4 w-4" /></button>
                     </div>
                   ) : (
                     <h1
@@ -793,35 +873,20 @@ export default function DashboardView({
                           setEditingTitleValue(customTitles['welcome']);
                         }
                       }}
-                      className="text-2xl font-bold font-display tracking-tight mt-1 flex items-center gap-2 cursor-pointer"
+                      className="text-2xl lg:text-3xl font-black font-display tracking-tight mt-1.5 flex items-center gap-2.5 cursor-pointer text-white/95"
                     >
                       <span>{customTitles['welcome']}</span>
-                      {isVisualEditMode && <Edit3 className="h-4 w-4 text-indigo-400 opacity-50" />}
+                      {isVisualEditMode && <Edit3 className="h-4.5 w-4.5 text-brand-orange opacity-80" />}
                     </h1>
                   )}
-                  <p className="text-xs text-slate-400 mt-2 flex items-center gap-2">
-                    <span>Monday, 06 July 2026</span>
-                    <span className="h-1 w-1 rounded-full bg-slate-600"></span>
-                    <span>{invoices.length} invoices today</span>
+                  <p className="text-xs text-slate-400 mt-2 flex items-center gap-2 font-medium">
+                    <span>Wednesday, 15 July 2026</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-800"></span>
+                    <span className="text-brand-orange font-semibold">{invoices.length} checkouts recorded today</span>
                   </p>
                 </div>
-                <div className="mt-8 flex items-center justify-between">
-                  <div className="flex gap-4">
-                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3">
-                      <p className="text-[10px] text-slate-400 font-medium">Daily Target</p>
-                      <p className="text-sm font-bold text-indigo-300 mt-1">65% Reached</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3">
-                      <p className="text-[10px] text-slate-400 font-medium">Active Warehouse</p>
-                      <p className="text-sm font-bold text-emerald-400 mt-1">All Operational</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Today's revenue display with hide option */}
-              <div className={`${cardThemes['today_revenue'] || 'bg-white border-slate-200/80'} border p-6 rounded-2xl shadow-sm flex flex-col justify-between`}>
-                <div className="flex items-center justify-between">
+                <div className="mt-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                   <div>
                     {editingTitleKey === 'today_revenue' ? (
                       <div className="flex items-center gap-1 z-50 relative">
@@ -829,9 +894,9 @@ export default function DashboardView({
                           type="text"
                           value={editingTitleValue}
                           onChange={(e) => setEditingTitleValue(e.target.value)}
-                          className="bg-slate-100 text-xs font-bold rounded p-1 text-slate-700"
+                          className="bg-slate-800 text-xs font-bold rounded-lg p-1 text-white border border-slate-700"
                         />
-                        <button onClick={() => saveTitleEdit('today_revenue')} className="p-0.5 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
+                        <button onClick={() => saveTitleEdit('today_revenue')} className="p-1 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
                       </div>
                     ) : (
                       <span
@@ -841,50 +906,79 @@ export default function DashboardView({
                             setEditingTitleValue(customTitles['today_revenue']);
                           }
                         }}
-                        className="text-xs font-semibold text-slate-400 cursor-pointer flex items-center gap-1"
+                        className="text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer flex items-center gap-1"
                       >
                         <span>{customTitles['today_revenue']}</span>
                         {isVisualEditMode && <Edit3 className="h-3 w-3 text-slate-400 opacity-40" />}
                       </span>
                     )}
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-2xl font-bold font-display">
+                    <div className="flex items-center gap-3.5 mt-1">
+                      <span className="text-3xl lg:text-4xl font-black font-display tracking-tight text-white">
                         {displayVal(totalRevenue)}
                       </span>
                       <button
                         onClick={() => setShowValues(!showValues)}
-                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-brand-orange transition-all cursor-pointer"
                         title={showValues ? 'Hide values' : 'Show values'}
                       >
-                        {showValues ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showValues ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
                       </button>
                     </div>
                   </div>
-                  <div className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    <span>0.0% vs yesterday</span>
+
+                  <div className="flex gap-4">
+                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 backdrop-blur-xs">
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Daily Target</p>
+                      <p className="text-xs font-bold text-brand-orange mt-1">{completedPct}% Completed</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 backdrop-blur-xs">
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Terminal Ingress</p>
+                      <p className="text-xs font-bold text-emerald-400 mt-1">Secure & Online</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Asymmetric Progress Card Right (1/3 width) - Mini Radial Progress */}
+              <div className="lg:col-span-1 bg-white border border-slate-200/90 shadow-[0_15px_40px_rgba(0,0,0,0.015)] p-8 rounded-3xl relative overflow-hidden flex flex-col justify-between min-h-[250px]">
+                <div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                    Target Tracker
+                  </span>
+                  <h3 className="font-extrabold text-sm text-slate-800 font-display mt-0.5">
+                    Daily Operating Target
+                  </h3>
+                </div>
+
+                <div className="flex items-center justify-center py-4 relative">
+                  <svg className="w-32 h-32 transform -rotate-90">
+                    {/* Background circular track */}
+                    <circle cx="64" cy="64" r="48" fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
+                    {/* Dynamic percentage track */}
+                    <circle
+                      cx="64"
+                      cy="64"
+                      r="48"
+                      fill="transparent"
+                      stroke="#f97316"
+                      strokeWidth="10"
+                      strokeDasharray="301.6"
+                      strokeDashoffset={301.6 - (301.6 * completedPct) / 100}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-black text-slate-900 font-display tracking-tight">{completedPct}%</span>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Completed</span>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 mt-6">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mb-2">
-                    Last 7 days trend
+                <div className="border-t border-slate-100 pt-4 flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <span>Target: ৳50,000</span>
+                  <span className="font-bold text-brand-orange font-display">
+                    {totalRevenue >= 50000 ? 'Achieved!' : `৳${(50000 - totalRevenue).toLocaleString()} Left`}
                   </span>
-                  {/* Visual Mini Sparkline */}
-                  <div className="h-10 w-full flex items-end gap-1.5 pt-2">
-                    {sales7Days.map((d, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                        <div
-                          className={`w-full rounded-t-sm transition-all duration-300 ${
-                            i === sales7Days.length - 1 ? 'bg-indigo-600 h-8' : 'bg-slate-200 h-1.5 hover:bg-indigo-300'
-                          }`}
-                        ></div>
-                        <div className="absolute bottom-full mb-1 bg-slate-900 text-white text-[9px] rounded px-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                          {d.date}: {formatCurrency(d.sales)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
@@ -893,81 +987,135 @@ export default function DashboardView({
 
         if (sectionId === 'kpis') {
           return (
-            <div key="kpis" className="relative group border border-transparent hover:border-indigo-400/30 rounded-2xl p-1">
+            <div key="kpis" className="relative group border border-transparent hover:border-brand-orange/15 rounded-3xl p-1.5 transition-all duration-300 mb-8">
               {renderControls('kpis', index)}
-              {/* KPI Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {/* Card 1 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Today</span>
-                    <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+              
+              {/* Horizontal Scrollable Stat Strip replacing 6 cards */}
+              <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar scroll-smooth snap-x select-none">
+                
+                {/* Chip 1: Today's Invoices */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-blue-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-blue-50 text-blue-500 border border-blue-100 flex items-center justify-center shrink-0">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Today's Invoices</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        <AnimatedNumber value={invoices.length} />
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-3">
-                    <p className="text-xl font-bold text-slate-800">{invoices.length}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Invoices Today</p>
-                  </div>
-                </div>
-
-                {/* Card 2 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">This Month</span>
-                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-xl font-bold text-slate-800">{displayVal(totalRevenue)}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Sales This Month</p>
-                  </div>
-                </div>
-
-                {/* Card 3 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Catalog</span>
-                    <span className="h-2 w-2 rounded-full bg-purple-500"></span>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-xl font-bold text-slate-800">{products.length}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Total Products</p>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#3b82f6" seed={1} />
                   </div>
                 </div>
 
-                {/* Card 4 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Alert</span>
-                    <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                {/* Chip 2: Today's Sales */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-emerald-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-500 border border-emerald-100 flex items-center justify-center shrink-0">
+                      <TrendingUp className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Today's Revenue</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        {showValues ? <AnimatedNumber value={totalRevenue} /> : <span className="text-sm font-bold text-slate-400">৳ Hidden</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-3">
-                    <p className={`text-xl font-bold ${lowStockItems.length > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
-                      {lowStockItems.length}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Low Stock Items</p>
-                  </div>
-                </div>
-
-                {/* Card 5 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Receivable</span>
-                    <span className="h-2 w-2 rounded-full bg-teal-500"></span>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-xl font-bold text-slate-800">{displayVal(totalReceivables)}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">To Collect</p>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#10b981" seed={2} />
                   </div>
                 </div>
 
-                {/* Card 6 */}
-                <div className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Payable</span>
-                    <span className="h-2 w-2 rounded-full bg-rose-500"></span>
+                {/* Chip 3: Total Products */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-purple-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-purple-50 text-purple-500 border border-purple-100 flex items-center justify-center shrink-0">
+                      <Boxes className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Total Products</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        <AnimatedNumber value={products.length} />
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-3">
-                    <p className="text-xl font-bold text-slate-800">{displayVal(totalPayables)}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">To Pay</p>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#8b5cf6" seed={3} />
+                  </div>
+                </div>
+
+                {/* Chip 4: Low Stock Alert */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-red-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className={`p-2.5 rounded-xl flex items-center justify-center shrink-0 border ${lowStockItems.length > 0 ? 'bg-rose-50 text-red-500 border-rose-100 animate-pulse' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                      <AlertTriangle className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Low Stock Items</span>
+                      <p className={`text-xl font-black font-display tracking-tight mt-0.5 ${lowStockItems.length > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                        <AnimatedNumber value={lowStockItems.length} />
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#ef4444" seed={4} />
+                  </div>
+                </div>
+
+                {/* Chip 5: To Collect BDT */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-teal-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-teal-50 text-teal-500 border border-teal-100 flex items-center justify-center shrink-0">
+                      <ArrowRightLeft className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">To Collect BDT</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        {showValues ? <AnimatedNumber value={totalReceivables} /> : <span className="text-sm font-bold text-slate-400">৳ Hidden</span>}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#14b8a6" seed={5} />
+                  </div>
+                </div>
+
+                {/* Chip 6: To Pay BDT */}
+                <div className="flex-shrink-0 flex items-center gap-4 bg-white border border-slate-200/70 rounded-2xl px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.015)] hover:shadow-lg transition-all duration-500 ease-out min-w-[210px] hover:min-w-[320px] group/chip snap-start cursor-pointer border-l-4 border-l-orange-500 overflow-hidden relative">
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-orange-50 text-brand-orange border border-orange-100 flex items-center justify-center shrink-0">
+                      <ArrowUpRight className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">To Pay BDT</span>
+                      <p className="text-xl font-black text-slate-800 font-display tracking-tight mt-0.5">
+                        {showValues ? <AnimatedNumber value={totalPayables} /> : <span className="text-sm font-bold text-slate-400">৳ Hidden</span>}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded Content with Trend Line */}
+                  <div className="w-0 opacity-0 group-hover/chip:w-28 group-hover/chip:opacity-100 transition-all duration-500 ease-out overflow-hidden flex flex-col items-end justify-center pl-3 border-l border-slate-100 ml-auto">
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Weekly Trend</span>
+                    <MiniSparkline color="#f97316" seed={6} />
                   </div>
                 </div>
               </div>
@@ -976,154 +1124,117 @@ export default function DashboardView({
         }
 
         if (sectionId === 'analytics') {
+          // Asymmetric visual configuration: 2/3 Area Chart + 1/3 Stacked Comparison Bars
+          const comparativeData = [
+            { name: 'Revenue', value: totalRevenue || 35000, fill: '#10b981' },
+            { name: 'Receivables', value: totalReceivables || 15000, fill: '#14b8a6' },
+            { name: 'Payables', value: totalPayables || 8000, fill: '#f97316' },
+          ];
+          
           return (
-            <div key="analytics" className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative group border border-transparent hover:border-indigo-400/30 rounded-2xl p-1">
+            <div key="analytics" className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative group border border-transparent hover:border-brand-orange/15 rounded-[2rem] p-1.5 transition-all duration-300 mb-8">
               {renderControls('analytics', index)}
-              {/* Sales Trend Curved Line Chart */}
-              <div className="lg:col-span-2 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
+              
+              {/* Left Column: Curved Area Chart (2/3 width) */}
+              <div className="lg:col-span-2 bg-white border border-slate-200/90 p-7 rounded-3xl shadow-[0_15px_45px_rgba(0,0,0,0.01)] flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 font-display">Performance</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Sales — Last 7 Days</p>
+                    <span className="text-[9px] text-brand-orange font-black tracking-widest uppercase block">Operational Performance</span>
+                    <h3 className="text-base font-black text-slate-800 font-display">Sales Analytics Curve</h3>
+                    <p className="text-xs text-slate-400 font-sans font-medium mt-0.5">Checkout Sales Trend Ledger — Last 7 Days</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <span className="h-2 w-2 rounded-full bg-indigo-600"></span>
-                    <span>Sales Value (৳)</span>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                    <span className="h-2 w-2 rounded-full bg-brand-orange animate-pulse"></span>
+                    <span>Daily Sales (৳)</span>
                   </div>
                 </div>
 
-                {/* Elegant Custom Vector Line Chart */}
-                <div className="relative h-64 w-full">
-                  <svg viewBox="0 0 700 240" className="w-full h-full">
-                    <line x1="40" y1="20" x2="680" y2="20" stroke="#f1f5f9" strokeWidth="1" />
-                    <text x="30" y="24" className="text-[10px] font-mono fill-slate-400" textAnchor="end">৳25k</text>
-
-                    <line x1="40" y1="70" x2="680" y2="70" stroke="#f1f5f9" strokeWidth="1" />
-                    <text x="30" y="74" className="text-[10px] font-mono fill-slate-400" textAnchor="end">৳20k</text>
-
-                    <line x1="40" y1="120" x2="680" y2="120" stroke="#f1f5f9" strokeWidth="1" />
-                    <text x="30" y="124" className="text-[10px] font-mono fill-slate-400" textAnchor="end">৳15k</text>
-
-                    <line x1="40" y1="170" x2="680" y2="170" stroke="#f1f5f9" strokeWidth="1" />
-                    <text x="30" y="174" className="text-[10px] font-mono fill-slate-400" textAnchor="end">৳5k</text>
-
-                    <line x1="40" y1="210" x2="680" y2="210" stroke="#cbd5e1" strokeWidth="1" />
-                    <text x="30" y="214" className="text-[10px] font-mono fill-slate-400" textAnchor="end">৳0</text>
-
-                    <path
-                      d="M 40 210 C 146.6 210, 146.6 210, 253.2 210 C 359.8 210, 466.4 210, 573 210 C 620 210, 640 100, 680 100"
-                      fill="none"
-                      stroke="#4f46e5"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M 40 210 C 146.6 210, 146.6 210, 253.2 210 C 359.8 210, 466.4 210, 573 210 C 620 210, 640 100, 680 100 L 680 210 Z"
-                      fill="url(#salesGrad)"
-                      opacity="0.08"
-                    />
-
-                    <defs>
-                      <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4f46e5" />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-
-                    {[
-                      { x: 40, y: 210, val: 0, date: '30 Jun' },
-                      { x: 146.6, y: 210, val: 0, date: '01 Jul' },
-                      { x: 253.2, y: 210, val: 0, date: '02 Jul' },
-                      { x: 359.8, y: 210, val: 0, date: '03 Jul' },
-                      { x: 466.4, y: 210, val: 0, date: '04 Jul' },
-                      { x: 573, y: 210, val: 0, date: '05 Jul' },
-                      { x: 680, y: 100, val: totalRevenue, date: '06 Jul' },
-                    ].map((pt, idx) => (
-                      <g key={idx} className="cursor-pointer" onMouseEnter={() => setSalesHoverIndex(idx)} onMouseLeave={() => setSalesHoverIndex(null)}>
-                        {salesHoverIndex === idx && (
-                          <circle cx={pt.x} cy={pt.y} r="10" fill="#4f46e5" opacity="0.15" />
-                        )}
-                        <circle cx={pt.x} cy={pt.y} r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="2.5" />
-                        <text x={pt.x} y="230" className="text-[10px] font-sans fill-slate-400 text-center" textAnchor="middle">
-                          {pt.date}
-                        </text>
-                      </g>
-                    ))}
-                  </svg>
-
-                  {salesHoverIndex !== null && (
-                    <div
-                      className="absolute bg-slate-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl border border-slate-800 pointer-events-none transition-all duration-150 z-10"
-                      style={{
-                        left: `${(salesHoverIndex / 6) * 90 + 4}%`,
-                        bottom: salesHoverIndex === 6 ? '55%' : '15%',
-                      }}
-                    >
-                      <p className="font-bold text-slate-300">
-                        {salesHoverIndex === 6 ? '06 Jul (Today)' : `${30 + salesHoverIndex} Jun`}
-                      </p>
-                      <p className="text-indigo-400 font-semibold mt-0.5">
-                        {salesHoverIndex === 6 ? formatCurrency(totalRevenue) : '৳0.00'}
-                      </p>
-                    </div>
-                  )}
+                <div className="w-full h-64 font-sans">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={sales7Days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `৳${(val/1000)}k`} />
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-slate-950 text-white p-3.5 rounded-xl border border-slate-800 shadow-2xl text-xs font-sans">
+                                <p className="font-extrabold text-slate-400 mb-0.5">{payload[0].payload.date}</p>
+                                <p className="text-brand-orange font-black text-sm">৳{payload[0].value?.toLocaleString()}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area type="monotone" dataKey="sales" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Payment Methods Circular Chart */}
-              <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+              {/* Right Column: Comparison Bar Meters (1/3 width) - Pure asymmetric layout */}
+              <div className="lg:col-span-1 bg-white border border-slate-200/90 p-7 rounded-3xl shadow-[0_15px_45px_rgba(0,0,0,0.01)] flex flex-col justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 font-display">Mix</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Payment Methods — 30d</p>
+                  <span className="text-[9px] text-brand-orange font-black tracking-widest uppercase block">Financial Mix</span>
+                  <h3 className="text-base font-black text-slate-800 font-display">Asymmetric Comparison</h3>
+                  <p className="text-xs text-slate-400 font-sans font-medium mt-0.5">Asset & Liability Ledger Snapshot</p>
                 </div>
 
-                <div className="flex items-center justify-center py-6 relative">
-                  <svg className="w-40 h-40 transform -rotate-90">
-                    <circle cx="80" cy="80" r="55" fill="transparent" stroke="#f1f5f9" strokeWidth="18" />
-                    <circle
-                      cx="80"
-                      cy="80"
-                      r="55"
-                      fill="transparent"
-                      stroke="#3b82f6"
-                      strokeWidth="18"
-                      strokeDasharray="345.5"
-                      strokeDashoffset="69.1"
-                      strokeLinecap="round"
-                    />
-                    <circle
-                      cx="80"
-                      cy="80"
-                      r="55"
-                      fill="transparent"
-                      stroke="#10b981"
-                      strokeWidth="18"
-                      strokeDasharray="345.5"
-                      strokeDashoffset="310.9"
-                      className="transform rotate-72 origin-center"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center mt-3">
-                    <span className="text-2xl font-bold text-slate-800 font-display">80%</span>
-                    <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Cash Pref</span>
-                  </div>
+                <div className="w-full h-48 mt-4 font-sans">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={comparativeData} barSize={28}>
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis hide />
+                      <RechartsTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-slate-950 text-white p-3 rounded-xl border border-slate-800 shadow-2xl text-xs font-sans">
+                                <p className="font-extrabold text-slate-300 mb-0.5">{payload[0].name}</p>
+                                <p className="font-black text-emerald-400 text-sm">৳{payload[0].value?.toLocaleString()}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                        {comparativeData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
-                    <div className="flex flex-col">
-                      <span className="text-slate-500 font-medium">Cash</span>
-                      <span className="font-bold text-slate-800">80.0%</span>
+                <div className="border-t border-slate-100 pt-4 space-y-2.5 text-xs font-sans">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                      <span className="text-slate-500 font-bold">Total Sales</span>
                     </div>
+                    <span className="font-black text-slate-800">৳{totalRevenue.toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                    <div className="flex flex-col">
-                      <span className="text-slate-500 font-medium">Credit</span>
-                      <span className="font-bold text-slate-800">20.0%</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-teal-500"></span>
+                      <span className="text-slate-500 font-bold">Receivables</span>
                     </div>
+                    <span className="font-black text-slate-800">৳{totalReceivables.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-brand-orange"></span>
+                      <span className="text-slate-500 font-bold">Payables</span>
+                    </div>
+                    <span className="font-black text-slate-800">৳{totalPayables.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -1133,23 +1244,24 @@ export default function DashboardView({
 
         if (sectionId === 'shortcuts_recent') {
           return (
-            <div key="shortcuts_recent" className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative group border border-transparent hover:border-indigo-400/30 rounded-2xl p-1">
+            <div key="shortcuts_recent" className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative group border border-transparent hover:border-brand-orange/15 rounded-[2rem] p-1.5 transition-all duration-300 mb-8">
               {renderControls('shortcuts_recent', index)}
-              {/* Recent Sales table */}
-              <div className="lg:col-span-2 bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+              
+              {/* Asymmetric Left Activity Feed (2/3 width) - Timeline-style with vertical dotted lines */}
+              <div className="lg:col-span-2 bg-white border border-slate-200/90 p-7 rounded-3xl shadow-[0_15px_45px_rgba(0,0,0,0.01)] relative overflow-hidden flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     <div>
-                      <span className="text-[10px] text-indigo-600 font-bold tracking-widest uppercase">Activity</span>
+                      <span className="text-[9px] text-brand-orange font-black tracking-widest uppercase block">Live Operational Stream</span>
                       {editingTitleKey === 'recent_sales' ? (
                         <div className="flex items-center gap-1 z-50 relative mt-1">
                           <input
                             type="text"
                             value={editingTitleValue}
                             onChange={(e) => setEditingTitleValue(e.target.value)}
-                            className="bg-slate-50 text-xs font-bold rounded p-1 text-slate-700"
+                            className="bg-slate-50 text-xs font-bold rounded-xl p-2 text-slate-700 border border-slate-200"
                           />
-                          <button onClick={() => saveTitleEdit('recent_sales')} className="p-0.5 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
+                          <button onClick={() => saveTitleEdit('recent_sales')} className="p-1 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
                         </div>
                       ) : (
                         <h3
@@ -1159,147 +1271,151 @@ export default function DashboardView({
                               setEditingTitleValue(customTitles['recent_sales']);
                             }
                           }}
-                          className="text-sm font-bold text-slate-800 font-display mt-0.5 flex items-center gap-1 cursor-pointer"
+                          className="text-base font-black text-slate-800 font-display flex items-center gap-2 cursor-pointer"
                         >
                           <span>{customTitles['recent_sales']}</span>
-                          {isVisualEditMode && <Edit3 className="h-3.5 w-3.5 text-indigo-500 opacity-40" />}
+                          {isVisualEditMode && <Edit3 className="h-4 w-4 text-brand-orange opacity-60" />}
                         </h3>
                       )}
+                      <p className="text-xs text-slate-400 mt-0.5 font-medium">Real-time chronologic activity pipeline</p>
                     </div>
                     <button
                       onClick={() => onTabChange('sales', 'invoices')}
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                      className="px-3.5 py-1.5 bg-brand-orange/10 hover:bg-brand-orange hover:text-white text-brand-orange font-bold text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-brand-orange/15"
                     >
-                      <span>View all</span>
-                      <span className="text-lg">→</span>
+                      Launch Register <Icons.ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400 font-semibold">
-                          <th className="pb-3 uppercase tracking-wider">Invoice</th>
-                          <th className="pb-3 uppercase tracking-wider">Customer</th>
-                          <th className="pb-3 uppercase tracking-wider">Date</th>
-                          <th className="pb-3 uppercase tracking-wider text-right">Amount</th>
-                          <th className="pb-3 uppercase tracking-wider text-right">Payment</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {invoices.slice(-4).reverse().map((inv) => (
-                          <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="py-3 font-mono font-semibold text-indigo-600">{inv.invoiceNo}</td>
-                            <td className="py-3">
+                  {/* Vertical connecting line */}
+                  <div className="absolute left-[2.85rem] top-28 bottom-10 border-l-2 border-dashed border-slate-100 pointer-events-none"></div>
+
+                  <div className="space-y-6 relative z-10 font-sans">
+                    {invoices.slice(-3).reverse().map((inv) => (
+                      <div key={inv.id} className="flex items-start gap-4">
+                        {/* Pulse dot icon aligned with vertical line */}
+                        <div className="flex items-center justify-center w-11 h-11 rounded-full bg-slate-50 border-4 border-white text-brand-orange text-xs font-black shrink-0 shadow-sm relative group/dot">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-brand-orange/15 animate-ping opacity-60 pointer-events-none"></span>
+                          <Icons.ShoppingBag className="h-4.5 w-4.5 text-brand-orange" />
+                        </div>
+
+                        {/* Timeline box card with distinct visual padding */}
+                        <div className="bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-2xl p-4.5 flex items-center justify-between flex-1 transition-all hover:scale-[1.005] shadow-[0_4px_12px_rgba(0,0,0,0.005)]">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-slate-900/5 text-slate-700 text-xs font-extrabold flex items-center justify-center border border-slate-100 shadow-inner">
+                              {inv.customerName.charAt(0)}
+                            </div>
+                            <div>
                               <div className="flex items-center gap-2">
-                                <div className="h-7 w-7 rounded-full bg-slate-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center border border-slate-200">
-                                  {inv.customerName.charAt(0)}
-                                </div>
-                                <span className="font-medium text-slate-700">{inv.customerName}</span>
+                                <span className="font-extrabold text-slate-800 text-sm">{inv.customerName}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">({inv.invoiceNo})</span>
                               </div>
-                            </td>
-                            <td className="py-3 text-slate-500">{inv.date}</td>
-                            <td className="py-3 text-right font-bold text-slate-800">{formatCurrency(inv.total)}</td>
-                            <td className="py-3 text-right">
-                              <span
-                                className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                                  inv.paymentMethod === 'Cash'
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                    : inv.paymentMethod === 'Credit'
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-100'
-                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                }`}
-                              >
-                                {inv.paymentMethod}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                        {invoices.length === 0 && (
-                          <tr>
-                            <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
-                              No sales recorded yet today. Click "New Sale" to begin!
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                              <p className="text-[10px] text-slate-400 font-medium mt-1">Transaction recorded on {inv.date}</p>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="font-black text-sm text-slate-900 block">{formatCurrency(inv.total)}</span>
+                            <span
+                              className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded-full border mt-1.5 ${
+                                inv.paymentMethod === 'Cash'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  : 'bg-rose-50 text-rose-700 border-rose-100'
+                              }`}
+                            >
+                              {inv.paymentMethod}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {invoices.length === 0 && (
+                      <div className="text-center py-8 text-slate-400 font-medium leading-relaxed">
+                        No sales recorded yet. Start checkouts in POS tab!
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Quick Actions Shortcuts */}
-              <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
-                <span className="text-[10px] text-indigo-600 font-bold tracking-widest uppercase">Shortcuts</span>
-                {editingTitleKey === 'shortcuts' ? (
-                  <div className="flex items-center gap-1 z-50 relative mt-1">
-                    <input
-                      type="text"
-                      value={editingTitleValue}
-                      onChange={(e) => setEditingTitleValue(e.target.value)}
-                      className="bg-slate-50 text-xs font-bold rounded p-1 text-slate-700"
-                    />
-                    <button onClick={() => saveTitleEdit('shortcuts')} className="p-0.5 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
-                  </div>
-                ) : (
-                  <h3
-                    onDoubleClick={() => {
-                      if (isVisualEditMode) {
-                        setEditingTitleKey('shortcuts');
-                        setEditingTitleValue(customTitles['shortcuts']);
-                      }
-                    }}
-                    className="text-sm font-bold text-slate-800 font-display mt-0.5 mb-5 flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>{customTitles['shortcuts']}</span>
-                    {isVisualEditMode && <Edit3 className="h-3.5 w-3.5 text-indigo-500 opacity-40" />}
-                  </h3>
-                )}
+              {/* Asymmetric Right Quick Actions: Floating Organic Circular Cluster (1/3 width, NOT a grid) */}
+              <div className="lg:col-span-1 bg-[#10121d] border border-slate-900 shadow-[0_15px_40px_rgba(0,0,0,0.35)] rounded-3xl p-7 flex flex-col justify-between text-white min-h-[300px] relative overflow-hidden">
+                <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-brand-orange/15 blur-[60px] rounded-full pointer-events-none"></div>
+                
+                <div>
+                  <span className="text-[9px] text-brand-orange font-black tracking-widest uppercase block">Operational Console</span>
+                  <h3 className="text-base font-black text-slate-100 font-display mt-0.5">Quick Launcher Cluster</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-0.5">Hover icons to peek launcher targets</p>
+                </div>
 
-                <div className="space-y-3">
-                  <button
+                {/* Floating asymmetrical cluster container */}
+                <div className="relative h-64 mt-4 w-full">
+                  
+                  {/* Center Button: POS Checkout (larger with dynamic pulse shadow) */}
+                  <div
                     onClick={() => onTabChange('sales', 'pos')}
-                    className="w-full flex items-center justify-between p-3.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-semibold text-xs transition-all shadow-md shadow-indigo-500/10 cursor-pointer group"
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 group cursor-pointer flex flex-col items-center"
                   >
-                    <div className="flex items-center gap-3">
-                      <ShoppingBag className="h-4.5 w-4.5" />
-                      <span>New Sale (POS)</span>
+                    <div className="h-18 w-18 rounded-full bg-gradient-to-tr from-brand-orange to-amber-500 hover:scale-110 active:scale-95 transition-all duration-300 shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] flex items-center justify-center border-4 border-[#10121d]">
+                      <Icons.ShoppingBag className="h-7 w-7 text-white" />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </button>
+                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[10px] font-black tracking-wider uppercase text-brand-orange px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      POS Checkout
+                    </span>
+                  </div>
 
-                  <button
+                  {/* Top-Left Orbit: Add Product */}
+                  <div
                     onClick={() => onTabChange('inventory', 'products')}
-                    className="w-full flex items-center justify-between p-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-xs transition-all shadow-md shadow-emerald-500/10 cursor-pointer group"
+                    className="absolute top-4 left-6 z-20 group cursor-pointer flex flex-col items-center"
                   >
-                    <div className="flex items-center gap-3">
-                      <PlusCircle className="h-4.5 w-4.5" />
-                      <span>Add Product</span>
+                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-brand-orange text-white flex items-center justify-center border border-slate-700 hover:border-brand-orange shadow-lg hover:scale-105 transition-all duration-300">
+                      <Icons.Boxes className="h-5 w-5" />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </button>
+                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
+                      Add Product
+                    </span>
+                  </div>
 
-                  <button
-                    onClick={() => onTabChange('purchase', 'purchase_orders')}
-                    className="w-full flex items-center justify-between p-3.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-semibold text-xs transition-all shadow-md shadow-sky-500/10 cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <ArrowRightLeft className="h-4.5 w-4.5" />
-                      <span>New Purchase Order</span>
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </button>
-
-                  <button
+                  {/* Top-Right Orbit: Add Customer */}
+                  <div
                     onClick={() => onTabChange('sales', 'customers')}
-                    className="w-full flex items-center justify-between p-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-xs transition-all shadow-md shadow-amber-500/10 cursor-pointer group"
+                    className="absolute top-4 right-6 z-20 group cursor-pointer flex flex-col items-center"
                   >
-                    <div className="flex items-center gap-3">
-                      <UserPlus className="h-4.5 w-4.5" />
-                      <span>Add Customer</span>
+                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-indigo-600 text-white flex items-center justify-center border border-slate-700 hover:border-indigo-600 shadow-lg hover:scale-105 transition-all duration-300">
+                      <Icons.UserPlus className="h-5 w-5" />
                     </div>
-                    <ArrowUpRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </button>
+                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
+                      New Customer
+                    </span>
+                  </div>
+
+                  {/* Bottom-Left Orbit: Purchase Order */}
+                  <div
+                    onClick={() => onTabChange('purchase', 'purchase_orders')}
+                    className="absolute bottom-4 left-6 z-20 group cursor-pointer flex flex-col items-center"
+                  >
+                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-emerald-600 text-white flex items-center justify-center border border-slate-700 hover:border-emerald-600 shadow-lg hover:scale-105 transition-all duration-300">
+                      <Icons.ArrowRightLeft className="h-5 w-5" />
+                    </div>
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
+                      Procure Items
+                    </span>
+                  </div>
+
+                  {/* Bottom-Right Orbit: Favorites Menu */}
+                  <div
+                    onClick={() => onTabChange('dashboard', 'favorites')}
+                    className="absolute bottom-4 right-6 z-20 group cursor-pointer flex flex-col items-center"
+                  >
+                    <div className="h-12 w-12 rounded-full bg-slate-800/80 hover:bg-amber-500 text-white flex items-center justify-center border border-slate-700 hover:border-amber-500 shadow-lg hover:scale-105 transition-all duration-300">
+                      <Icons.Star className="h-5 w-5" />
+                    </div>
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-800 text-[9px] font-bold tracking-wide text-slate-200 px-2.5 py-1 rounded-md shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none scale-90 group-hover:scale-100">
+                      Bookmark Menu
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1308,126 +1424,207 @@ export default function DashboardView({
 
         if (sectionId === 'alerts_outstanding') {
           return (
-            <div key="alerts_outstanding" className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative group border border-transparent hover:border-indigo-400/30 rounded-2xl p-1">
+            <div key="alerts_outstanding" className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative group border border-transparent hover:border-brand-orange/15 rounded-[2rem] p-1.5 transition-all duration-300 mb-8">
               {renderControls('alerts_outstanding', index)}
-              {/* Low Stock Alert */}
-              <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase">Inventory</span>
-                    {editingTitleKey === 'low_stock' ? (
-                      <div className="flex items-center gap-1 z-50 relative mt-1">
-                        <input
-                          type="text"
-                          value={editingTitleValue}
-                          onChange={(e) => setEditingTitleValue(e.target.value)}
-                          className="bg-slate-50 text-xs font-bold rounded p-1 text-slate-700"
-                        />
-                        <button onClick={() => saveTitleEdit('low_stock')} className="p-0.5 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
-                      </div>
-                    ) : (
-                      <h3
-                        onDoubleClick={() => {
-                          if (isVisualEditMode) {
-                            setEditingTitleKey('low_stock');
-                            setEditingTitleValue(customTitles['low_stock']);
-                          }
-                        }}
-                        className="text-sm font-bold text-slate-800 font-display mt-0.5 flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>{customTitles['low_stock']}</span>
-                        {isVisualEditMode && <Edit3 className="h-3.5 w-3.5 text-indigo-500 opacity-40" />}
-                      </h3>
-                    )}
+              
+              {/* Asymmetric Left Inventory Alert Zone with horizontal stock ticker (2/3 width) */}
+              <div className="lg:col-span-2 bg-white border border-slate-200/90 p-7 rounded-3xl shadow-[0_15px_45px_rgba(0,0,0,0.01)] relative overflow-hidden flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <span className="text-[9px] text-brand-orange font-black tracking-widest uppercase block">Fulfillment Alerts</span>
+                      <h3 className="text-base font-black text-slate-800 font-display mt-0.5">Live Stock Replenishment</h3>
+                      <p className="text-xs text-slate-400 font-medium">Critical minimum threshold notifications</p>
+                    </div>
+                    <button
+                      onClick={() => setIsLowStockDrawerOpen(!isLowStockDrawerOpen)}
+                      className="px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-extrabold text-xs rounded-xl transition-all border border-slate-200 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <span>Procurement Log</span>
+                      {isLowStockDrawerOpen ? <Icons.ChevronUp className="h-4 w-4" /> : <Icons.ChevronDown className="h-4 w-4" />}
+                    </button>
                   </div>
-                  <span className="bg-slate-50 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-full">
-                    {lowStockItems.length} items
-                  </span>
-                </div>
 
-                {lowStockItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <CheckCircle className="h-12 w-12 text-emerald-500 stroke-[1.5]" />
-                    <p className="text-xs font-semibold text-slate-700 mt-3">All items are well stocked!</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Excellent stock replenishment management.</p>
+                  {/* Horizontal infinite sliding ticker tape */}
+                  <div className="relative py-3 bg-red-50/40 border-y border-red-100/50 rounded-2xl overflow-hidden w-full flex items-center my-4">
+                    <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+                    <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+                    
+                    <div className="flex gap-8 items-center animate-[marquee_25s_linear_infinite] whitespace-nowrap select-none font-sans">
+                      {lowStockItems.length === 0 ? (
+                        <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs px-4">
+                          <CheckCircle className="h-4 w-4 shrink-0" />
+                          <span>All products are healthy & fully stocked in primary warehouse terminals!</span>
+                        </div>
+                      ) : (
+                        [...lowStockItems, ...lowStockItems, ...lowStockItems].map((p, idx) => (
+                          <div key={`${p.id}-${idx}`} className="inline-flex items-center gap-2.5 bg-white border border-red-100 shadow-[0_4px_10px_rgba(239,68,68,0.03)] px-3.5 py-2 rounded-xl text-xs font-bold shrink-0">
+                            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 animate-pulse" />
+                            <span className="text-slate-800">{p.name}</span>
+                            <span className="text-[10px] text-red-600 bg-red-50 px-2 py-0.5 rounded font-black uppercase tracking-wider">{p.stock} {p.unit} LEFT</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                    {lowStockItems.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between p-3 bg-rose-50/50 border border-rose-100 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-800">{p.name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono mt-0.5">SKU: {p.sku} • {p.warehouse}</span>
+
+                  {/* Collapsible Procurement Drawer */}
+                  <div className={`transition-all duration-500 ease-out overflow-hidden ${isLowStockDrawerOpen ? 'max-h-72 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+                    <div className="border border-slate-100 bg-slate-50/40 p-4.5 rounded-2xl space-y-3 max-h-60 overflow-y-auto custom-scrollbar font-sans">
+                      {lowStockItems.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-3 bg-white border border-slate-200/60 rounded-xl hover:shadow-xs transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-red-50 text-red-500">
+                              <AlertTriangle className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-extrabold text-slate-800 block">{p.name}</span>
+                              <span className="text-[9px] text-slate-400 font-mono mt-0.5">SKU: {p.sku} • {p.warehouse}</span>
+                            </div>
+                          </div>
+                          <div className="text-right flex items-center gap-4">
+                            <div>
+                              <span className="text-[10px] font-black text-red-600 block">
+                                {p.stock} {p.unit} Left
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-bold">Alert Level: {p.alertQty}</span>
+                            </div>
+                            <button
+                              onClick={() => onTabChange('inventory', 'products')}
+                              className="px-3 py-1.5 bg-slate-950 hover:bg-brand-orange hover:text-white text-white text-[10px] font-black rounded-lg transition-colors cursor-pointer"
+                            >
+                              Replenish
+                            </button>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-1 rounded">
-                            {p.stock} {p.unit} left
-                          </span>
-                          <p className="text-[9px] text-slate-400 mt-1">Alert threshold: {p.alertQty}</p>
+                      ))}
+                      {lowStockItems.length === 0 && (
+                        <div className="text-center py-6 text-slate-400 text-xs font-medium">
+                          No active procurement tasks required at this moment.
                         </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Ledger / Outstanding Payments */}
-              <div className="bg-white border border-slate-200/80 p-6 rounded-2xl shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase">Ledger</span>
-                    {editingTitleKey === 'outstanding' ? (
-                      <div className="flex items-center gap-1 z-50 relative mt-1">
-                        <input
-                          type="text"
-                          value={editingTitleValue}
-                          onChange={(e) => setEditingTitleValue(e.target.value)}
-                          className="bg-slate-50 text-xs font-bold rounded p-1 text-slate-700"
-                        />
-                        <button onClick={() => saveTitleEdit('outstanding')} className="p-0.5 bg-emerald-500 text-white rounded"><Check className="h-3 w-3" /></button>
-                      </div>
-                    ) : (
-                      <h3
-                        onDoubleClick={() => {
-                          if (isVisualEditMode) {
-                            setEditingTitleKey('outstanding');
-                            setEditingTitleValue(customTitles['outstanding']);
-                          }
-                        }}
-                        className="text-sm font-bold text-slate-800 font-display mt-0.5 flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>{customTitles['outstanding']}</span>
-                        {isVisualEditMode && <Edit3 className="h-3.5 w-3.5 text-indigo-500 opacity-40" />}
-                      </h3>
-                    )}
+              {/* Asymmetric Right Overlapping 3D Balance Sheet Ledger Card (1/3 width, with interactive state) */}
+              <div className="lg:col-span-1 flex flex-col mb-4 lg:mb-0">
+                {/* Visual Tab Switcher */}
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+                    Double Entry Ledger
+                  </span>
+                  <div className="flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 shadow-inner">
+                    <button
+                      onClick={() => setActiveLedgerCard('payable')}
+                      className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                        activeLedgerCard === 'payable'
+                          ? 'bg-slate-950 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Payable
+                    </button>
+                    <button
+                      onClick={() => setActiveLedgerCard('receivable')}
+                      className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                        activeLedgerCard === 'receivable'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Receivable
+                    </button>
                   </div>
-                  <HelpCircle className="h-4 w-4 text-slate-300 hover:text-slate-400 cursor-pointer" />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                    <div className="flex items-center gap-2 text-emerald-700">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                      <span className="text-xs font-bold">Receivable</span>
+                {/* 3D Dynamic Card Stack */}
+                <div className="relative min-h-[380px] select-none">
+                  {/* Underlapping/Overlapping Card 1 (Asset: Receivable) */}
+                  <div
+                    onClick={() => {
+                      if (activeLedgerCard !== 'receivable') {
+                        setActiveLedgerCard('receivable');
+                      }
+                    }}
+                    className={`absolute inset-x-0 rounded-3xl p-6 shadow-2xl transition-all duration-500 ease-out flex flex-col justify-between ${
+                      activeLedgerCard === 'receivable'
+                        ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white z-20 scale-100 rotate-0 top-0 bottom-16 opacity-100'
+                        : 'bg-gradient-to-br from-emerald-600/90 to-teal-700/90 text-emerald-100 z-10 scale-95 -rotate-3 top-12 bottom-0 cursor-pointer hover:scale-98 hover:-translate-y-1 opacity-95'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest opacity-80">
+                        Asset Balance {activeLedgerCard !== 'receivable' && '• Click to view'}
+                      </span>
+                      <Icons.ArrowRight className="h-4.5 w-4.5 opacity-80" />
                     </div>
-                    <p className="text-xl font-black text-slate-800 font-display mt-3">
-                      {displayVal(totalReceivables)}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-1">Amount to collect from customers</p>
+                    
+                    <div className="mt-6">
+                      <span className="text-[10px] font-bold uppercase tracking-widest block opacity-75">Receivable Balance</span>
+                      <p className="text-3xl font-black font-display tracking-tight text-white mt-1">
+                        {displayVal(totalReceivables)}
+                      </p>
+                      <p className="text-[10px] mt-1 font-semibold leading-relaxed opacity-80">Amount outstanding from customers</p>
+                    </div>
+                    
+                    <button
+                      disabled={activeLedgerCard !== 'receivable'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTabChange('sales', 'customers');
+                      }}
+                      className={`mt-6 w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/10 ${
+                        activeLedgerCard === 'receivable' ? 'cursor-pointer' : 'cursor-default opacity-50'
+                      }`}
+                    >
+                      Customer Directory
+                    </button>
                   </div>
 
-                  <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-xl">
-                    <div className="flex items-center gap-2 text-rose-700">
-                      <span className="h-2 w-2 rounded-full bg-rose-500"></span>
-                      <span className="text-xs font-bold">Payable</span>
+                  {/* Underlapping/Overlapping Card 2 (Liability: Payable) */}
+                  <div
+                    onClick={() => {
+                      if (activeLedgerCard !== 'payable') {
+                        setActiveLedgerCard('payable');
+                      }
+                    }}
+                    className={`absolute inset-x-0 rounded-3xl p-6 shadow-2xl border transition-all duration-500 ease-out flex flex-col justify-between ${
+                      activeLedgerCard === 'payable'
+                        ? 'bg-slate-950 border-slate-900 text-white z-20 scale-100 rotate-0 top-0 bottom-16 opacity-100'
+                        : 'bg-slate-900 border-slate-850 text-slate-400 z-10 scale-95 rotate-3 top-12 bottom-0 cursor-pointer hover:scale-98 hover:-translate-y-1 opacity-95'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-brand-orange">
+                        Liability Balance {activeLedgerCard !== 'payable' && '• Click to view'}
+                      </span>
+                      <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/10 flex items-center justify-center shrink-0">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
                     </div>
-                    <p className="text-xl font-black text-slate-800 font-display mt-3">
-                      {displayVal(totalPayables)}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-1">Amount to pay suppliers</p>
+                    
+                    <div className="mt-6">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Payable Balance</span>
+                      <p className="text-3xl font-black font-display tracking-tight text-white mt-1">
+                        {displayVal(totalPayables)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed">Amount due to trade suppliers</p>
+                    </div>
+                    
+                    <button
+                      disabled={activeLedgerCard !== 'payable'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTabChange('purchase', 'purchase_orders');
+                      }}
+                      className={`mt-6 w-full py-2.5 bg-gradient-to-r from-brand-orange to-amber-500 hover:from-brand-orange-hover hover:to-amber-600 text-white rounded-xl text-xs font-black shadow-lg shadow-brand-orange/20 transition-all ${
+                        activeLedgerCard === 'payable' ? 'cursor-pointer' : 'cursor-default opacity-50'
+                      }`}
+                    >
+                      Procurement Register
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1438,7 +1635,7 @@ export default function DashboardView({
         return null;
       })}
 
-      {/* Invisible spacer row at the very bottom to allow scrolling when toolbar is active */}
+      {/* Invisible spacer row */}
       <div className="h-10"></div>
     </div>
   );

@@ -6,6 +6,7 @@ This file contains persistent rules, coding conventions, and instructions that t
 - Always respond in Bengali (unless requested otherwise).
 - Maintain the current high-contrast dashboard aesthetic (Tailwind based).
 - Double-check typescript compilation via `npm run lint` or `tsc --noEmit` before finishing any task.
+- **GitHub Push Rule**: নতুন কোনো আপডেট/কোড পরিবর্তন শেষ করার পর, সরাসরি পুশ না করে অবশ্যই ইউজারের কাছে পারমিশন চাইতে হবে এবং গিটহাব টোকেন (token) চাইতে হবে। নতুন একটি ব্রাঞ্চ (new branch) তৈরি করে সেই ব্রাঞ্চে কোড পুশ করতে হবে।
 
 ## Project Guidelines
 - **Framework & Libraries**: React 19, Tailwind CSS v4, Lucide React, and Framer Motion (`motion/react`).
