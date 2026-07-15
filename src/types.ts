@@ -259,6 +259,7 @@ export interface AppSettings {
   entryLockDays?: number;
   entryVoucherPrefix?: string;
   entryAllowManualLedger?: boolean;
+  isDbSeeded?: boolean;
 }
 
 export function formatBoxQty(pcs: number, pcsPerBox?: number): string {

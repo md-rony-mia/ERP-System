@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
 import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
 import { createNewUserWithSecondaryApp, db, auth } from '../lib/firebase';
@@ -56,6 +56,7 @@ interface BankingAndLoanViewProps {
   settings?: AppSettings;
   onUpdateSettings?: (settings: AppSettings) => void;
   onResetData?: () => void;
+  onClearAllData?: () => void;
   onImportData?: (importedData: any) => void;
   systemData?: any;
   currentUser?: any;
@@ -72,6 +73,7 @@ export default function BankingAndLoanView({
   settings,
   onUpdateSettings,
   onResetData,
+  onClearAllData,
   onImportData,
   systemData,
   currentUser,
@@ -113,6 +115,31 @@ export default function BankingAndLoanView({
 
   // --- SUB-MENU SELECTOR STATE ---
   const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>('system_settings');
+
+  // --- CUSTOM DIALOG & NOTIFICATION STATES ---
+  const [confirmActionType, setConfirmActionType] = useState<'reset' | 'clear' | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showSuccessToast) {
+      const timer = setTimeout(() => {
+        setShowSuccessToast(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessToast]);
+
+  const handleConfirmAction = async () => {
+    if (!confirmActionType) return;
+    if (confirmActionType === 'reset') {
+      if (onResetData) onResetData();
+      setShowSuccessToast('সফলভাবে সম্পূর্ণ ডেটাবেস ডেমো ভ্যালুগুলোতে রিসেট করা হয়েছে!');
+    } else if (confirmActionType === 'clear') {
+      if (onClearAllData) onClearAllData();
+      setShowSuccessToast('সফলভাবে সমস্ত ডেমো ডেটা মুছে ফেলা হয়েছে এবং ইআরপি ফাঁকা করা হয়েছে!');
+    }
+    setConfirmActionType(null);
+  };
 
   // --- DYNAMIC SUBSYSTEM STATES FOR UNHANDLED SETTINGS ---
   const [branches, setBranches] = useState<any[]>(() => {
@@ -3342,16 +3369,28 @@ export default function BankingAndLoanView({
                         </label>
                       </div>
                     </div>
-                    <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+                    <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <span className="block text-xs font-bold text-red-600">Wipe Database</span>
                         <span className="block text-[10px] text-slate-400">Restore factory demo configurations.</span>
                       </div>
                       <button
-                        type="button" onClick={onResetData}
+                        type="button" onClick={() => setConfirmActionType('reset')}
                         className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
                       >
                         Wipe Database
+                      </button>
+                    </div>
+                    <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="block text-xs font-bold text-orange-600">Clear All Demo Data (Start Empty)</span>
+                        <span className="block text-[10px] text-slate-400">Delete all products, invoices, suppliers, customers and start with a clean blank ERP.</span>
+                      </div>
+                      <button
+                        type="button" onClick={() => setConfirmActionType('clear')}
+                        className="bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        Clear All Data (Blank)
                       </button>
                     </div>
                   </div>
@@ -5573,6 +5612,80 @@ export default function BankingAndLoanView({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Custom Database Reset / Wipe Confirmation Modal */}
+      {confirmActionType && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden scale-in-95 duration-150">
+            <div className="p-6">
+              <div className="flex items-center gap-3 text-orange-600 mb-4">
+                <div className="p-3 bg-orange-50 rounded-xl">
+                  <span className="text-xl font-bold">⚠️</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 font-display">
+                    {confirmActionType === 'reset' ? 'Wipe Database Confirmation' : 'Clear All Data Confirmation'}
+                  </h3>
+                  <p className="text-xs text-slate-400">এ্যাকশনটি সতর্কতার সাথে সম্পন্ন করুন</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed text-slate-600 border-y border-slate-100 py-4 my-4">
+                {confirmActionType === 'reset' ? (
+                  <>
+                    <p className="font-semibold text-slate-800">আপনি কি নিশ্চিত যে সম্পূর্ণ ডেটাবেস ডেমো ভ্যালুগুলোতে রিসেট করতে চান?</p>
+                    <p>এটি আপনার বর্তমান কাস্টম প্রোডাক্ট, সেলস, কাস্টমার, সাপ্লায়ার ও অন্যান্য সকল এন্ট্রি ডিলিট করে ফ্যাক্টরি ডেমো ডেটা দিয়ে প্রতিস্থাপন করবে।</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-slate-800">আপনি কি নিশ্চিত যে সমস্ত ডেমো ডেটা মুছে ফেলে ডেটাবেস সম্পূর্ণ খালি করতে চান?</p>
+                    <p>এটি আপনার প্রোডাক্ট, ইনভয়েস, কাস্টমার, সাপ্লায়ার ও ট্রানজেকশন সহ সমস্ত ডেটাবেস সম্পূর্ণ ফাঁকা করে দেবে। কোনো নতুন এন্ট্রি ডেমো ডেটা ছাড়া ফ্রেশ শুরু করতে এটি ব্যবহার করুন।</p>
+                  </>
+                )}
+                <p className="text-[10px] text-red-500 font-medium">⚠️ সতর্কতা: এই পরিবর্তনটি পরবর্তীতে আর ফিরিয়ে আনা সম্ভব নয়।</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmActionType(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  বাতিল করুন (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAction}
+                  className={`px-5 py-2 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+                    confirmActionType === 'reset'
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-600/10'
+                      : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/10'
+                  }`}
+                >
+                  হ্যাঁ, নিশ্চিত করুন (Confirm)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Notification Toast */}
+      {showSuccessToast && (
+        <div className="fixed bottom-6 right-6 bg-slate-900 text-white border border-slate-800 px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 z-50 animate-in slide-in-from-bottom duration-300 max-w-sm">
+          <div className="h-6 w-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">✓</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-slate-100">সফলভাবে সম্পন্ন হয়েছে</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{showSuccessToast}</p>
+          </div>
+          <button 
+            onClick={() => setShowSuccessToast(null)} 
+            className="text-slate-500 hover:text-slate-300 transition-colors text-xs ml-2 cursor-pointer font-bold"
+          >
+            ✕
+          </button>
         </div>
       )}
 
