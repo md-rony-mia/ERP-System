@@ -765,42 +765,114 @@ export default function App() {
     );
   };
 
-  const handleResetData = () => {
-    setProducts(INITIAL_PRODUCTS);
-    setCustomers(INITIAL_CUSTOMERS);
-    setSuppliers(INITIAL_SUPPLIERS);
-    setInvoices(INITIAL_INVOICES);
-    setPurchaseOrders(INITIAL_PO);
-    setBankAccounts(INITIAL_BANK_ACCOUNTS);
-    setTransactions(INITIAL_TRANSACTIONS);
-    setAccountHeads(INITIAL_ACCOUNT_HEADS);
-    setEmployees(INITIAL_EMPLOYEES);
-    setAttendances(INITIAL_ATTENDANCE);
-    setLoanAccounts(INITIAL_LOANS);
-    setSettings(DEFAULT_SETTINGS);
-    localStorage.removeItem('nexova_app_settings');
+  const handleResetData = async () => {
+    setLoading(true);
+    try {
+      // Clear all localStorage keys starting with 'nexova_' except user login session
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('nexova_') && key !== 'nexova_current_user') {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Explicitly synchronize all collections to Firestore with the initial demo data
+      await syncCollectionToFirestore('products', INITIAL_PRODUCTS);
+      await syncCollectionToFirestore('customers', INITIAL_CUSTOMERS);
+      await syncCollectionToFirestore('suppliers', INITIAL_SUPPLIERS);
+      await syncCollectionToFirestore('invoices', INITIAL_INVOICES);
+      await syncCollectionToFirestore('purchaseOrders', INITIAL_PO);
+      await syncCollectionToFirestore('bankAccounts', INITIAL_BANK_ACCOUNTS);
+      await syncCollectionToFirestore('transactions', INITIAL_TRANSACTIONS);
+      await syncCollectionToFirestore('accountHeads', INITIAL_ACCOUNT_HEADS);
+      await syncCollectionToFirestore('employees', INITIAL_EMPLOYEES);
+      await syncCollectionToFirestore('attendances', INITIAL_ATTENDANCE);
+      await syncCollectionToFirestore('loanAccounts', INITIAL_LOANS);
+
+      const defaultSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        isDbSeeded: true
+      };
+      await saveSettingsToFirestore(defaultSettings);
+      localStorage.setItem('nexova_app_settings', JSON.stringify(defaultSettings));
+
+      setProducts(INITIAL_PRODUCTS);
+      setCustomers(INITIAL_CUSTOMERS);
+      setSuppliers(INITIAL_SUPPLIERS);
+      setInvoices(INITIAL_INVOICES);
+      setPurchaseOrders(INITIAL_PO);
+      setBankAccounts(INITIAL_BANK_ACCOUNTS);
+      setTransactions(INITIAL_TRANSACTIONS);
+      setAccountHeads(INITIAL_ACCOUNT_HEADS);
+      setEmployees(INITIAL_EMPLOYEES);
+      setAttendances(INITIAL_ATTENDANCE);
+      setLoanAccounts(INITIAL_LOANS);
+      setSettings(defaultSettings);
+
+      window.location.reload();
+    } catch (error) {
+      console.error("Error resetting data:", error);
+      alert("ডেটা রিসেট করতে সমস্যা হয়েছে: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClearAllData = async () => {
-    setProducts([]);
-    setCustomers([]);
-    setSuppliers([]);
-    setInvoices([]);
-    setPurchaseOrders([]);
-    setBankAccounts([]);
-    setTransactions([]);
-    setAccountHeads([]);
-    setEmployees([]);
-    setAttendances([]);
-    setLoanAccounts([]);
-    
-    const emptySettings: AppSettings = {
-      ...DEFAULT_SETTINGS,
-      isDbSeeded: true
-    };
-    setSettings(emptySettings);
-    localStorage.setItem('nexova_app_settings', JSON.stringify(emptySettings));
-    await saveSettingsToFirestore(emptySettings);
+    setLoading(true);
+    try {
+      // Clear all localStorage keys starting with 'nexova_' except user login session
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('nexova_') && key !== 'nexova_current_user') {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Explicitly empty out all collections in Firestore
+      await syncCollectionToFirestore('products', []);
+      await syncCollectionToFirestore('customers', []);
+      await syncCollectionToFirestore('suppliers', []);
+      await syncCollectionToFirestore('invoices', []);
+      await syncCollectionToFirestore('purchaseOrders', []);
+      await syncCollectionToFirestore('bankAccounts', []);
+      await syncCollectionToFirestore('transactions', []);
+      await syncCollectionToFirestore('accountHeads', []);
+      await syncCollectionToFirestore('employees', []);
+      await syncCollectionToFirestore('attendances', []);
+      await syncCollectionToFirestore('loanAccounts', []);
+
+      const emptySettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        isDbSeeded: true
+      };
+      await saveSettingsToFirestore(emptySettings);
+      localStorage.setItem('nexova_app_settings', JSON.stringify(emptySettings));
+
+      setProducts([]);
+      setCustomers([]);
+      setSuppliers([]);
+      setInvoices([]);
+      setPurchaseOrders([]);
+      setBankAccounts([]);
+      setTransactions([]);
+      setAccountHeads([]);
+      setEmployees([]);
+      setAttendances([]);
+      setLoanAccounts([]);
+      setSettings(emptySettings);
+
+      window.location.reload();
+    } catch (error) {
+      console.error("Error clearing all data:", error);
+      alert("ডেটা মুছতে সমস্যা হয়েছে: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImportData = (importedData: any) => {

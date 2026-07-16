@@ -65,36 +65,39 @@ export default function InventoryDashboard({
   const [showExportSuccess, setShowExportSuccess] = useState(false);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
 
+  // Check if there is actual ERP user data populated
+  const hasData = products.length > 0 || suppliers.length > 0 || invoices.length > 0 || customers.length > 0;
+
   // Dynamic derivations from real system products
   const realTotalStock = products.reduce((sum, p) => sum + p.stock, 0);
   const realInventoryValue = products.reduce((sum, p) => sum + p.stock * p.cost, 0);
 
   // High-fidelity fallback / hybrid stats to match exact screenshot layout with dynamic backing
-  const totalStockVal = Math.max(250, realTotalStock);
-  const inventoryValueVal = Math.max(2300, realInventoryValue);
+  const totalStockVal = realTotalStock > 0 ? realTotalStock : (hasData ? 250 : 0);
+  const inventoryValueVal = realInventoryValue > 0 ? realInventoryValue : (hasData ? 2300 : 0);
 
   // Sparkline data for cards
-  const totalStockSparkData = [
+  const totalStockSparkData = hasData ? [
     { value: 120 }, { value: 140 }, { value: 135 }, { value: 180 }, { value: 165 }, 
     { value: 210 }, { value: 190 }, { value: 230 }, { value: 215 }, { value: 250 }
-  ];
+  ] : [];
 
-  const inventoryValueSparkData = [
+  const inventoryValueSparkData = hasData ? [
     { value: 1800 }, { value: 2100 }, { value: 1600 }, { value: 2400 }, { value: 1950 }, 
     { value: 2200 }, { value: 1500 }, { value: 2350 }, { value: 1700 }, { value: 2300 }
-  ];
+  ] : [];
 
   // Middle Row charts
-  const categoryDistributionData = [
+  const categoryDistributionData = hasData ? [
     { category: 'Electronics', count: 110 },
     { category: 'Clothing', count: 95 },
     { category: 'Machines', count: 80 },
     { category: 'Sports', count: 65 },
     { category: 'Bikes', count: 50 },
     { category: 'Books', count: 40 },
-  ];
+  ] : [];
 
-  const productStockLevelsData = [
+  const productStockLevelsData = hasData ? [
     { month: 'Jan', 'Total Products': 180, 'Out of Stock': 20 },
     { month: 'Feb', 'Total Products': 210, 'Out of Stock': 25 },
     { month: 'Mar', 'Total Products': 195, 'Out of Stock': 15 },
@@ -107,13 +110,13 @@ export default function InventoryDashboard({
     { month: 'Oct', 'Total Products': 320, 'Out of Stock': 24 },
     { month: 'Nov', 'Total Products': 300, 'Out of Stock': 20 },
     { month: 'Dec', 'Total Products': 350, 'Out of Stock': 18 },
-  ];
+  ] : [];
 
-  const fullInventoryValueTrend = [
+  const fullInventoryValueTrend = hasData ? [
     { label: 'Mar', value: 360 },
     { label: 'Apr', value: 480 },
     { label: 'May', value: 560 }
-  ];
+  ] : [];
 
   // High-fidelity supplier lists matching user's screenshot
   const screenshotSuppliers = [
@@ -131,16 +134,16 @@ export default function InventoryDashboard({
         supplied: sup.outstandingBalance > 0 ? sup.outstandingBalance : (40000 - idx * 6000),
         status: idx % 2 === 0 ? 'Active' : 'Inactive'
       }))
-    : screenshotSuppliers;
+    : (hasData ? screenshotSuppliers : []);
 
   // High-fidelity Warehouse lists matching user's screenshot
-  const displayedWarehouses = [
+  const displayedWarehouses = hasData ? [
     { id: '#WHR0020', name: 'Smart Stock Hub', manager: 'Ethan Walker', capacity: 30000, percentage: 85, color: '#10b981' },
     { id: '#WHR0019', name: 'Flow Grid Storage', manager: 'Madison Clark', capacity: 20000, percentage: 70, color: '#f97316' },
     { id: '#WHR0018', name: 'Prime Storage Solutions', manager: 'James Harris', capacity: 300000, percentage: 61, color: '#eab308' },
     { id: '#WHR0017', name: 'Global Supply Depot', manager: 'Avery Thompson', capacity: 25000, percentage: 40, color: '#06b6d4' },
     { id: '#WHR0015', name: 'Silverline Storage', manager: 'Benjamin Wright', capacity: 16000, percentage: 22, color: '#ef4444' }
-  ];
+  ] : [];
 
   // High-fidelity Recent Stocks products matching user's screenshot
   const screenshotRecentStocks = [
@@ -164,7 +167,7 @@ export default function InventoryDashboard({
         purchasePrice: p.cost,
         status: p.stock > 0 ? 'In Stock' : 'Out of Stock'
       }))
-    : screenshotRecentStocks;
+    : (hasData ? screenshotRecentStocks : []);
 
   const triggerExport = () => {
     setShowExportSuccess(true);
@@ -436,33 +439,39 @@ export default function InventoryDashboard({
           </div>
 
           <div className="space-y-3.5 flex-1 max-h-[18rem] overflow-y-auto pr-1.5 custom-scrollbar font-sans">
-            {displayedSuppliers.map((sup, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
-                    <Briefcase className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-100 block">{sup.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">{sup.id}</span>
-                  </div>
-                </div>
-
-                <div className="text-right flex items-center gap-6">
-                  <div>
-                    <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Goods Supplied</span>
-                    <span className="text-xs font-black text-slate-100 block mt-0.5">${sup.supplied.toLocaleString()}</span>
-                  </div>
-                  <span className={`inline-block px-3 py-0.5 text-[9px] font-black rounded-full border ${
-                    sup.status === 'Active' 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                      : 'bg-slate-800/50 text-slate-500 border-slate-800'
-                  }`}>
-                    {sup.status}
-                  </span>
-                </div>
+            {displayedSuppliers.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 text-xs">
+                কোনো সরবরাহকারী পাওয়া যায়নি (No suppliers found)
               </div>
-            ))}
+            ) : (
+              displayedSuppliers.map((sup, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-orange-500/10 text-brand-orange border border-orange-500/15">
+                      <Briefcase className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-100 block">{sup.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono mt-0.5">{sup.id}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex items-center gap-6">
+                    <div>
+                      <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Goods Supplied</span>
+                      <span className="text-xs font-black text-slate-100 block mt-0.5">${sup.supplied.toLocaleString()}</span>
+                    </div>
+                    <span className={`inline-block px-3 py-0.5 text-[9px] font-black rounded-full border ${
+                      sup.status === 'Active' 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                        : 'bg-slate-800/50 text-slate-500 border-slate-800'
+                    }`}>
+                      {sup.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -483,41 +492,47 @@ export default function InventoryDashboard({
           </div>
 
           <div className="space-y-3.5 flex-1 max-h-[18rem] overflow-y-auto pr-1.5 custom-scrollbar font-sans">
-            {displayedWarehouses.map((wh, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/15">
-                    <MapPin className="h-4.5 w-4.5" />
+            {displayedWarehouses.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 text-xs">
+                কোনো ওয়্যারহাউস পাওয়া যায়নি (No warehouses found)
+              </div>
+            ) : (
+              displayedWarehouses.map((wh, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3.5 bg-[#0f111a]/40 border border-slate-800/40 rounded-xl hover:bg-[#0f111a]/80 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/15">
+                      <MapPin className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-100 block">{wh.name}</span>
+                      <span className="text-[10px] text-slate-500 font-mono mt-0.5">{wh.id}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-100 block">{wh.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono mt-0.5">{wh.id}</span>
-                  </div>
-                </div>
 
-                <div className="text-right flex items-center gap-6">
-                  <div className="text-left hidden sm:block">
-                    <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Contact Person</span>
-                    <span className="text-xs font-black text-slate-200 block mt-0.5">{wh.manager}</span>
-                  </div>
-                  <div className="text-left">
-                    <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Capacity</span>
-                    <span className="text-xs font-black text-slate-100 block mt-0.5">{wh.capacity.toLocaleString()}</span>
-                  </div>
-                  
-                  {/* Circle progress indicator on right matching the layout */}
-                  <div className="relative h-10 w-10 shrink-0">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                      <path className="text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      <path className="text-brand-orange" strokeWidth="3.5" strokeDasharray={`${wh.percentage}, 100`} strokeLinecap="round" stroke={wh.color} fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-100">
-                      {wh.percentage}%
+                  <div className="text-right flex items-center gap-6">
+                    <div className="text-left hidden sm:block">
+                      <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Contact Person</span>
+                      <span className="text-xs font-black text-slate-200 block mt-0.5">{wh.manager}</span>
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Capacity</span>
+                      <span className="text-xs font-black text-slate-100 block mt-0.5">{wh.capacity.toLocaleString()}</span>
+                    </div>
+                    
+                    {/* Circle progress indicator on right matching the layout */}
+                    <div className="relative h-10 w-10 shrink-0">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <path className="text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-brand-orange" strokeWidth="3.5" strokeDasharray={`${wh.percentage}, 100`} strokeLinecap="round" stroke={wh.color} fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-100">
+                        {wh.percentage}%
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -609,39 +624,47 @@ export default function InventoryDashboard({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {displayedRecentStocks.map((row, idx) => (
-                <tr key={idx} className="hover:bg-[#0f111a]/50 transition-colors">
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.code}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/15">
-                        <ShoppingBag className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="font-extrabold text-slate-100">{row.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">{row.sku}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded text-[10px] uppercase">
-                      {row.category}
-                    </span>
-                  </td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.brand}</td>
-                  <td className="px-4.5 py-3.5 text-xs text-slate-400 font-mono">{row.unit}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-black text-slate-100">{row.qty.toString().padStart(2, '0')}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.sellPrice}</td>
-                  <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">${row.purchasePrice}</td>
-                  <td className="px-4.5 py-3.5 text-xs">
-                    <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded border ${
-                      row.status === 'In Stock' 
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                        : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                    }`}>
-                      {row.status}
-                    </span>
+              {displayedRecentStocks.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-slate-500 text-xs">
+                    কোনো স্টক বা পণ্যের বিবরণ পাওয়া যায়নি (No stocks or products available)
                   </td>
                 </tr>
-              ))}
+              ) : (
+                displayedRecentStocks.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-[#0f111a]/50 transition-colors">
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-300">{row.code}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/15">
+                          <ShoppingBag className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="font-extrabold text-slate-100">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">{row.sku}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className="inline-block bg-[#06b6d4]/10 border border-[#06b6d4]/15 text-[#06b6d4] font-black px-2 py-0.5 rounded text-[10px] uppercase">
+                        {row.category}
+                      </span>
+                    </td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-300 font-medium">{row.brand}</td>
+                    <td className="px-4.5 py-3.5 text-xs text-slate-400 font-mono">{row.unit}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-black text-slate-100">{row.qty.toString().padStart(2, '0')}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-black text-emerald-400">${row.sellPrice}</td>
+                    <td className="px-4.5 py-3.5 text-xs font-mono font-bold text-slate-400">${row.purchasePrice}</td>
+                    <td className="px-4.5 py-3.5 text-xs">
+                      <span className={`inline-block px-2.5 py-0.5 text-[9px] font-black rounded border ${
+                        row.status === 'In Stock' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      }`}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -55,8 +55,8 @@ interface BankingAndLoanViewProps {
   onAddLoan: (loan: Omit<LoanAccount, 'id' | 'accountNo' | 'disbursedAmount' | 'outstandingAmount' | 'status'>) => void;
   settings?: AppSettings;
   onUpdateSettings?: (settings: AppSettings) => void;
-  onResetData?: () => void;
-  onClearAllData?: () => void;
+  onResetData?: () => void | Promise<void>;
+  onClearAllData?: () => void | Promise<void>;
   onImportData?: (importedData: any) => void;
   systemData?: any;
   currentUser?: any;
@@ -119,6 +119,7 @@ export default function BankingAndLoanView({
   // --- CUSTOM DIALOG & NOTIFICATION STATES ---
   const [confirmActionType, setConfirmActionType] = useState<'reset' | 'clear' | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState<string | null>(null);
+  const [isPerformingAction, setIsPerformingAction] = useState(false);
 
   useEffect(() => {
     if (showSuccessToast) {
@@ -130,15 +131,22 @@ export default function BankingAndLoanView({
   }, [showSuccessToast]);
 
   const handleConfirmAction = async () => {
-    if (!confirmActionType) return;
-    if (confirmActionType === 'reset') {
-      if (onResetData) onResetData();
-      setShowSuccessToast('সফলভাবে সম্পূর্ণ ডেটাবেস ডেমো ভ্যালুগুলোতে রিসেট করা হয়েছে!');
-    } else if (confirmActionType === 'clear') {
-      if (onClearAllData) onClearAllData();
-      setShowSuccessToast('সফলভাবে সমস্ত ডেমো ডেটা মুছে ফেলা হয়েছে এবং ইআরপি ফাঁকা করা হয়েছে!');
+    if (!confirmActionType || isPerformingAction) return;
+    setIsPerformingAction(true);
+    try {
+      if (confirmActionType === 'reset') {
+        if (onResetData) await onResetData();
+        setShowSuccessToast('সফলভাবে সম্পূর্ণ ডেটাবেস ডেমো ভ্যালুগুলোতে রিসেট করা হয়েছে!');
+      } else if (confirmActionType === 'clear') {
+        if (onClearAllData) await onClearAllData();
+        setShowSuccessToast('সফলভাবে সমস্ত ডেমো ডেটা মুছে ফেলা হয়েছে এবং ইআরপি ফাঁকা করা হয়েছে!');
+      }
+      setConfirmActionType(null);
+    } catch (err) {
+      console.error("Error executing system action:", err);
+    } finally {
+      setIsPerformingAction(false);
     }
-    setConfirmActionType(null);
   };
 
   // --- DYNAMIC SUBSYSTEM STATES FOR UNHANDLED SETTINGS ---
@@ -5651,20 +5659,29 @@ export default function BankingAndLoanView({
                 <button
                   type="button"
                   onClick={() => setConfirmActionType(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                  disabled={isPerformingAction}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   বাতিল করুন (Cancel)
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmAction}
-                  className={`px-5 py-2 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+                  disabled={isPerformingAction}
+                  className={`px-5 py-2 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 ${
                     confirmActionType === 'reset'
                       ? 'bg-red-600 hover:bg-red-700 shadow-red-600/10'
                       : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/10'
                   }`}
                 >
-                  হ্যাঁ, নিশ্চিত করুন (Confirm)
+                  {isPerformingAction ? (
+                    <>
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-white animate-spin"></span>
+                      অপেক্ষা করুন...
+                    </>
+                  ) : (
+                    'হ্যাঁ, নিশ্চিত করুন (Confirm)'
+                  )}
                 </button>
               </div>
             </div>

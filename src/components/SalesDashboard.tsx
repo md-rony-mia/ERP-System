@@ -74,70 +74,94 @@ export default function SalesDashboard({
   };
 
   // ----------------------------------------------------
-  // DYNAMIC STATS DERIVATION WITH SCREENSHOT FALLBACKS
+  // DYNAMIC STATS DERIVATION WITH NO REPO FALLBACKS ON CLEAN
   // ----------------------------------------------------
   const dynamicRevenue = invoices
     .filter((inv) => inv.isPaid)
     .reduce((sum, inv) => sum + inv.total, 0);
 
   // Fallbacks matched to screenshot if data is empty
-  const displayRevenue = dynamicRevenue > 0 ? (dynamicRevenue / 1000).toFixed(1) + 'K' : '12.8K';
-  const displayOpenInvoices = Math.max(28, invoices.filter((i) => !i.isPaid).length);
-  const displayOpenOrders = 156; // Mock sales order count
-  const displayNewCustomers = Math.max(378, customers.length);
+  const displayRevenue = dynamicRevenue > 0 ? (dynamicRevenue / 1000).toFixed(1) + 'K' : '0.0K';
+  const displayOpenInvoices = invoices.filter((i) => !i.isPaid).length;
+  const displayOpenOrders = invoices.filter((i) => !i.isPaid).length;
+  const displayNewCustomers = customers.length;
 
   // ----------------------------------------------------
   // REVENUE TRENDS CHART DATA (MONTHLY)
   // ----------------------------------------------------
-  const monthlyRevenueData = [
-    { month: 'Jan', Revenue: 215000 },
-    { month: 'Feb', Revenue: 235000 },
-    { month: 'Mar', Revenue: 310000 },
-    { month: 'Apr', Revenue: 350000 },
-    { month: 'May', Revenue: 580000 },
-    { month: 'Jun', Revenue: 900000 }, // Highlighted in orange
-    { month: 'Jul', Revenue: 480000 },
-    { month: 'Aug', Revenue: 510000 },
-    { month: 'Sep', Revenue: 490000 },
-    { month: 'Oct', Revenue: 620000 },
-    { month: 'Nov', Revenue: 590000 },
-    { month: 'Dec', Revenue: 560000 },
-  ];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyRevenueData = months.map((month, idx) => {
+    const rev = invoices
+      .filter((inv) => {
+        const d = new Date(inv.date);
+        return d.getMonth() === idx;
+      })
+      .reduce((sum, inv) => sum + inv.total, 0);
+    return { month, Revenue: rev };
+  });
 
   // ----------------------------------------------------
-  // HIGH-FIDELITY SCREENSHOT MOCK DATA (MERGED GRACEFULLY)
+  // DYNAMIC TOP CUSTOMERS
   // ----------------------------------------------------
-  const topCustomers = [
-    { name: 'Robert Cooper', id: '#CUS0020', spent: 4500, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Helen Nelson', id: '#CUS0019', spent: 5200, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Thomas Neal', id: '#CUS0018', spent: 2800, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Sarah Spivey', id: '#CUS0017', spent: 1750, avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Jared Griffin', id: '#CUS0016', spent: 3000, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80' },
-  ];
+  const customerSpent: Record<string, number> = {};
+  invoices.forEach((inv) => {
+    customerSpent[inv.customerId] = (customerSpent[inv.customerId] || 0) + inv.total;
+  });
+  const topCustomers = [...customers]
+    .map((cust) => ({
+      name: cust.name,
+      id: cust.id,
+      spent: customerSpent[cust.id] || 0,
+      avatar: `https://images.unsplash.com/photo-${cust.id.charCodeAt(0) % 2 === 0 ? '1534528741775-53994a69daeb' : '1507003211169-0a1dd7228f2d'}?auto=format&fit=crop&w=100&q=80`
+    }))
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 5);
 
-  const topSellingProducts = [
-    { name: 'Apple iPhone 15', price: 1250, stockStatus: 'In Stock', salesCount: 1250, iconType: 'phone' },
-    { name: 'Dell XPS 13 9310', price: 2250, stockStatus: 'In Stock', salesCount: 2250, iconType: 'laptop' },
-    { name: 'Bose QuietComfort 45', price: 1600, stockStatus: 'In Stock', salesCount: 1600, iconType: 'headphones' },
-    { name: 'Adidas Running Shoe', price: 1850, stockStatus: 'Out of Stock', salesCount: 1850, iconType: 'bag' },
-    { name: 'Dyson Vacuum Cleaner', price: 2200, stockStatus: 'In Stock', salesCount: 2200, iconType: 'vacuum' },
-  ];
+  const topSellingProducts = [...products]
+    .map((prod) => {
+      let salesCount = 0;
+      invoices.forEach((inv) => {
+        inv.items?.forEach((item) => {
+          if (item.productId === prod.id) {
+            salesCount += item.quantity;
+          }
+        });
+      });
+      return {
+        name: prod.name,
+        price: prod.price,
+        stockStatus: prod.stock > 0 ? 'In Stock' : 'Out of Stock',
+        salesCount,
+        iconType: prod.category?.toLowerCase().includes('phone') ? 'phone' : prod.category?.toLowerCase().includes('laptop') ? 'laptop' : 'other'
+      };
+    })
+    .sort((a, b) => b.salesCount - a.salesCount)
+    .slice(0, 5);
 
-  const recentTransactions = [
-    { name: 'Alexander Kann', id: '#PAY0020', status: 'Paid', amount: 500, date: '05 Sep 2025', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Gabriella White', id: '#PAY0019', status: 'Pending', amount: 250, date: '11 Sep 2025', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Christopher Ray', id: '#PAY0018', status: 'Failed', amount: 300, date: '27 Aug 2025', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Penelope Ton', id: '#PAY0017', status: 'Paid', amount: 850, date: '15 Aug 2025', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-    { name: 'Catherine Lan', id: '#PAY0016', status: 'Pending', amount: 600, date: '02 Aug 2025', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80' },
-  ];
+  const recentTransactions = [...invoices]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5)
+    .map((inv) => ({
+      name: inv.customerName,
+      id: inv.invoiceNo,
+      status: inv.isPaid ? 'Paid' : 'Pending',
+      amount: inv.total,
+      date: new Date(inv.date).toLocaleDateString('bn-BD', { day: '2-digit', month: 'short', year: 'numeric' }),
+      avatar: `https://images.unsplash.com/photo-${inv.id.charCodeAt(0) % 2 === 0 ? '1519085360753-af0119f7cbe7' : '1524504388940-b1c1722653e1'}?auto=format&fit=crop&w=100&q=80`
+    }));
 
-  const recentSalesActivity = [
-    { id: '#INV0020', type: 'Invoice', customer: 'Alexander Kann', amount: 500, date: '11 Sep 2025', status: 'Paid', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80' },
-    { id: '#SO00019', type: 'Sales Order', customer: 'Gabriella White', amount: 650, date: '05 Sep 2025', status: 'Pending', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=100&q=80' },
-    { id: '#CR00018', type: 'Credit Note', customer: 'Christopher Ray', amount: 120, date: '27 Aug 2025', status: 'Issued', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
-    { id: '#SQ00017', type: 'Sales Quote', customer: 'Penelope Ton', amount: 860, date: '15 Aug 2025', status: 'Sent', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&q=80' },
-    { id: '#INV0011', type: 'Invoice', customer: 'Catherine Lan', amount: 850, date: '18 May 2025', status: 'Paid', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80' },
-  ];
+  const recentSalesActivity = [...invoices]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5)
+    .map((inv) => ({
+      id: inv.invoiceNo,
+      type: 'Invoice',
+      customer: inv.customerName,
+      amount: inv.total,
+      date: new Date(inv.date).toLocaleDateString('bn-BD', { day: '2-digit', month: 'short', year: 'numeric' }),
+      status: inv.isPaid ? 'Paid' : 'Pending',
+      avatar: `https://images.unsplash.com/photo-${inv.id.charCodeAt(0) % 2 === 0 ? '1519085360753-af0119f7cbe7' : '1524504388940-b1c1722653e1'}?auto=format&fit=crop&w=100&q=80`
+    }));
 
   // Helper for dynamic product icon render
   const renderProductIcon = (type: string) => {
@@ -425,12 +449,12 @@ export default function SalesDashboard({
           {/* Bottom Custom Indicator */}
           <div className="bg-[#161922] border border-slate-800/80 rounded-xl p-3">
             <div className="flex justify-between text-[11px] font-bold text-slate-400 mb-1.5">
-              <span className="text-[#0ea5e9]">$2.4M <span className="text-slate-500 font-medium">vs last month</span></span>
-              <span className="text-slate-500">Goal: $4M</span>
+              <span className="text-[#0ea5e9]">৳{(dynamicRevenue).toLocaleString()} <span className="text-slate-500 font-medium">total revenue</span></span>
+              <span className="text-slate-500">Goal: ৳5,00,000</span>
             </div>
             {/* Teal Progress Bar */}
             <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#0ea5e9] h-full rounded-full" style={{ width: '60%' }} />
+              <div className="bg-[#0ea5e9] h-full rounded-full" style={{ width: `${Math.min(100, dynamicRevenue > 0 ? (dynamicRevenue / 500000) * 100 : 0)}%` }} />
             </div>
           </div>
         </div>
@@ -503,25 +527,31 @@ export default function SalesDashboard({
           </div>
 
           <div className="space-y-4">
-            {topCustomers.map((cust, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    className="h-9 w-9 rounded-full object-cover border border-slate-800"
-                    src={cust.avatar}
-                    alt={cust.name}
-                  />
-                  <div>
-                    <p className="text-xs font-bold text-white">{cust.name}</p>
-                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">{cust.id}</p>
+            {topCustomers.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                কোনো কাস্টমার ডেটা নেই (No customer data available)
+              </div>
+            ) : (
+              topCustomers.map((cust, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img
+                      className="h-9 w-9 rounded-full object-cover border border-slate-800"
+                      src={cust.avatar}
+                      alt={cust.name}
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-white">{cust.name}</p>
+                      <p className="text-[10px] text-slate-500 font-mono mt-0.5">{cust.id}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-white font-mono">৳{cust.spent.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Spent</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-black text-white font-mono">৳{cust.spent.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Spent</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -539,34 +569,40 @@ export default function SalesDashboard({
           </div>
 
           <div className="space-y-4">
-            {topSellingProducts.map((prod, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 bg-slate-800/80 border border-slate-700/50 rounded-xl flex items-center justify-center">
-                    {renderProductIcon(prod.iconType)}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-white">{prod.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-[10px] text-slate-500 font-mono">৳{prod.price.toLocaleString()}</p>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                          prod.stockStatus === 'In Stock'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}
-                      >
-                        {prod.stockStatus === 'In Stock' ? 'In Stock' : 'Out of Stock'}
-                      </span>
+            {topSellingProducts.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                কোনো প্রোডাক্ট ডেটা নেই (No product data available)
+              </div>
+            ) : (
+              topSellingProducts.map((prod, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 bg-slate-800/80 border border-slate-700/50 rounded-xl flex items-center justify-center">
+                      {renderProductIcon(prod.iconType)}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">{prod.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] text-slate-500 font-mono">৳{prod.price.toLocaleString()}</p>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                            prod.stockStatus === 'In Stock'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          }`}
+                        >
+                          {prod.stockStatus === 'In Stock' ? 'In Stock' : 'Out of Stock'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-white font-mono">{prod.salesCount.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Sales</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-black text-white font-mono">{prod.salesCount.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Sales</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -584,38 +620,44 @@ export default function SalesDashboard({
           </div>
 
           <div className="space-y-4">
-            {recentTransactions.map((tx, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    className="h-9 w-9 rounded-full object-cover border border-slate-800"
-                    src={tx.avatar}
-                    alt={tx.name}
-                  />
-                  <div>
-                    <p className="text-xs font-bold text-white">{tx.name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <p className="text-[10px] text-slate-500 font-mono">{tx.id}</p>
-                      <span
-                        className={`text-[8px] px-1.5 py-0.2 rounded font-extrabold uppercase ${
-                          tx.status === 'Paid'
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : tx.status === 'Pending'
-                            ? 'bg-amber-500/10 text-amber-400'
-                            : 'bg-rose-500/10 text-rose-400'
-                        }`}
-                      >
-                        {tx.status}
-                      </span>
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 text-xs">
+                কোনো লেনদেনের ডেটা নেই (No transactions available)
+              </div>
+            ) : (
+              recentTransactions.map((tx, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img
+                      className="h-9 w-9 rounded-full object-cover border border-slate-800"
+                      src={tx.avatar}
+                      alt={tx.name}
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-white">{tx.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-[10px] text-slate-500 font-mono">{tx.id}</p>
+                        <span
+                          className={`text-[8px] px-1.5 py-0.2 rounded font-extrabold uppercase ${
+                            tx.status === 'Paid'
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : tx.status === 'Pending'
+                              ? 'bg-amber-500/10 text-amber-400'
+                              : 'bg-rose-500/10 text-rose-400'
+                          }`}
+                        >
+                          {tx.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-white font-mono">৳{tx.amount.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{tx.date}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-black text-white font-mono">৳{tx.amount.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{tx.date}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -651,39 +693,47 @@ export default function SalesDashboard({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/30">
-              {recentSalesActivity.map((activity) => (
-                <tr key={activity.id} className="hover:bg-slate-800/10 transition-colors">
-                  <td className="py-4 px-4 font-mono font-bold text-slate-300">{activity.id}</td>
-                  <td className="py-4 px-4 text-slate-400 font-medium">{activity.type}</td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        className="h-6 w-6 rounded-full object-cover border border-slate-800"
-                        src={activity.avatar}
-                        alt={activity.customer}
-                      />
-                      <span className="font-bold text-white">{activity.customer}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 font-mono font-black text-white">৳{activity.amount.toLocaleString()}</td>
-                  <td className="py-4 px-4 text-slate-500 font-semibold">{activity.date}</td>
-                  <td className="py-4 px-4">
-                    <span
-                      className={`text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-md ${
-                        activity.status === 'Paid'
-                          ? 'bg-emerald-500/10 text-emerald-400'
-                          : activity.status === 'Pending'
-                          ? 'bg-amber-500/10 text-amber-400'
-                          : activity.status === 'Issued'
-                          ? 'bg-sky-500/10 text-sky-400'
-                          : 'bg-purple-500/10 text-purple-400'
-                      }`}
-                    >
-                      {activity.status}
-                    </span>
+              {recentSalesActivity.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
+                    কোনো অ্যাক্টিভিটি ডেটা নেই (No activity data available)
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentSalesActivity.map((activity) => (
+                  <tr key={activity.id} className="hover:bg-slate-800/10 transition-colors">
+                    <td className="py-4 px-4 font-mono font-bold text-slate-300">{activity.id}</td>
+                    <td className="py-4 px-4 text-slate-400 font-medium">{activity.type}</td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          className="h-6 w-6 rounded-full object-cover border border-slate-800"
+                          src={activity.avatar}
+                          alt={activity.customer}
+                        />
+                        <span className="font-bold text-white">{activity.customer}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 font-mono font-black text-white">৳{activity.amount.toLocaleString()}</td>
+                    <td className="py-4 px-4 text-slate-500 font-semibold">{activity.date}</td>
+                    <td className="py-4 px-4">
+                      <span
+                        className={`text-[9px] font-black tracking-wider uppercase px-2.5 py-1 rounded-md ${
+                          activity.status === 'Paid'
+                            ? 'bg-emerald-500/10 text-emerald-400'
+                            : activity.status === 'Pending'
+                            ? 'bg-amber-500/10 text-amber-400'
+                            : activity.status === 'Issued'
+                            ? 'bg-sky-500/10 text-sky-400'
+                            : 'bg-purple-500/10 text-purple-400'
+                        }`}
+                      >
+                        {activity.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
