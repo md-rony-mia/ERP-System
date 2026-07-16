@@ -7,6 +7,7 @@ import {
 } from '../types';
 import FinanceDashboard from './FinanceDashboard';
 import InventoryDashboard from './InventoryDashboard';
+import SalesDashboard from './SalesDashboard';
 import * as Icons from 'lucide-react';
 import {
   TrendingUp,
@@ -815,6 +816,16 @@ export default function DashboardView({
         products={products}
         suppliers={suppliers}
         customers={customers}
+        onTabChange={onTabChange}
+      />
+    );
+  }
+  if (activeSubTab === 'sales_dash') {
+    return (
+      <SalesDashboard
+        products={products}
+        customers={customers}
+        invoices={invoices}
         onTabChange={onTabChange}
       />
     );
