@@ -51,6 +51,7 @@ import {
   Attendance,
   LoanAccount,
   AppSettings,
+  getSystemDate,
 } from './types';
 
 import {
@@ -183,6 +184,8 @@ export default function App() {
     defaultUnit: 'Pcs',
     lowStockThreshold: 5,
     timezone: 'Asia/Dhaka',
+    systemDateMode: 'auto',
+    systemCustomDate: '',
     taxes: [
       { id: '1', name: 'Standard VAT', rate: 5, type: 'Sales', status: 'Active' },
       { id: '2', name: 'Supplementary Duty (SD)', rate: 10, type: 'Both', status: 'Active' },
@@ -240,12 +243,24 @@ export default function App() {
   const [loanAccounts, setLoanAccounts] = useState<LoanAccount[]>([]);
 
   // --- LIFTED DRAFT STATES (SALES POS) ---
+  const generateDateTimeInvoiceNo = (prefix: string) => {
+    const d = new Date();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}-${day}${month}${year}-${hours}${minutes}${seconds}-${rand}`;
+  };
+
   const [posCart, setPosCart] = useState<any[]>([]);
   const [posSelectedCustomerId, setPosSelectedCustomerId] = useState('');
   const [posPaymentMethod, setPosPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
   const [posDiscount, setPosDiscount] = useState<number>(0);
-  const [posInvoiceNoInput, setPosInvoiceNoInput] = useState('');
-  const [posInvoiceDateInput, setPosInvoiceDateInput] = useState('');
+  const [posInvoiceNoInput, setPosInvoiceNoInput] = useState(() => generateDateTimeInvoiceNo('INV'));
+  const [posInvoiceDateInput, setPosInvoiceDateInput] = useState(() => new Date().toISOString().split('T')[0]);
   const [posReceivedByInput, setPosReceivedByInput] = useState('');
   const [posRecipientAddressInput, setPosRecipientAddressInput] = useState('');
   const [posMobileNoInput, setPosMobileNoInput] = useState('');
@@ -258,11 +273,20 @@ export default function App() {
   // --- LIFTED DRAFT STATES (PROCUREMENT PO) ---
   const [purchasePoCart, setPurchasePoCart] = useState<any[]>([]);
   const [purchaseSelectedSupplierId, setPurchaseSelectedSupplierId] = useState('');
-  const [purchasePoInvoiceNo, setPurchasePoInvoiceNo] = useState('');
-  const [purchasePoDate, setPurchasePoDate] = useState('');
+  const [purchasePoInvoiceNo, setPurchasePoInvoiceNo] = useState(() => generateDateTimeInvoiceNo('PO'));
+  const [purchasePoDate, setPurchasePoDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [purchasePoDiscount, setPurchasePoDiscount] = useState<number>(0);
   const [purchasePoTransport, setPurchasePoTransport] = useState<number>(0);
   const [purchasePoLabour, setPurchasePoLabour] = useState<number>(0);
+
+  const [pendingNavigation, setPendingNavigation] = useState<{ tab: string; subTab: string } | null>(null);
+
+  // Synchronize transaction form dates with global settings override date
+  useEffect(() => {
+    const sysDate = getSystemDate(settings);
+    setPosInvoiceDateInput(sysDate);
+    setPurchasePoDate(sysDate);
+  }, [settings?.systemDateMode, settings?.systemCustomDate]);
 
   useEffect(() => {
     localStorage.setItem('nexova_products_count', String(products.length));
@@ -951,10 +975,8 @@ export default function App() {
       }
 
       if (hasUnsavedChanges) {
-        const confirmed = window.confirm("আপনার এই পাতায় অসংরক্ষিত পরিবর্তন আছে। আপনি কি নিশ্চিত পাতা ত্যাগ করতে চান? / You have unsaved changes on this page. Are you sure you want to leave?");
-        if (!confirmed) {
-          return; // Stay on the current tab
-        }
+        setPendingNavigation({ tab, subTab });
+        return; // Open custom confirmation modal instead of blocking synchronously
       }
     }
 
@@ -966,6 +988,20 @@ export default function App() {
     if (matchedItem) {
       navEngine.addRecent(matchedItem.id);
     }
+  };
+
+  const handleConfirmNavigation = () => {
+    if (!pendingNavigation) return;
+    const { tab, subTab } = pendingNavigation;
+    setCurrentTab(tab);
+    setCurrentSubTab(subTab);
+    
+    // Track recent navigation item visits
+    const matchedItem = navEngine.getAllItems().find(item => item.tab === tab && item.subTab === subTab);
+    if (matchedItem) {
+      navEngine.addRecent(matchedItem.id);
+    }
+    setPendingNavigation(null);
   };
 
   if (loading) {
@@ -1110,6 +1146,7 @@ export default function App() {
                   activeSubTab={currentSubTab}
                   onTabChange={handleTabChange}
                   currentUser={currentUser}
+                  settings={settings}
 
                   // Pass lifted states
                   poCart={purchasePoCart}
@@ -1156,6 +1193,7 @@ export default function App() {
                   bankAccounts={bankAccounts}
                   onLogTransaction={handleLogTransaction}
                   activeSubTab={currentSubTab}
+                  settings={settings}
                 />
               )}
             </ErrorBoundary>
@@ -1369,6 +1407,54 @@ export default function App() {
             >
               Okay, Understood
             </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Custom Unsaved Changes Confirmation Modal */}
+    {pendingNavigation && (
+      <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden scale-in-95 duration-150">
+          <div className="p-6 text-left">
+            <div className="flex items-center gap-3 text-orange-600 mb-4">
+              <div className="p-3 bg-orange-50 rounded-xl">
+                <span className="text-xl font-bold">⚠️</span>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 font-display">
+                  অসংরক্ষিত পরিবর্তন! / Unsaved Changes!
+                </h3>
+                <p className="text-xs text-slate-400">এ্যাকশনটি সতর্কতার সাথে সম্পন্ন করুন</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-slate-600 border-y border-slate-100 py-4 my-4">
+              <p className="font-semibold text-slate-800">
+                আপনার এই পাতায় অসংরক্ষিত পরিবর্তন আছে। আপনি কি নিশ্চিত পাতা ত্যাগ করতে চান?
+              </p>
+              <p className="text-slate-500">
+                You have unsaved changes on this page. Are you sure you want to leave? Your in-progress cart items or draft data will remain in memory, but this action will transition you to the new tab.
+              </p>
+              <p className="text-[10px] text-orange-500 font-medium">⚠️ সতর্কতা: পাতা ত্যাগ করার পর পরবর্তী কাজগুলো ফ্রেশ শুরু করা সম্ভব হবে না।</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingNavigation(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                বাতিল করুন (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmNavigation}
+                className="px-5 py-2 text-white bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-600/10 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                চলে যান (Leave)
+              </button>
+            </div>
           </div>
         </div>
       </div>

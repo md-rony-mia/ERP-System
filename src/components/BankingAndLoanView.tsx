@@ -862,6 +862,10 @@ export default function BankingAndLoanView({
   const [entryVoucherPrefix, setEntryVoucherPrefix] = useState(settings?.entryVoucherPrefix || 'VOU-');
   const [entryAllowManualLedger, setEntryAllowManualLedger] = useState(settings?.entryAllowManualLedger ?? false);
 
+  // 19. System Date Override Setting
+  const [sysDateMode, setSysDateMode] = useState<'auto' | 'custom'>(settings?.systemDateMode || 'auto');
+  const [sysCustomDate, setSysCustomDate] = useState<string>(settings?.systemCustomDate || new Date().toISOString().split('T')[0]);
+
   React.useEffect(() => {
     if (settings) {
       setCompName(settings.companyName || '');
@@ -934,6 +938,9 @@ export default function BankingAndLoanView({
       setEntryLockDays(settings.entryLockDays || 30);
       setEntryVoucherPrefix(settings.entryVoucherPrefix || 'VOU-');
       setEntryAllowManualLedger(settings.entryAllowManualLedger ?? false);
+
+      setSysDateMode(settings.systemDateMode || 'auto');
+      setSysCustomDate(settings.systemCustomDate || new Date().toISOString().split('T')[0]);
     }
   }, [settings]);
 
@@ -1001,6 +1008,8 @@ export default function BankingAndLoanView({
         entryLockDays,
         entryVoucherPrefix,
         entryAllowManualLedger,
+        systemDateMode: sysDateMode,
+        systemCustomDate: sysCustomDate,
       });
       alert('System settings updated successfully!');
     }
@@ -2103,6 +2112,7 @@ export default function BankingAndLoanView({
                 { id: 'activity_log', label: 'Activity Log', icon: Clock },
                 { id: 'purchase_setting', label: 'Purchase Setting', icon: ShoppingBag },
                 { id: 'entry_setting', label: 'Entry Setting', icon: Database },
+                { id: 'date_setting', label: 'Date Change (তারিখ পরিবর্তন)', icon: Icons.Calendar },
               ].map((menu) => {
                 const IconComponent = menu.icon;
                 const isSelected = selectedSettingsTab === menu.id;
@@ -4517,8 +4527,98 @@ export default function BankingAndLoanView({
               </div>
             )}
 
+            {/* 19. DATE SETTING */}
+            {selectedSettingsTab === 'date_setting' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 font-display">তারিখ পরিবর্তন (System Date Settings)</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">সিস্টেমের সকল ট্রানজেকশনে ব্যবহৃত তারিখ নিয়ন্ত্রণ করুন।</p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-6">
+                  {/* Mode Select */}
+                  <div className="space-y-3">
+                    <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">তারিখ মোড (Date Selection Mode)</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSysDateMode('auto');
+                        }}
+                        className={`p-4 border rounded-xl text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                          sysDateMode === 'auto'
+                            ? 'border-indigo-500 bg-indigo-50/40 text-indigo-900 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          <Icons.CheckCircle className={`h-4 w-4 shrink-0 ${sysDateMode === 'auto' ? 'text-indigo-600' : 'text-slate-300'}`} />
+                          অটো সিলেক্ট (আজকের তারিখ)
+                        </span>
+                        <span className="text-[10px] text-slate-400 leading-relaxed">
+                          আজকের বর্তমান আসল তারিখ স্বয়ংক্রিয়ভাবে ব্যবহার করা হবে (Today's current date: {new Date().toISOString().split('T')[0]})
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSysDateMode('custom');
+                        }}
+                        className={`p-4 border rounded-xl text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                          sysDateMode === 'custom'
+                            ? 'border-indigo-500 bg-indigo-50/40 text-indigo-900 ring-2 ring-indigo-500/20'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          <Icons.CheckCircle className={`h-4 w-4 shrink-0 ${sysDateMode === 'custom' ? 'text-indigo-600' : 'text-slate-300'}`} />
+                          নির্দিষ্ট কোনো তারিখ (Custom Date)
+                        </span>
+                        <span className="text-[10px] text-slate-400 leading-relaxed">
+                          আপনার সেট করা একটি নির্দিষ্ট ম্যানুয়াল তারিখ সিস্টেমের সকল ট্রানজেকশনে ডিফল্ট হিসেবে কাজ করবে।
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Date Input Field */}
+                  {sysDateMode === 'custom' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">ম্যানুয়াল তারিখ নির্ধারণ করুন (Select Custom Date)</label>
+                      <input
+                        type="date"
+                        value={sysCustomDate}
+                        onChange={(e) => setSysCustomDate(e.target.value)}
+                        className="bg-white border border-slate-200 focus:border-indigo-500 rounded-lg p-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-100 transition-all max-w-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateSettings) {
+                        onUpdateSettings({
+                          ...settings,
+                          systemDateMode: sysDateMode,
+                          systemCustomDate: sysCustomDate,
+                        } as AppSettings);
+                        alert('সিস্টেম তারিখ সেটিংস সফলভাবে আপডেট করা হয়েছে! / System Date Settings updated successfully!');
+                      }
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    সেভ করুন (Save Date Settings)
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* DYNAMIC FALLBACK FOR ALL OTHER SUBSYSTEM/ADMIN SETTINGS TABS */}
-            {!['tax_rates', 'payment_methods', 'add_suppliers_setting', 'add_customers_setting', 'add_product_setting', 'pos_setting', 'collection_payment_settings', 'users', 'roles', 'loan_setting', 'system_settings', 'menu_management', 'navigation_builder', 'delete_history', 'sales_return_setting', 'sales_order_setting', 'activity_log', 'purchase_setting', 'entry_setting'].includes(selectedSettingsTab) && (
+            {!['tax_rates', 'payment_methods', 'add_suppliers_setting', 'add_customers_setting', 'add_product_setting', 'pos_setting', 'collection_payment_settings', 'users', 'roles', 'loan_setting', 'system_settings', 'menu_management', 'navigation_builder', 'delete_history', 'sales_return_setting', 'sales_order_setting', 'activity_log', 'purchase_setting', 'entry_setting', 'date_setting'].includes(selectedSettingsTab) && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <div>

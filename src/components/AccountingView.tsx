@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { validateRequired, validatePositiveNumber } from '../lib/validation';
-import { AccountHead, Transaction, BankAccount } from '../types';
+import { AccountHead, Transaction, BankAccount, AppSettings, getSystemDate } from '../types';
 import {
   BookOpen,
   Calculator,
@@ -25,6 +25,7 @@ interface AccountingViewProps {
   bankAccounts: BankAccount[];
   onLogTransaction: (tx: Omit<Transaction, 'id' | 'date'>) => void;
   activeSubTab?: string;
+  settings?: AppSettings;
 }
 
 export default function AccountingView({
@@ -33,6 +34,7 @@ export default function AccountingView({
   bankAccounts,
   onLogTransaction,
   activeSubTab = 'chart_accounts',
+  settings,
 }: AccountingViewProps) {
   // Map sidebar activeSubTab to internal views
   const currentTab = ['chart_accounts', 'journal_entries', 'payments', 'income', 'income_categories', 'expenses', 'expense_categories', 'ledger', 'budget'].includes(activeSubTab)
@@ -931,7 +933,7 @@ export default function AccountingView({
 
                     const newEntry = {
                       id: `lg_${Date.now()}`,
-                      date: new Date().toISOString().substring(0, 10),
+                      date: getSystemDate(settings),
                       refNo: newLgRef || `JV-2026-${Math.floor(100+Math.random()*900)}`,
                       debitAccount: newLgDebit,
                       creditAccount: newLgCredit,

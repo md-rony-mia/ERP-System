@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
-import { Product, Customer, Invoice, SaleItem, formatBoxQty, AppSettings } from '../types';
+import { Product, Customer, Invoice, SaleItem, formatBoxQty, AppSettings, getSystemDate } from '../types';
 import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   Search,
@@ -301,7 +301,7 @@ export default function SalesView({
   const invoiceNoInput = propInvoiceNoInput !== undefined ? propInvoiceNoInput : localInvoiceNoInput;
   const setInvoiceNoInput = propSetInvoiceNoInput !== undefined ? propSetInvoiceNoInput : setLocalInvoiceNoInput;
 
-  const [localInvoiceDateInput, setLocalInvoiceDateInput] = useState(new Date().toISOString().split('T')[0]);
+  const [localInvoiceDateInput, setLocalInvoiceDateInput] = useState(() => getSystemDate(settings));
   const invoiceDateInput = propInvoiceDateInput !== undefined ? propInvoiceDateInput : localInvoiceDateInput;
   const setInvoiceDateInput = propSetInvoiceDateInput !== undefined ? propSetInvoiceDateInput : setLocalInvoiceDateInput;
 
@@ -320,6 +320,12 @@ export default function SalesView({
   const [localOrderIdInput, setLocalOrderIdInput] = useState('');
   const orderIdInput = propOrderIdInput !== undefined ? propOrderIdInput : localOrderIdInput;
   const setOrderIdInput = propSetOrderIdInput !== undefined ? propSetOrderIdInput : setLocalOrderIdInput;
+
+  React.useEffect(() => {
+    const sysDate = getSystemDate(settings);
+    setInvoiceDateInput(sysDate);
+    setRetDate(sysDate);
+  }, [settings?.systemDateMode, settings?.systemCustomDate]);
 
   const [barcodeInput, setBarcodeInput] = useState('');
   const [pcsInput, setPcsInput] = useState<number | string>(1);
@@ -427,7 +433,7 @@ export default function SalesView({
 
   // --- ERP SALES RETURN STATES ---
   const [retInvoiceNo, setRetInvoiceNo] = useState(generateDateTimeInvoiceNo('RET'));
-  const [retDate, setRetDate] = useState(new Date().toISOString().split('T')[0]);
+  const [retDate, setRetDate] = useState(() => getSystemDate(settings));
   const [retCustomerId, setRetCustomerId] = useState('');
   const [retInvoiceRef, setRetInvoiceRef] = useState('');
   const [retReason, setRetReason] = useState('Damaged Tiles / Chips');
@@ -435,12 +441,35 @@ export default function SalesView({
   const [retQty, setRetQty] = useState<number | string>(1);
   const [retRefundRate, setRetRefundRate] = useState<number | string>(0);
   const [retCart, setRetCart] = useState<any[]>([]);
+  const [selectedRetCartItemIndex, setSelectedRetCartItemIndex] = useState<number | null>(null);
+
+  // Additional states matching Sales POS form A-Z fields
+  const [retMobileNo, setRetMobileNo] = useState('');
+  const [retReceivedBy, setRetReceivedBy] = useState('');
+  const [retRecipientAddress, setRetRecipientAddress] = useState('');
+  const [retBarcode, setRetBarcode] = useState('');
+  const [retRateDis, setRetRateDis] = useState<number | string>(0);
+  const [retDiscount, setRetDiscount] = useState<number>(0);
+  const [retLabourCost, setRetLabourCost] = useState<number>(0);
+  const [retTransportCost, setRetTransportCost] = useState<number>(0);
+  const [retNowPayInput, setRetNowPayInput] = useState<number>(0);
+  const [retTransTypeInput, setRetTransTypeInput] = useState<string>('Credit Bill');
 
   const handleSelectProductForReturn = (id: string) => {
     setRetProductId(id);
     const p = products.find(prod => prod.id === id);
     if (p) {
       setRetRefundRate(p.price);
+      setRetBarcode(p.sku);
+    }
+  };
+
+  const handleSelectCustomerForReturn = (id: string) => {
+    setRetCustomerId(id);
+    const c = customers.find((cust) => cust.id === id);
+    if (c) {
+      setRetMobileNo(c.phone);
+      setRetRecipientAddress(c.email || 'Dhaka, Bangladesh');
     }
   };
 
@@ -461,6 +490,8 @@ export default function SalesView({
 
     const qtyVal = retQty === '' ? 0 : Number(retQty);
     const rateVal = retRefundRate === '' ? 0 : Number(retRefundRate);
+    const disVal = retRateDis === '' ? 0 : Number(retRateDis);
+    const netRateVal = Math.max(0, rateVal - disVal);
 
     if (qtyVal <= 0) {
       alert('Return Quantity must be greater than 0!');
@@ -471,7 +502,7 @@ export default function SalesView({
     if (existingIndex > -1) {
       const newRetCart = [...retCart];
       newRetCart[existingIndex].qty += qtyVal;
-      newRetCart[existingIndex].subtotal = newRetCart[existingIndex].qty * rateVal;
+      newRetCart[existingIndex].subtotal = newRetCart[existingIndex].qty * netRateVal;
       setRetCart(newRetCart);
     } else {
       setRetCart([
@@ -482,11 +513,14 @@ export default function SalesView({
           name: p.name,
           qty: qtyVal,
           rate: rateVal,
-          subtotal: qtyVal * rateVal
+          discount: disVal,
+          netRate: netRateVal,
+          subtotal: qtyVal * netRateVal
         }
       ]);
     }
     setRetQty(1);
+    setRetRateDis(0);
   };
 
   const handleSaveSalesReturn = () => {
@@ -519,6 +553,45 @@ export default function SalesView({
     setRetCart([]);
     setRetInvoiceNo(generateDateTimeInvoiceNo('RET'));
     setRetInvoiceRef('');
+  };
+
+  const handleResetSalesForm = () => {
+    setCart([]);
+    setSelectedCustomerId('');
+    setPaymentMethod('Cash');
+    setDiscount(0);
+    setLabourCost(0);
+    setTransportCost(0);
+    setTransTypeInput('Credit Bill');
+    setInvoiceNoInput(generateDateTimeInvoiceNo('INV'));
+    setInvoiceDateInput(getSystemDate(settings));
+    setReceivedByInput('');
+    setRecipientAddressInput('');
+    setMobileNoInput('');
+    setOrderIdInput('');
+    setBarcodeInput('');
+    setPcsInput(1);
+    setRateDisInput(0);
+    setRateInput('');
+    setSelectedProductId('');
+    setSelectedCartItemIndex(null);
+    setNowPayInput(0);
+    setFormErrors({});
+    alert('বিক্রয় ফর্মটি সফলভাবে রিসেট করা হয়েছে। / Sales form has been reset to defaults.');
+  };
+
+  const handleResetSalesReturnForm = () => {
+    setRetCart([]);
+    setRetInvoiceNo(generateDateTimeInvoiceNo('RET'));
+    setRetDate(getSystemDate(settings));
+    setRetCustomerId('');
+    setRetInvoiceRef('');
+    setRetReason('Damaged Tiles / Chips');
+    setRetProductId('');
+    setRetQty(1);
+    setRetRefundRate(0);
+    setFormErrors({});
+    alert('বিক্রয় ফেরত ফর্মটি ডিফল্ট অবস্থায় রিসেট করা হয়েছে। / Sales return form has been reset to defaults.');
   };
 
   // Print Invoice Modal State
@@ -854,10 +927,10 @@ export default function SalesView({
             {/* Left side: Client Info, Product Info, Grid, Red Bar */}
             <div className="lg:col-span-4 space-y-3 flex flex-col justify-between">
               
-              {/* 1. Client Information Box */}
+              {/* 1. Customer Information Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
                 <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Client Information
+                  Customer Information (ক্রেতার তথ্য)
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div>
@@ -1280,22 +1353,32 @@ export default function SalesView({
                   Add Item Row
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedCartItemIndex !== null) {
-                      const newCart = cart.filter((_, idx) => idx !== selectedCartItemIndex);
-                      setCart(newCart);
-                      setSelectedCartItemIndex(null);
-                    } else {
-                      alert('Select a row inside the data grid to delete.');
-                    }
-                  }}
-                  disabled={selectedCartItemIndex === null}
-                  className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] disabled:opacity-50 text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
-                >
-                  Delete Selected
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCartItemIndex !== null) {
+                        const newCart = cart.filter((_, idx) => idx !== selectedCartItemIndex);
+                        setCart(newCart);
+                        setSelectedCartItemIndex(null);
+                      } else {
+                        alert('Select a row inside the data grid to delete.');
+                      }
+                    }}
+                    disabled={selectedCartItemIndex === null}
+                    className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] disabled:opacity-50 text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    Delete Selected
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetSalesForm}
+                    className="w-full bg-gradient-to-b from-[#fff5f5] to-[#fed7d7] hover:from-[#fff] hover:to-[#feb2b2] border border-red-400 text-red-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    All Clear (সব মুছুন)
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -1362,7 +1445,7 @@ export default function SalesView({
                               if (activePopupContext === 'pos_cust') {
                                 handleSelectCustomer(c.id);
                               } else if (activePopupContext === 'ret_cust') {
-                                setRetCustomerId(c.id);
+                                handleSelectCustomerForReturn(c.id);
                               }
                               setShowCustPopupModal(false);
                             }}
@@ -1917,24 +2000,20 @@ export default function SalesView({
 
       {/* 2. SALES RETURNS VIEW */}
       {salesTab === 'returns' && (
-        <div className="bg-[#f0f0f0] p-3 rounded-lg border-2 border-emerald-600 shadow-md text-slate-800 font-sans space-y-4">
+        <div className="bg-[#fdfaf2] p-3 rounded-lg border-2 border-amber-600 shadow-md text-slate-800 font-sans relative">
           
-          <div className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-300 pb-1 flex items-center justify-between">
-            <span>Sales Return / Credit Note Entry Terminal</span>
-            <span className="text-emerald-700 font-black">WAREHOUSE INCOMING</span>
-          </div>
-
+          {/* Main 2-Column layout: Left for inputs/grid, Right for sidebar panels */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             
-            {/* Left side: Client return info, Product return info, Grid, Maroon red total */}
+            {/* Left side: Client Info, Product Info, Grid, Amber Bar */}
             <div className="lg:col-span-4 space-y-3">
               
-              {/* Client Return Information Box */}
+              {/* 1. Customer Information Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Client Return Information
+                <div className="text-[11px] font-bold text-amber-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Customer Information (ক্রেতার তথ্য)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return ID</label>
                     <input
@@ -1945,20 +2024,20 @@ export default function SalesView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Date</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Date</label>
                     <input
                       type="date"
                       value={retDate}
                       onChange={(e) => setRetDate(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-semibold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-850 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Customer Name</label>
+                  <div className="relative">
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Customer"
+                      placeholder="Select Customer"
                       value={customers.find((c) => c.id === retCustomerId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('ret_cust');
@@ -1968,43 +2047,77 @@ export default function SalesView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Ref Invoice No</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Mobile No.</label>
                     <input
                       type="text"
-                      value={retInvoiceRef}
-                      onChange={(e) => setRetInvoiceRef(e.target.value)}
-                      placeholder="INV-XXXXXX"
+                      value={retMobileNo}
+                      onChange={(e) => setRetMobileNo(e.target.value)}
+                      placeholder="Mobile number"
                       className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Reason for return</label>
-                    <select
-                      value={retReason}
-                      onChange={(e) => setRetReason(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-850 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
-                    >
-                      <option value="Damaged Tiles / Chips">Damaged Tiles / Chips</option>
-                      <option value="Wrong Size Shipped">Wrong Size Shipped</option>
-                      <option value="Defective Finish">Defective Finish</option>
-                      <option value="Customer Changed Mind">Customer Changed Mind</option>
-                    </select>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Received by</label>
+                    <input
+                      type="text"
+                      value={retReceivedBy}
+                      onChange={(e) => setRetReceivedBy(e.target.value)}
+                      placeholder="Receiver name"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Recipient Address</label>
+                    <input
+                      type="text"
+                      value={retRecipientAddress}
+                      onChange={(e) => setRetRecipientAddress(e.target.value)}
+                      placeholder="Delivery destination address"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">OrderID (Manual)</label>
+                    <input
+                      type="text"
+                      value={retInvoiceRef}
+                      onChange={(e) => setRetInvoiceRef(e.target.value)}
+                      placeholder="e.g. SO-2026-908"
+                      className="w-full bg-[#ffffe2] text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Product Return Information Box */}
+              {/* 2. Product Return Information Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Product Return Details
+                <div className="text-[11px] font-bold text-amber-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Product Return Details (পণ্য ফেরত তথ্য)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
-                  <div className="md:col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Barcode</label>
+                    <input
+                      type="text"
+                      value={retBarcode}
+                      onChange={(e) => {
+                        setRetBarcode(e.target.value);
+                        const matched = products.find(p => p.sku.toLowerCase() === e.target.value.toLowerCase());
+                        if (matched) {
+                          handleSelectProductForReturn(matched.id);
+                        }
+                      }}
+                      onKeyDown={handleReturnKeyDown}
+                      placeholder="SKU Barcode"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div className="md:col-span-2 relative">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Return Item"
+                      placeholder="Select Product"
                       value={products.find((p) => p.id === retProductId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('ret_prod');
@@ -2014,7 +2127,7 @@ export default function SalesView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Qty</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Pcs</label>
                     <input
                       type="text"
                       value={retQty}
@@ -2024,52 +2137,108 @@ export default function SalesView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Refund Rate</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate Dis</label>
+                    <input
+                      type="text"
+                      value={retRateDis}
+                      onChange={(e) => setRetRateDis(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handleReturnKeyDown}
+                      placeholder="0"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate</label>
                     <input
                       type="text"
                       value={retRefundRate}
                       onChange={(e) => setRetRefundRate(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                       onKeyDown={handleReturnKeyDown}
-                      className="w-full bg-[#ffffe2] text-slate-700 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Return Cart Table Grid */}
+              {/* 3. Return Cart Table Grid */}
               <div className="border border-slate-300 rounded overflow-hidden shadow-sm bg-white">
-                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono flex items-center justify-between select-none">
-                  <span>Return Line Items Grid</span>
-                  <span className="text-[10px] text-slate-300">Auto credit note balance updates</span>
+                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono select-none flex items-center justify-between">
+                  <span>Sales Returns Item Registry</span>
+                  <Search className="h-3.5 w-3.5 text-slate-300 shrink-0 cursor-pointer" />
                 </div>
                 
-                <div className="overflow-x-auto max-h-[220px]">
+                <div className="overflow-x-auto max-h-[300px]">
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead>
                       <tr className="bg-[#eeeeee] border-b border-slate-300 text-slate-600 font-bold">
-                        <th className="py-1 px-2 border-r border-slate-300 w-16">No</th>
-                        <th className="py-1 px-2 border-r border-slate-300">SKU Code</th>
-                        <th className="py-1 px-2 border-r border-slate-300">Product</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Return Qty</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Refund Rate</th>
-                        <th className="py-1 px-2 text-right">NetRefund</th>
+                        <th className="py-1 px-2 border-r border-slate-300 w-16">ProductID</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Size</th>
+                        <th className="py-1 px-2 border-r border-slate-300">ProductName</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Box/Pcs</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Class</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">QtyR</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Rate</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Rate Dis</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Net Rate</th>
+                        <th className="py-1 px-2 text-right">NetTotal</th>
+                      </tr>
+                      {/* Filter inputs under columns */}
+                      <tr className="bg-slate-50 border-b border-slate-300">
+                        {Array.from({ length: 10 }).map((_, idx) => (
+                          <td key={idx} className="p-0.5 border-r border-slate-200">
+                            <div className="flex items-center bg-white border border-slate-200 px-0.5">
+                              <span className="text-[9px] text-amber-600 font-mono scale-90 select-none mr-0.5">ABC</span>
+                              <input
+                                type="text"
+                                disabled
+                                placeholder="="
+                                className="w-full text-[9px] bg-transparent focus:outline-none cursor-not-allowed text-center text-slate-400"
+                              />
+                            </div>
+                          </td>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
-                      {retCart.map((item, idx) => (
-                        <tr key={item.productId || item.sku || idx} className="hover:bg-slate-50 text-slate-700">
-                          <td className="py-1.5 px-2 border-r border-slate-200">0{idx + 1}</td>
-                          <td className="py-1.5 px-2 border-r border-slate-200">{item.sku}</td>
-                          <td className="py-1.5 px-2 border-r border-slate-200 font-bold">{item.name}</td>
-                          <td className="py-1.5 px-2 border-r border-slate-200 text-right font-bold text-emerald-800">{item.qty}</td>
-                          <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{item.rate.toLocaleString()}</td>
-                          <td className="py-1.5 px-2 text-right font-bold text-slate-800">৳{item.subtotal.toLocaleString()}</td>
-                        </tr>
-                      ))}
+                      {retCart.map((item, idx) => {
+                        const isSelected = selectedRetCartItemIndex === idx;
+                        const p = products.find(prod => prod.id === item.productId);
+                        const sizeAttr = p?.sku.includes('BAR') ? '12mm' : p?.sku.includes('CEM') ? 'Bags' : '12x24';
+                        const boxPcsAttr = p?.pcsPerBox && p.pcsPerBox > 1
+                          ? formatBoxQty(item.qty, p.pcsPerBox)
+                          : (p?.sku.includes('BAR') ? 'Tons' : '1/10');
+                        const classAttr = p?.price && p.price > 1000 ? 'A Grade' : 'B Grade';
+
+                        const rateDiscount = item.discount !== undefined ? item.discount : 0;
+                        const netRate = item.netRate !== undefined ? item.netRate : (item.rate - rateDiscount);
+
+                        return (
+                          <tr
+                            key={idx}
+                            onClick={() => setSelectedRetCartItemIndex(isSelected ? null : idx)}
+                            className={`cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-amber-600 text-white font-bold'
+                                : 'hover:bg-slate-100 bg-white text-slate-700'
+                            }`}
+                          >
+                            <td className="py-1.5 px-2 border-r border-slate-200">{item.sku}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{sizeAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 font-bold">{item.name}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{boxPcsAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{classAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right font-bold">{item.qty}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{item.rate.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{rateDiscount.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{netRate.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right font-bold">৳{item.subtotal.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
                       {retCart.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400 font-bold bg-[#fafafa]">
-                            Select return products above and click 'Add Return Line Item'
+                          <td colSpan={10} className="py-10 text-center text-slate-400 font-bold bg-[#fafafa]">
+                            No items added yet. Select products above and click 'Add Return Line Item'
                           </td>
                         </tr>
                       )}
@@ -2078,30 +2247,160 @@ export default function SalesView({
                 </div>
               </div>
 
-              {/* Maroon Total Bar */}
-              <div className="bg-[#800000] text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs select-none">
-                Total Credit Note Value : {retCart.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()} BDT
+              {/* Amber Total Bar */}
+              <div className="bg-amber-700 text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs md:text-sm select-none">
+                Total Credit Note Value : ৳ {retCart.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()} BDT
               </div>
 
             </div>
 
-            {/* Right side: Actions Sidebar */}
-            <div className="space-y-3 lg:col-span-1 flex flex-col justify-between">
+            {/* Right side: Offer, In Total, Transaction, Action buttons */}
+            <div className="space-y-3 lg:col-span-1">
               
-              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm text-xs space-y-2">
-                <div className="font-bold text-slate-600 border-b border-slate-200 pb-0.5 uppercase text-[10px]">
-                  Warehouse Policy
+              {/* Offer Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Offer
                 </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  All returns undergo quality review before warehouse restock. Refund is disbursed as client Credit Note balance automatically.
-                </p>
-                <div className="flex items-center gap-1.5 bg-amber-50 text-amber-800 p-1.5 rounded border border-amber-100 text-[10px]">
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                  <span>Restores item stock counts!</span>
+                <table className="w-full text-[10px] border border-slate-300 font-mono bg-white">
+                  <thead>
+                    <tr className="bg-[#e4e4e7] text-slate-700 font-bold border-b border-slate-300">
+                      <th className="p-1 border-r border-slate-300">BrandInfo</th>
+                      <th className="p-1 border-r border-slate-300">DisParc</th>
+                      <th className="p-1 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Discount</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Flat"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={retDiscount || ''}
+                          onChange={(e) => setRetDiscount(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Labour Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Load"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={retLabourCost || ''}
+                          onChange={(e) => setRetLabourCost(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Transport Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Transit"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={retTransportCost || ''}
+                          onChange={(e) => setRetTransportCost(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* In Total Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 uppercase">
+                  In Total
+                </div>
+                
+                {/* Net Total */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Net Total</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`৳ ${(retCart.reduce((sum, item) => sum + item.subtotal, 0) + retLabourCost + retTransportCost - retDiscount).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
+                  />
+                </div>
+
+                {/* Now Pay */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Now Pay</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={retNowPayInput || ''}
+                    onChange={(e) => setRetNowPayInput(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter payment"
+                    className="w-full bg-white text-slate-800 font-bold border px-2 py-1 rounded-sm text-right focus:outline-none text-xs border-slate-300"
+                  />
+                </div>
+
+                {/* Balance */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Balance</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`৳ ${Math.max(0, (retCart.reduce((sum, item) => sum + item.subtotal, 0) + retLabourCost + retTransportCost - retDiscount) - retNowPayInput).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-red-750 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2">
+              {/* Transaction Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Transaction
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Trans Type</label>
+                  <select
+                    value={retTransTypeInput}
+                    onChange={(e) => setRetTransTypeInput(e.target.value)}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                  >
+                    <option value="Credit Bill">Credit Bill</option>
+                    <option value="Cash Bill">Cash Bill</option>
+                    <option value="bKash Payment">bKash Payment</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleAddReturnRow}
@@ -2110,21 +2409,40 @@ export default function SalesView({
                   Add Return Line
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRetCart([]);
-                    alert('Return line items cleared successfully.');
-                  }}
-                  className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
-                >
-                  Clear Fields
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedRetCartItemIndex !== null) {
+                        const newCart = retCart.filter((_, idx) => idx !== selectedRetCartItemIndex);
+                        setRetCart(newCart);
+                        setSelectedRetCartItemIndex(null);
+                      } else {
+                        alert('Select a row inside the data grid to delete.');
+                      }
+                    }}
+                    disabled={selectedRetCartItemIndex === null}
+                    className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] disabled:opacity-50 text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    Delete Selected
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResetSalesReturnForm();
+                      setSelectedRetCartItemIndex(null);
+                    }}
+                    className="w-full bg-gradient-to-b from-[#fff5f5] to-[#fed7d7] hover:from-[#fff] hover:to-[#feb2b2] border border-red-400 text-red-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    All Clear (সব মুছুন)
+                  </button>
+                </div>
 
                 <button
                   type="button"
                   onClick={handleSaveSalesReturn}
-                  className="w-full bg-gradient-to-b from-[#fbfbfb] to-[#c5c5c5] hover:from-white hover:to-[#dbdbdb] border border-[#9b9b9b] text-emerald-900 text-xs font-black py-2.5 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_4px_rgba(0,0,0,0.2)] active:shadow-inner cursor-pointer text-center uppercase tracking-widest border-2"
+                  className="w-full bg-amber-700 hover:bg-amber-800 border border-amber-800 text-white text-sm font-black py-3 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_2px_4px_rgba(0,0,0,0.2)] active:shadow-inner cursor-pointer text-center uppercase tracking-widest border-2"
                 >
                   Save Return (Credit Note)
                 </button>

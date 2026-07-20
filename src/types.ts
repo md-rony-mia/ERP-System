@@ -260,6 +260,8 @@ export interface AppSettings {
   entryVoucherPrefix?: string;
   entryAllowManualLedger?: boolean;
   isDbSeeded?: boolean;
+  systemDateMode?: 'auto' | 'custom';
+  systemCustomDate?: string;
 }
 
 export function formatBoxQty(pcs: number, pcsPerBox?: number): string {
@@ -276,4 +278,11 @@ export function formatBoxQty(pcs: number, pcsPerBox?: number): string {
   } else {
     return `${remainingPcs} Pc${remainingPcs !== 1 ? 's' : ''}`;
   }
+}
+
+export function getSystemDate(settings?: AppSettings): string {
+  if (settings?.systemDateMode === 'custom' && settings?.systemCustomDate) {
+    return settings.systemCustomDate;
+  }
+  return new Date().toISOString().split('T')[0];
 }

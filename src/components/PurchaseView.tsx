@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
-import { Supplier, PurchaseOrder, Product, POItem, formatBoxQty } from '../types';
+import { Supplier, PurchaseOrder, Product, POItem, formatBoxQty, AppSettings, getSystemDate } from '../types';
 import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   ShoppingCart,
@@ -56,6 +56,7 @@ interface PurchaseViewProps {
   setPoTransport?: React.Dispatch<React.SetStateAction<number>>;
   poLabour?: number;
   setPoLabour?: React.Dispatch<React.SetStateAction<number>>;
+  settings?: AppSettings;
 }
 
 export default function PurchaseView({
@@ -69,6 +70,7 @@ export default function PurchaseView({
   activeSubTab = 'purchase_orders',
   onTabChange,
   currentUser,
+  settings,
 
   // Lifted PO props
   poCart: propPoCart,
@@ -176,7 +178,7 @@ export default function PurchaseView({
   const [prDept, setPrDept] = useState('Engineering Department');
   const [prProductId, setPrProductId] = useState(products[0]?.id || '');
   const [prQty, setPrQty] = useState(10);
-  const [prRequiredDate, setPrRequiredDate] = useState(new Date().toISOString().split('T')[0]);
+  const [prRequiredDate, setPrRequiredDate] = useState(() => getSystemDate(settings));
   const [prPriority, setPrPriority] = useState('Medium');
   const [prJustification, setPrJustification] = useState('');
 
@@ -225,7 +227,7 @@ export default function PurchaseView({
   const [showRfqModal, setShowRfqModal] = useState(false);
   const [rfqProductId, setRfqProductId] = useState(products[0]?.id || '');
   const [rfqQty, setRfqQty] = useState(5);
-  const [rfqTargetDate, setRfqTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rfqTargetDate, setRfqTargetDate] = useState(() => getSystemDate(settings));
   const [rfqSuppliers, setRfqSuppliers] = useState<string[]>([]);
 
   // --- SAP 3-WAY MATCHING STATES ---
@@ -434,7 +436,7 @@ export default function PurchaseView({
   // Quotations Form States
   const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
   const [newQuoteSupplier, setNewQuoteSupplier] = useState('');
-  const [newQuoteValidUntil, setNewQuoteValidUntil] = useState(new Date().toISOString().substring(0, 10));
+  const [newQuoteValidUntil, setNewQuoteValidUntil] = useState(() => getSystemDate(settings));
   const [newQuoteLeadTime, setNewQuoteLeadTime] = useState(3);
   const [newQuoteItemName, setNewQuoteItemName] = useState('');
   const [newQuoteItemQty, setNewQuoteItemQty] = useState(1);
@@ -446,8 +448,8 @@ export default function PurchaseView({
   // Purchase Invoices Form States
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
   const [newInvoiceNo, setNewInvoiceNo] = useState('');
-  const [newInvoiceDate, setNewInvoiceDate] = useState(new Date().toISOString().substring(0, 10));
-  const [newInvoiceDueDate, setNewInvoiceDueDate] = useState(new Date().toISOString().substring(0, 10));
+  const [newInvoiceDate, setNewInvoiceDate] = useState(() => getSystemDate(settings));
+  const [newInvoiceDueDate, setNewInvoiceDueDate] = useState(() => getSystemDate(settings));
   const [newInvoiceSupplier, setNewInvoiceSupplier] = useState('');
   const [newInvoiceTotal, setNewInvoiceTotal] = useState(0);
   const [newInvoicePaid, setNewInvoicePaid] = useState(0);
@@ -659,7 +661,7 @@ export default function PurchaseView({
   const poInvoiceNo = propPoInvoiceNo !== undefined ? propPoInvoiceNo : localPoInvoiceNo;
   const setPoInvoiceNo = propSetPoInvoiceNo !== undefined ? propSetPoInvoiceNo : setLocalPoInvoiceNo;
 
-  const [localPoDate, setLocalPoDate] = useState(new Date().toISOString().split('T')[0]);
+  const [localPoDate, setLocalPoDate] = useState(() => getSystemDate(settings));
   const poDate = propPoDate !== undefined ? propPoDate : localPoDate;
   const setPoDate = propSetPoDate !== undefined ? propSetPoDate : setLocalPoDate;
 
@@ -670,6 +672,7 @@ export default function PurchaseView({
   const [localPoCart, setLocalPoCart] = useState<any[]>([]);
   const poCart = propPoCart !== undefined ? propPoCart : localPoCart;
   const setPoCart = propSetPoCart !== undefined ? propSetPoCart : setLocalPoCart;
+  const [selectedPoItemIndex, setSelectedPoItemIndex] = useState<number | null>(null);
 
   const [localPoDiscount, setLocalPoDiscount] = useState(0);
   const poDiscount = propPoDiscount !== undefined ? propPoDiscount : localPoDiscount;
@@ -683,9 +686,27 @@ export default function PurchaseView({
   const poLabour = propPoLabour !== undefined ? propPoLabour : localPoLabour;
   const setPoLabour = propSetPoLabour !== undefined ? propSetPoLabour : setLocalPoLabour;
 
+  // Additional PO states matching Sales POS form fields
+  const [poMobileNo, setPoMobileNo] = useState('');
+  const [poReceivedBy, setPoReceivedBy] = useState('');
+  const [poRecipientAddress, setPoRecipientAddress] = useState('');
+  const [poBarcode, setPoBarcode] = useState('');
+  const [poRateDis, setPoRateDis] = useState<number | string>(0);
+  const [poNowPayInput, setPoNowPayInput] = useState<number>(0);
+  const [poTransTypeInput, setPoTransTypeInput] = useState<string>('Credit Bill');
+
+  const handleSelectSupplierForPO = (id: string) => {
+    setSelectedSupplierId(id);
+    const s = suppliers.find((sup) => sup.id === id);
+    if (s) {
+      setPoMobileNo(s.phone);
+      setPoRecipientAddress(s.email || 'Dhaka, Bangladesh');
+    }
+  };
+
   // --- ERP ACTIVE PROCUREMENT RETURNS STATES ---
   const [pretId, setPretId] = useState(generateDateTimeInvoiceNo('PRET'));
-  const [pretDate, setPretDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pretDate, setPretDate] = useState(() => getSystemDate(settings));
   const [pretSupplierId, setPretSupplierId] = useState('');
   const [pretPoRef, setPretPoRef] = useState('');
   const [pretReason, setPretReason] = useState('Transit damage');
@@ -693,12 +714,46 @@ export default function PurchaseView({
   const [pretQty, setPretQty] = useState<number | string>(1);
   const [pretCost, setPretCost] = useState<number | string>(0);
   const [pretCart, setPretCart] = useState<any[]>([]);
+  const [selectedPretCartItemIndex, setSelectedPretCartItemIndex] = useState<number | null>(null);
+
+  // Additional Return states matching Sales POS form fields
+  const [pretMobileNo, setPretMobileNo] = useState('');
+  const [pretReceivedBy, setPretReceivedBy] = useState('');
+  const [pretRecipientAddress, setPretRecipientAddress] = useState('');
+  const [pretBarcode, setPretBarcode] = useState('');
+  const [pretRateDis, setPretRateDis] = useState<number | string>(0);
+  const [pretDiscount, setPretDiscount] = useState<number>(0);
+  const [pretLabourCost, setPretLabourCost] = useState<number>(0);
+  const [pretTransportCost, setPretTransportCost] = useState<number>(0);
+  const [pretNowPayInput, setPretNowPayInput] = useState<number>(0);
+  const [pretTransTypeInput, setPretTransTypeInput] = useState<string>('Credit Bill');
+
+  const handleSelectSupplierForPret = (id: string) => {
+    setPretSupplierId(id);
+    const s = suppliers.find((sup) => sup.id === id);
+    if (s) {
+      setPretMobileNo(s.phone);
+      setPretRecipientAddress(s.email || 'Dhaka, Bangladesh');
+    }
+  };
+
+  useEffect(() => {
+    const sysDate = getSystemDate(settings);
+    setPoDate(sysDate);
+    setPretDate(sysDate);
+    setPrRequiredDate(sysDate);
+    setRfqTargetDate(sysDate);
+    setNewQuoteValidUntil(sysDate);
+    setNewInvoiceDate(sysDate);
+    setNewInvoiceDueDate(sysDate);
+  }, [settings?.systemDateMode, settings?.systemCustomDate]);
 
   const handleSelectProductForPO = (id: string) => {
     setPoProductId(id);
     const p = products.find((prod) => prod.id === id);
     if (p) {
       setPoCost(p.cost);
+      setPoBarcode(p.sku);
     }
   };
 
@@ -712,6 +767,8 @@ export default function PurchaseView({
 
     const parsedQty = typeof poQty === 'number' ? poQty : parseInt(poQty) || 0;
     const parsedCost = typeof poCost === 'number' ? poCost : parseFloat(poCost) || 0;
+    const rateDisVal = poRateDis === '' ? 0 : Number(poRateDis);
+    const netCostVal = Math.max(0, parsedCost - rateDisVal);
 
     const errors: Record<string, string> = {};
     const qtyVal = validatePositiveNumber(parsedQty, 'Quantity', 'পরিমাণ', false);
@@ -736,7 +793,7 @@ export default function PurchaseView({
     if (existingIndex > -1) {
       const newCart = [...poCart];
       newCart[existingIndex].qty += parsedQty;
-      newCart[existingIndex].subtotal = newCart[existingIndex].qty * parsedCost;
+      newCart[existingIndex].subtotal = newCart[existingIndex].qty * netCostVal;
       setPoCart(newCart);
     } else {
       setPoCart([
@@ -747,11 +804,14 @@ export default function PurchaseView({
           name: p.name,
           qty: parsedQty,
           cost: parsedCost,
-          subtotal: parsedQty * parsedCost,
+          discount: rateDisVal,
+          netRate: netCostVal,
+          subtotal: parsedQty * netCostVal,
         },
       ]);
     }
     setPoQty(1);
+    setPoRateDis(0);
   };
 
   const handlePoKeyDown = (e: React.KeyboardEvent) => {
@@ -812,6 +872,8 @@ export default function PurchaseView({
         name: item.name,
         quantity: item.qty,
         cost: item.cost,
+        discount: item.discount,
+        netRate: item.netRate,
         subtotal: item.subtotal,
       })),
       subtotal,
@@ -833,6 +895,7 @@ export default function PurchaseView({
     const p = products.find((prod) => prod.id === id);
     if (p) {
       setPretCost(p.cost);
+      setPretBarcode(p.sku);
     }
   };
 
@@ -846,12 +909,14 @@ export default function PurchaseView({
 
     const parsedQty = typeof pretQty === 'number' ? pretQty : parseInt(pretQty) || 0;
     const parsedCost = typeof pretCost === 'number' ? pretCost : parseFloat(pretCost) || 0;
+    const rateDisVal = pretRateDis === '' ? 0 : Number(pretRateDis);
+    const netCostVal = Math.max(0, parsedCost - rateDisVal);
 
     const existingIndex = pretCart.findIndex((item) => item.productId === pretProductId);
     if (existingIndex > -1) {
       const newCart = [...pretCart];
       newCart[existingIndex].qty += parsedQty;
-      newCart[existingIndex].subtotal = newCart[existingIndex].qty * parsedCost;
+      newCart[existingIndex].subtotal = newCart[existingIndex].qty * netCostVal;
       setPretCart(newCart);
     } else {
       setPretCart([
@@ -862,11 +927,14 @@ export default function PurchaseView({
           name: p.name,
           qty: parsedQty,
           cost: parsedCost,
-          subtotal: parsedQty * parsedCost,
+          discount: rateDisVal,
+          netRate: netCostVal,
+          subtotal: parsedQty * netCostVal,
         },
       ]);
     }
     setPretQty(1);
+    setPretRateDis(0);
   };
 
   const handlePretKeyDown = (e: React.KeyboardEvent) => {
@@ -904,6 +972,45 @@ export default function PurchaseView({
     setPretCart([]);
     setPretId(generateDateTimeInvoiceNo('PRET'));
     setPretPoRef('');
+  };
+
+  const handleResetPurchaseForm = () => {
+    setPoCart([]);
+    setPoInvoiceNo(generateDateTimeInvoiceNo('PO'));
+    setPoDate(getSystemDate(settings));
+    setPoProductId(products[0]?.id || '');
+    setPoQty(1);
+    setPoCost(products[0]?.cost || 0);
+    setPoDiscount(0);
+    setPoTransport(0);
+    setPoLabour(0);
+    setSelectedSupplierId(suppliers[0]?.id || '');
+    setFormErrors({});
+    alert('ক্রয় ফর্মটি সফলভাবে রিসেট করা হয়েছে। / Purchase form has been reset to defaults.');
+  };
+
+  const handleResetPurchaseReturnForm = () => {
+    setPretCart([]);
+    setPretId(generateDateTimeInvoiceNo('PRET'));
+    setPretDate(getSystemDate(settings));
+    setPretSupplierId('');
+    setPretPoRef('');
+    setPretReason('Transit damage');
+    setPretProductId('');
+    setPretQty(1);
+    setPretCost(0);
+    setPretMobileNo('');
+    setPretReceivedBy('');
+    setPretRecipientAddress('');
+    setPretBarcode('');
+    setPretRateDis(0);
+    setPretDiscount(0);
+    setPretLabourCost(0);
+    setPretTransportCost(0);
+    setPretNowPayInput(0);
+    setPretTransTypeInput('Credit Bill');
+    setFormErrors({});
+    alert('ক্রয় ফেরত ফর্মটি ডিফল্ট অবস্থায় রিসেট করা হয়েছে। / Purchase return form has been reset to defaults.');
   };
 
   // PO Form fallback states
@@ -1240,24 +1347,20 @@ export default function PurchaseView({
           TAB 3: PURCHASE ORDERS
           ========================================================= */}
       {currentTab === 'purchase_orders' && (
-        <div className="bg-[#f0f0f0] p-3 rounded-lg border-2 border-emerald-600 shadow-md text-slate-800 font-sans space-y-4">
+        <div className="bg-[#f0f6fc] p-3 rounded-lg border-2 border-blue-500 shadow-md text-slate-800 font-sans relative">
           
-          <div className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-300 pb-1 flex items-center justify-between">
-            <span>Procurement & Purchase Order Entry Terminal</span>
-            <span className="text-emerald-700 font-black">WAREHOUSE INCOMING SUPPLIES</span>
-          </div>
-
+          {/* Main 2-Column layout: Left for inputs/grid, Right for sidebar panels */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             
-            {/* Left side: Supplier info, Product config, Grid, Maroon red total */}
+            {/* Left side: Supplier Info, Product Info, Grid, Blue Bar */}
             <div className="lg:col-span-4 space-y-3">
               
-              {/* Supplier Procurement Information Box */}
+              {/* 1. Supplier Information Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Supplier Entity Information
+                <div className="text-[11px] font-bold text-blue-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Supplier Information (সরবরাহকারীর তথ্য)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">PO Ref No</label>
                     <input
@@ -1268,20 +1371,20 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Order Date</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Date</label>
                     <input
                       type="date"
                       value={poDate}
                       onChange={(e) => setPoDate(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-semibold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-850 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Supplier Name</label>
+                  <div className="relative">
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Supplier"
+                      placeholder="Select Supplier"
                       value={suppliers.find((s) => s.id === selectedSupplierId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('po_sup');
@@ -1290,21 +1393,68 @@ export default function PurchaseView({
                       className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px] cursor-pointer"
                     />
                   </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Mobile No.</label>
+                    <input
+                      type="text"
+                      value={poMobileNo}
+                      onChange={(e) => setPoMobileNo(e.target.value)}
+                      placeholder="Mobile number"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Received by</label>
+                    <input
+                      type="text"
+                      value={poReceivedBy}
+                      onChange={(e) => setPoReceivedBy(e.target.value)}
+                      placeholder="Receiver name"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Recipient Address</label>
+                    <input
+                      type="text"
+                      value={poRecipientAddress}
+                      onChange={(e) => setPoRecipientAddress(e.target.value)}
+                      placeholder="Supplier address / details"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Product Configuration Box */}
+              {/* 2. Product Selection Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Product Selection & Purchasing Rates
+                <div className="text-[11px] font-bold text-blue-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Product Selection & Purchasing Rates (পণ্য ও ক্রয়ের হার)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
-                  <div className="md:col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Barcode</label>
+                    <input
+                      type="text"
+                      value={poBarcode}
+                      onChange={(e) => {
+                        setPoBarcode(e.target.value);
+                        const matched = products.find(p => p.sku.toLowerCase() === e.target.value.toLowerCase());
+                        if (matched) {
+                          handleSelectProductForPO(matched.id);
+                        }
+                      }}
+                      onKeyDown={handlePoKeyDown}
+                      placeholder="SKU Barcode"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div className="md:col-span-2 relative">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Product"
+                      placeholder="Select Product"
                       value={products.find((p) => p.id === poProductId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('po_prod');
@@ -1314,78 +1464,118 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Order Quantity</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Pcs</label>
                     <input
                       type="text"
                       value={poQty}
                       onChange={(e) => setPoQty(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
                       onKeyDown={handlePoKeyDown}
-                      className={`w-full bg-white text-slate-800 border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poQty ? 'border-rose-500' : 'border-slate-300'}`}
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
-                    {formErrors.poQty && (
-                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poQty}</span>
-                    )}
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Base Unit Cost</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate Dis</label>
+                    <input
+                      type="text"
+                      value={poRateDis}
+                      onChange={(e) => setPoRateDis(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handlePoKeyDown}
+                      placeholder="0"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate</label>
                     <input
                       type="text"
                       value={poCost}
                       onChange={(e) => setPoCost(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                       onKeyDown={handlePoKeyDown}
-                      className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-1 rounded-sm focus:outline-none text-[11px] ${formErrors.poCost ? 'border-rose-500' : 'border-slate-300'}`}
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
-                    {formErrors.poCost && (
-                      <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poCost}</span>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {/* PO Line Items Grid Table */}
-              <div className="border border-slate-300 rounded overflow-hidden bg-white shadow-sm">
-                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono flex items-center justify-between select-none">
-                  <span>Procurement Booking Grid</span>
-                  <span className="text-[10px] text-slate-300">Live subtotal math</span>
+              {/* 3. PO Line Items Grid Table */}
+              <div className="border border-slate-300 rounded overflow-hidden shadow-sm bg-white">
+                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono select-none flex items-center justify-between">
+                  <span>Procurement Items Grid Registry</span>
+                  <Search className="h-3.5 w-3.5 text-slate-300 shrink-0 cursor-pointer" />
                 </div>
                 
-                <div className="overflow-x-auto max-h-[180px]">
+                <div className="overflow-x-auto max-h-[300px]">
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead>
                       <tr className="bg-[#eeeeee] border-b border-slate-300 text-slate-600 font-bold">
-                        <th className="py-1 px-2 border-r border-slate-300 w-16">No</th>
-                        <th className="py-1 px-2 border-r border-slate-300">SKU Code</th>
-                        <th className="py-1 px-2 border-r border-slate-300">Product Name</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Qty</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Unit Cost</th>
-                        <th className="py-1 px-2 text-right">Line Subtotal</th>
+                        <th className="py-1 px-2 border-r border-slate-300 w-16">ProductID</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Size</th>
+                        <th className="py-1 px-2 border-r border-slate-300">ProductName</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Box/Pcs</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Class</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">QtyP</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Cost</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Rate Dis</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Net Cost</th>
+                        <th className="py-1 px-2 text-right">NetTotal</th>
+                      </tr>
+                      {/* Filter inputs under columns */}
+                      <tr className="bg-slate-50 border-b border-slate-300">
+                        {Array.from({ length: 10 }).map((_, idx) => (
+                          <td key={idx} className="p-0.5 border-r border-slate-200">
+                            <div className="flex items-center bg-white border border-slate-200 px-0.5">
+                              <span className="text-[9px] text-blue-600 font-mono scale-90 select-none mr-0.5">ABC</span>
+                              <input
+                                type="text"
+                                disabled
+                                placeholder="="
+                                className="w-full text-[9px] bg-transparent focus:outline-none cursor-not-allowed text-center text-slate-400"
+                              />
+                            </div>
+                          </td>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
                       {poCart.map((item, idx) => {
+                        const isSelected = selectedPoItemIndex === idx;
                         const p = products.find((prod) => prod.id === item.productId);
+                        const sizeAttr = p?.sku.includes('BAR') ? '12mm' : p?.sku.includes('CEM') ? 'Bags' : '12x24';
+                        const boxPcsAttr = p?.pcsPerBox && p.pcsPerBox > 1
+                          ? formatBoxQty(item.qty, p.pcsPerBox)
+                          : (p?.sku.includes('BAR') ? 'Tons' : '1/10');
+                        const classAttr = p?.price && p.price > 1000 ? 'A Grade' : 'B Grade';
+
+                        const rateDiscount = item.discount !== undefined ? item.discount : 0;
+                        const netRate = item.netRate !== undefined ? item.netRate : (item.cost - rateDiscount);
+
                         return (
-                          <tr key={item.productId || idx} className="hover:bg-slate-50 text-slate-700">
-                            <td className="py-1 px-2 border-r border-slate-200">0{idx + 1}</td>
-                            <td className="py-1 px-2 border-r border-slate-200">{item.sku}</td>
-                            <td className="py-1 px-2 border-r border-slate-200 font-bold">{item.name}</td>
-                            <td className="py-1 px-2 border-r border-slate-200 text-right font-bold text-emerald-800">
-                              <div>{item.qty}</div>
-                              {p?.pcsPerBox && p.pcsPerBox > 1 && (
-                                <div className="text-[9px] text-indigo-600 font-semibold leading-tight">
-                                  ({formatBoxQty(item.qty, p.pcsPerBox)})
-                                </div>
-                              )}
-                            </td>
-                            <td className="py-1 px-2 border-r border-slate-200 text-right">৳{item.cost.toLocaleString()}</td>
-                            <td className="py-1 px-2 text-right font-bold">৳{item.subtotal.toLocaleString()}</td>
+                          <tr
+                            key={idx}
+                            onClick={() => setSelectedPoItemIndex(isSelected ? null : idx)}
+                            className={`cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-blue-600 text-white font-bold'
+                                : 'hover:bg-slate-100 bg-white text-slate-700'
+                            }`}
+                          >
+                            <td className="py-1.5 px-2 border-r border-slate-200">{item.sku}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{sizeAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 font-bold">{item.name}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{boxPcsAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{classAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right font-bold">{item.qty}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{item.cost.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{rateDiscount.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{netRate.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right font-bold">৳{item.subtotal.toLocaleString()}</td>
                           </tr>
                         );
                       })}
                       {poCart.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400 font-bold bg-[#fafafa]">
-                            Procurement items grid is empty. Select item above and click 'Add Row'
+                          <td colSpan={10} className="py-10 text-center text-slate-400 font-bold bg-[#fafafa]">
+                            No items added yet. Select products above and click 'Add PO Line Item'
                           </td>
                         </tr>
                       )}
@@ -1394,88 +1584,202 @@ export default function PurchaseView({
                 </div>
               </div>
 
-              {/* Maroon Total Bar */}
-              <div className="bg-[#800000] text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs select-none">
-                Grand Procurement Total (including Overheads): {(
-                  poCart.reduce((sum, item) => sum + item.subtotal, 0) + poLabour + poTransport - poDiscount
-                ).toLocaleString()} BDT
+              {/* Blue Total Bar */}
+              <div className="bg-blue-700 text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs md:text-sm select-none">
+                Total Purchase Order Value : ৳ {poCart.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()} BDT
               </div>
 
             </div>
 
-            {/* Right side: Actions Sidebar */}
-            <div className="space-y-3 lg:col-span-1 flex flex-col justify-between">
+            {/* Right side: Offer, In Total, Transaction, Action buttons */}
+            <div className="space-y-3 lg:col-span-1">
               
-              {/* Cost Factors / Overhead Inputs (Cream Yellow bg) */}
-              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm text-xs space-y-2">
-                <div className="font-bold text-emerald-800 border-b border-slate-200 pb-0.5 uppercase text-[10px]">
-                  Overheads & Discounts
+              {/* Offer Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Offer
+                </div>
+                <table className="w-full text-[10px] border border-slate-300 font-mono bg-white">
+                  <thead>
+                    <tr className="bg-[#e4e4e7] text-slate-700 font-bold border-b border-slate-300">
+                      <th className="p-1 border-r border-slate-300">BrandInfo</th>
+                      <th className="p-1 border-r border-slate-300">DisParc</th>
+                      <th className="p-1 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Discount</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Flat"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={poDiscount || ''}
+                          onChange={(e) => setPoDiscount(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Labour Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Load"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={poLabour || ''}
+                          onChange={(e) => setPoLabour(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Transport Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Transit"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={poTransport || ''}
+                          onChange={(e) => setPoTransport(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* In Total Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 uppercase">
+                  In Total
                 </div>
                 
+                {/* Net Total */}
                 <div>
-                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Transport Cost</label>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Net Total</label>
                   <input
-                    type="number"
-                    value={poTransport}
-                    onChange={(e) => setPoTransport(parseFloat(e.target.value) || 0)}
-                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poTransport ? 'border-rose-500' : 'border-slate-300'}`}
+                    type="text"
+                    readOnly
+                    value={`৳ ${(poCart.reduce((sum, item) => sum + item.subtotal, 0) + poLabour + poTransport - poDiscount).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
                   />
-                  {formErrors.poTransport && (
-                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poTransport}</span>
-                  )}
                 </div>
 
+                {/* Now Pay */}
                 <div>
-                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Labour Charge</label>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Now Pay</label>
                   <input
                     type="number"
-                    value={poLabour}
-                    onChange={(e) => setPoLabour(parseFloat(e.target.value) || 0)}
-                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poLabour ? 'border-rose-500' : 'border-slate-300'}`}
+                    min="0"
+                    value={poNowPayInput || ''}
+                    onChange={(e) => setPoNowPayInput(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter payment"
+                    className="w-full bg-white text-slate-800 font-bold border px-2 py-1 rounded-sm text-right focus:outline-none text-xs border-slate-300"
                   />
-                  {formErrors.poLabour && (
-                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poLabour}</span>
-                  )}
                 </div>
 
+                {/* Balance */}
                 <div>
-                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Negotiated Discount</label>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Balance</label>
                   <input
-                    type="number"
-                    value={poDiscount}
-                    onChange={(e) => setPoDiscount(parseFloat(e.target.value) || 0)}
-                    className={`w-full bg-[#ffffe2] text-slate-800 font-bold border px-2 py-0.5 rounded-sm focus:outline-none text-[11px] ${formErrors.poDiscount ? 'border-rose-500' : 'border-slate-300'}`}
+                    type="text"
+                    readOnly
+                    value={`৳ ${Math.max(0, (poCart.reduce((sum, item) => sum + item.subtotal, 0) + poLabour + poTransport - poDiscount) - poNowPayInput).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-red-750 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
                   />
-                  {formErrors.poDiscount && (
-                    <span className="block text-[9px] text-rose-600 font-bold mt-0.5 leading-tight">{formErrors.poDiscount}</span>
-                  )}
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2">
+              {/* Transaction Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Transaction
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Trans Type</label>
+                  <select
+                    value={poTransTypeInput}
+                    onChange={(e) => setPoTransTypeInput(e.target.value)}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                  >
+                    <option value="Credit Bill">Credit Bill</option>
+                    <option value="Cash Bill">Cash Bill</option>
+                    <option value="bKash Payment">bKash Payment</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleAddPOItemToGrid}
                   className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
                 >
-                  Add PO Row
+                  Add PO Line
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPoCart([]);
-                    alert('Procurement card grid cleared.');
-                  }}
-                  className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
-                >
-                  Clear Fields
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedPoItemIndex !== null) {
+                        const newCart = poCart.filter((_, idx) => idx !== selectedPoItemIndex);
+                        setPoCart(newCart);
+                        setSelectedPoItemIndex(null);
+                      } else {
+                        alert('Select a row inside the data grid to delete.');
+                      }
+                    }}
+                    disabled={selectedPoItemIndex === null}
+                    className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] disabled:opacity-50 text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    Delete Selected
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResetPurchaseForm();
+                      setSelectedPoItemIndex(null);
+                    }}
+                    className="w-full bg-gradient-to-b from-[#fff5f5] to-[#fed7d7] hover:from-[#fff] hover:to-[#feb2b2] border border-red-400 text-red-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    All Clear
+                  </button>
+                </div>
 
                 <button
                   type="button"
                   onClick={handleSavePurchaseOrder}
-                  className="w-full bg-gradient-to-b from-[#fbfbfb] to-[#c5c5c5] hover:from-white hover:to-[#dbdbdb] border border-[#9b9b9b] text-emerald-900 text-xs font-black py-2.5 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_4px_rgba(0,0,0,0.2)] active:shadow-inner cursor-pointer text-center uppercase tracking-widest border-2"
+                  className="w-full bg-blue-800 hover:bg-blue-900 border border-blue-900 text-white text-sm font-black py-3 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_2px_4px_rgba(0,0,0,0.2)] active:shadow-inner cursor-pointer text-center uppercase tracking-widest border-2"
                 >
                   Save & Book PO
                 </button>
@@ -1597,24 +1901,20 @@ export default function PurchaseView({
           TAB 5: PURCHASE RETURNS
           ========================================================= */}
       {currentTab === 'purchase_returns' && (
-        <div className="bg-[#f0f0f0] p-3 rounded-lg border-2 border-emerald-600 shadow-md text-slate-800 font-sans space-y-4">
+        <div className="bg-[#fdf0ff] p-3 rounded-lg border-2 border-purple-500 shadow-md text-slate-800 font-sans relative">
           
-          <div className="text-xs font-bold text-slate-700 uppercase tracking-widest border-b border-slate-300 pb-1 flex items-center justify-between">
-            <span>Purchase Return / Debit Note Entry Terminal</span>
-            <span className="text-emerald-700 font-black">WAREHOUSE OUTGOING DEVIATIONS</span>
-          </div>
-
+          {/* Main 2-Column layout: Left for inputs/grid, Right for sidebar panels */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             
-            {/* Left side: Supplier info, Product config, Grid, Maroon red total */}
+            {/* Left side: Supplier Info, Product Info, Grid, Purple Bar */}
             <div className="lg:col-span-4 space-y-3">
               
-              {/* Return Supplier Information Box */}
+              {/* 1. Supplier Information Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Vendor Return Information
+                <div className="text-[11px] font-bold text-purple-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Supplier Information (সরবরাহকারীর তথ্য)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return ID</label>
                     <input
@@ -1625,20 +1925,20 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Date</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Date</label>
                     <input
                       type="date"
                       value={pretDate}
                       onChange={(e) => setPretDate(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-800 font-semibold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-850 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Supplier Name</label>
+                  <div className="relative">
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Supplier"
+                      placeholder="Select Supplier"
                       value={suppliers.find((s) => s.id === pretSupplierId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('pret_sup');
@@ -1648,21 +1948,41 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Mobile No.</label>
+                    <input
+                      type="text"
+                      value={pretMobileNo}
+                      onChange={(e) => setPretMobileNo(e.target.value)}
+                      placeholder="Mobile number"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Received by</label>
+                    <input
+                      type="text"
+                      value={pretReceivedBy}
+                      onChange={(e) => setPretReceivedBy(e.target.value)}
+                      placeholder="Receiver name"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Source PO Ref</label>
                     <input
                       type="text"
                       value={pretPoRef}
                       onChange={(e) => setPretPoRef(e.target.value)}
-                      placeholder="PO-2026-XXX"
-                      className="w-full bg-white text-slate-850 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      placeholder="PO Ref"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Reason for return</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Reason</label>
                     <select
                       value={pretReason}
                       onChange={(e) => setPretReason(e.target.value)}
-                      className="w-full bg-[#ffffe2] text-slate-850 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     >
                       <option value="Transit damage">Transit damage</option>
                       <option value="Specification mismatch">Specification mismatch</option>
@@ -1670,21 +1990,48 @@ export default function PurchaseView({
                       <option value="Expired stock">Expired stock</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Recipient Address</label>
+                    <input
+                      type="text"
+                      value={pretRecipientAddress}
+                      onChange={(e) => setPretRecipientAddress(e.target.value)}
+                      placeholder="Supplier address / details"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Product Return Configuration Box */}
+              {/* 2. Product Selection Box */}
               <div className="bg-[#f5f5f5] border border-slate-300 p-2 rounded shadow-sm">
-                <div className="text-[11px] font-bold text-emerald-800 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
-                  Returned Product Selection
+                <div className="text-[11px] font-bold text-purple-850 border-b border-slate-200 pb-1 mb-2 uppercase tracking-wider">
+                  Product Selection & Return Rates (পণ্য ও ফেরতের হার)
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
-                  <div className="md:col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Barcode</label>
+                    <input
+                      type="text"
+                      value={pretBarcode}
+                      onChange={(e) => {
+                        setPretBarcode(e.target.value);
+                        const matched = products.find(p => p.sku.toLowerCase() === e.target.value.toLowerCase());
+                        if (matched) {
+                          handleSelectProductForPret(matched.id);
+                        }
+                      }}
+                      onKeyDown={handlePretKeyDown}
+                      placeholder="SKU Barcode"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div className="md:col-span-2 relative">
                     <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Product Name</label>
                     <input
                       type="text"
                       readOnly
-                      placeholder="Click to Select / Search Product"
+                      placeholder="Select Product"
                       value={products.find((p) => p.id === pretProductId)?.name || ''}
                       onClick={() => {
                         setActivePopupContext('pret_prod');
@@ -1694,7 +2041,7 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Return Quantity</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Pcs</label>
                     <input
                       type="text"
                       value={pretQty}
@@ -1704,62 +2051,108 @@ export default function PurchaseView({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Returned Unit Cost</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate Dis</label>
+                    <input
+                      type="text"
+                      value={pretRateDis}
+                      onChange={(e) => setPretRateDis(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
+                      onKeyDown={handlePretKeyDown}
+                      placeholder="0"
+                      className="w-full bg-white text-slate-800 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Rate</label>
                     <input
                       type="text"
                       value={pretCost}
                       onChange={(e) => setPretCost(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                       onKeyDown={handlePretKeyDown}
-                      className="w-full bg-[#ffffe2] text-slate-850 border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                      className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Purchase Return Items Grid Table */}
-              <div className="border border-slate-300 rounded overflow-hidden bg-white shadow-sm">
-                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono flex items-center justify-between select-none">
-                  <span>Outgoing Return Line Items</span>
-                  <span className="text-[10px] text-slate-300">Settle outstanding balances</span>
+              {/* 3. Return Items Grid Table */}
+              <div className="border border-slate-300 rounded overflow-hidden shadow-sm bg-white">
+                <div className="bg-[#3f3f46] text-white px-2 py-1 text-[11px] font-mono select-none flex items-center justify-between">
+                  <span>Procurement Outward Returns Grid Register</span>
+                  <Search className="h-3.5 w-3.5 text-slate-300 shrink-0 cursor-pointer" />
                 </div>
                 
-                <div className="overflow-x-auto max-h-[180px]">
+                <div className="overflow-x-auto max-h-[300px]">
                   <table className="w-full text-left text-[11px] border-collapse">
                     <thead>
                       <tr className="bg-[#eeeeee] border-b border-slate-300 text-slate-600 font-bold">
-                        <th className="py-1 px-2 border-r border-slate-300 w-16">No</th>
-                        <th className="py-1 px-2 border-r border-slate-300">SKU Code</th>
-                        <th className="py-1 px-2 border-r border-slate-300">Product Name</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Return Qty</th>
-                        <th className="py-1 px-2 border-r border-slate-300 text-right">Unit Rate</th>
+                        <th className="py-1 px-2 border-r border-slate-300 w-16">ProductID</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Size</th>
+                        <th className="py-1 px-2 border-r border-slate-300">ProductName</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Box/Pcs</th>
+                        <th className="py-1 px-2 border-r border-slate-300">Class</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">QtyR</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Cost</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Rate Dis</th>
+                        <th className="py-1 px-2 border-r border-slate-300 text-right">Net Cost</th>
                         <th className="py-1 px-2 text-right">Debit Valuation</th>
+                      </tr>
+                      {/* Filter inputs under columns */}
+                      <tr className="bg-slate-50 border-b border-slate-300">
+                        {Array.from({ length: 10 }).map((_, idx) => (
+                          <td key={idx} className="p-0.5 border-r border-slate-200">
+                            <div className="flex items-center bg-white border border-slate-200 px-0.5">
+                              <span className="text-[9px] text-purple-600 font-mono scale-90 select-none mr-0.5">ABC</span>
+                              <input
+                                type="text"
+                                disabled
+                                placeholder="="
+                                className="w-full text-[9px] bg-transparent focus:outline-none cursor-not-allowed text-center text-slate-400"
+                              />
+                            </div>
+                          </td>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
                       {pretCart.map((item, idx) => {
+                        const isSelected = selectedPretCartItemIndex === idx;
                         const p = products.find((prod) => prod.id === item.productId);
+                        const sizeAttr = p?.sku.includes('BAR') ? '12mm' : p?.sku.includes('CEM') ? 'Bags' : '12x24';
+                        const boxPcsAttr = p?.pcsPerBox && p.pcsPerBox > 1
+                          ? formatBoxQty(item.qty, p.pcsPerBox)
+                          : (p?.sku.includes('BAR') ? 'Tons' : '1/10');
+                        const classAttr = p?.price && p.price > 1000 ? 'A Grade' : 'B Grade';
+
+                        const rateDiscount = item.discount !== undefined ? item.discount : 0;
+                        const netRate = item.netRate !== undefined ? item.netRate : (item.cost - rateDiscount);
+
                         return (
-                          <tr key={item.productId || idx} className="hover:bg-slate-50 text-slate-700">
-                            <td className="py-1 px-2 border-r border-slate-200">0{idx + 1}</td>
-                            <td className="py-1 px-2 border-r border-slate-200">{item.sku}</td>
-                            <td className="py-1 px-2 border-r border-slate-200 font-bold">{item.name}</td>
-                            <td className="py-1 px-2 border-r border-slate-200 text-right font-bold text-emerald-800">
-                              <div>{item.qty}</div>
-                              {p?.pcsPerBox && p.pcsPerBox > 1 && (
-                                <div className="text-[9px] text-indigo-600 font-semibold leading-tight">
-                                  ({formatBoxQty(item.qty, p.pcsPerBox)})
-                                </div>
-                              )}
-                            </td>
-                            <td className="py-1 px-2 border-r border-slate-200 text-right">৳{item.cost.toLocaleString()}</td>
-                            <td className="py-1 px-2 text-right font-bold">৳{item.subtotal.toLocaleString()}</td>
+                          <tr
+                            key={idx}
+                            onClick={() => setSelectedPretCartItemIndex(isSelected ? null : idx)}
+                            className={`cursor-pointer transition-colors ${
+                              isSelected
+                                ? 'bg-purple-600 text-white font-bold'
+                                : 'hover:bg-slate-100 bg-white text-slate-700'
+                            }`}
+                          >
+                            <td className="py-1.5 px-2 border-r border-slate-200">{item.sku}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{sizeAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 font-bold">{item.name}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{boxPcsAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200">{classAttr}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right font-bold">{item.qty}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{item.cost.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{rateDiscount.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 border-r border-slate-200 text-right">৳{netRate.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right font-bold">৳{item.subtotal.toLocaleString()}</td>
                           </tr>
                         );
                       })}
                       {pretCart.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400 font-bold bg-[#fafafa]">
-                            Outgoing returns list is empty. Set return values above and click 'Add Row'
+                          <td colSpan={10} className="py-10 text-center text-slate-400 font-bold bg-[#fafafa]">
+                            No items added yet. Select products above and click 'Add Return Row'
                           </td>
                         </tr>
                       )}
@@ -1768,56 +2161,197 @@ export default function PurchaseView({
                 </div>
               </div>
 
-              {/* Maroon Total Bar */}
-              <div className="bg-[#800000] text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs select-none">
-                Total Debit Note Value : {pretCart.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()} BDT
+              {/* Purple Total Bar */}
+              <div className="bg-purple-700 text-white p-2 rounded shadow-inner text-center font-black tracking-wider text-xs md:text-sm select-none">
+                Total Return/Debit Valuation : ৳ {pretCart.reduce((sum, item) => sum + item.subtotal, 0).toLocaleString()} BDT
               </div>
 
             </div>
 
-            {/* Right side: Actions Sidebar */}
-            <div className="space-y-3 lg:col-span-1 flex flex-col justify-between">
+            {/* Right side: Offer, In Total, Transaction, Action buttons */}
+            <div className="space-y-3 lg:col-span-1">
               
-              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm text-xs space-y-2">
-                <div className="font-bold text-slate-600 border-b border-slate-200 pb-0.5 uppercase text-[10px]">
-                  Procurement Returns Policy
+              {/* Offer Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Offer
                 </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Debit note adjustment automatically deducts outstanding ledger balances from the specified vendor ledger.
-                </p>
-                <div className="flex items-center gap-1.5 bg-amber-50 text-amber-850 p-1 rounded border border-amber-100 text-[10px]">
-                  <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
-                  <span>Deducts raw materials stock count!</span>
+                <table className="w-full text-[10px] border border-slate-300 font-mono bg-white">
+                  <thead>
+                    <tr className="bg-[#e4e4e7] text-slate-700 font-bold border-b border-slate-300">
+                      <th className="p-1 border-r border-slate-300">BrandInfo</th>
+                      <th className="p-1 border-r border-slate-300">DisParc</th>
+                      <th className="p-1 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Discount</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Flat"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={pretDiscount || ''}
+                          onChange={(e) => setPretDiscount(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Labour Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Load"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={pretLabourCost || ''}
+                          onChange={(e) => setPretLabourCost(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 border-r border-slate-200 font-bold text-slate-700">Transport Cost</td>
+                      <td className="p-0.5 border-r border-slate-200">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Transit"
+                          className="w-full bg-transparent text-[10px] focus:outline-none text-center text-slate-400 scale-90"
+                        />
+                      </td>
+                      <td className="p-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={pretTransportCost || ''}
+                          onChange={(e) => setPretTransportCost(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full text-right text-[10px] bg-white border p-0.5 text-slate-800 focus:outline-none border-slate-200"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* In Total Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 uppercase">
+                  In Total
+                </div>
+                
+                {/* Net Total */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Net Total</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`৳ ${(pretCart.reduce((sum, item) => sum + item.subtotal, 0) + pretLabourCost + pretTransportCost - pretDiscount).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
+                  />
+                </div>
+
+                {/* Now Pay */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Now Pay</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pretNowPayInput || ''}
+                    onChange={(e) => setPretNowPayInput(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter amount"
+                    className="w-full bg-white text-slate-800 font-bold border px-2 py-1 rounded-sm text-right focus:outline-none text-xs border-slate-300"
+                  />
+                </div>
+
+                {/* Balance */}
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Balance</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`৳ ${Math.max(0, (pretCart.reduce((sum, item) => sum + item.subtotal, 0) + pretLabourCost + pretTransportCost - pretDiscount) - pretNowPayInput).toLocaleString()}`}
+                    className="w-full bg-[#ffffe2] text-red-750 font-black border border-slate-300 px-2 py-1 rounded-sm text-right focus:outline-none text-xs"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2">
+              {/* Transaction Panel */}
+              <div className="bg-[#f5f5f5] border border-slate-300 rounded p-2 shadow-sm">
+                <div className="text-[10px] font-bold text-slate-600 border-b border-slate-200 pb-0.5 mb-1.5 uppercase">
+                  Transaction
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Trans Type</label>
+                  <select
+                    value={pretTransTypeInput}
+                    onChange={(e) => setPretTransTypeInput(e.target.value)}
+                    className="w-full bg-[#ffffe2] text-slate-800 font-bold border border-slate-300 px-2 py-1 rounded-sm focus:outline-none text-[11px]"
+                  >
+                    <option value="Credit Bill">Credit Bill</option>
+                    <option value="Cash Bill">Cash Bill</option>
+                    <option value="bKash Payment">bKash Payment</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleAddPretRow}
                   className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
                 >
-                  Add Return Row
+                  Add Return Line
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPretCart([]);
-                    alert('Debit Note items cleared successfully.');
-                  }}
-                  className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
-                >
-                  Clear Fields
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedPretCartItemIndex !== null) {
+                        const newCart = pretCart.filter((_, idx) => idx !== selectedPretCartItemIndex);
+                        setPretCart(newCart);
+                        setSelectedPretCartItemIndex(null);
+                      } else {
+                        alert('Select a row inside the data grid to delete.');
+                      }
+                    }}
+                    disabled={selectedPretCartItemIndex === null}
+                    className="w-full bg-gradient-to-b from-[#fdfdfd] to-[#d6d6d6] hover:from-white hover:to-[#e1e1e1] border border-[#a6a6a6] disabled:opacity-50 text-slate-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    Delete Selected
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={handleSavePurchaseReturn}
-                  className="w-full bg-gradient-to-b from-[#fbfbfb] to-[#c5c5c5] hover:from-white hover:to-[#dbdbdb] border border-[#9b9b9b] text-emerald-900 text-xs font-black py-2.5 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_2px_4px_rgba(0,0,0,0.2)] active:shadow-inner cursor-pointer text-center uppercase tracking-widest border-2"
-                >
-                  Save Return (Debit Note)
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleResetPurchaseReturnForm();
+                      setSelectedPretCartItemIndex(null);
+                    }}
+                    className="w-full bg-gradient-to-b from-[#fff5f5] to-[#fed7d7] hover:from-[#fff] hover:to-[#feb2b2] border border-red-400 text-red-800 text-xs font-black py-2 rounded shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_3px_rgba(0,0,0,0.15)] active:shadow-inner cursor-pointer text-center uppercase tracking-wider"
+                  >
+                    All Clear
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -3921,9 +4455,9 @@ export default function PurchaseView({
                       key={s.id}
                       onClick={() => {
                         if (activePopupContext === 'po_sup') {
-                          setSelectedSupplierId(s.id);
+                          handleSelectSupplierForPO(s.id);
                         } else if (activePopupContext === 'pret_sup') {
-                          setPretSupplierId(s.id);
+                          handleSelectSupplierForPret(s.id);
                         }
                         setShowSupPopupModal(false);
                         setSupPopupSearch('');
