@@ -32,9 +32,9 @@ app.get("/api/health", (req, res) => {
 // Gemini proxy endpoint to protect key
 app.post("/api/gemini/generate", async (req, res) => {
   try {
-    const { prompt, systemInstruction } = req.body;
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt is required" });
+    const { prompt, systemInstruction, tools, contents } = req.body;
+    if (!prompt && !contents) {
+      return res.status(400).json({ error: "Prompt or contents is required" });
     }
 
     if (!process.env.GEMINI_API_KEY) {
@@ -42,15 +42,26 @@ app.post("/api/gemini/generate", async (req, res) => {
       return res.status(503).json({ error: "AI service temporarily unavailable (API Key missing)" });
     }
 
+    // Determine the contents payload
+    const contentsPayload = contents || prompt;
+
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
-      contents: prompt,
+      contents: contentsPayload,
       config: {
         systemInstruction: systemInstruction || "You are Nexova ERP AI assistant. Help the user optimize business operations.",
+        tools: tools || undefined,
       },
     });
 
-    res.json({ text: response.text || "No response received from AI model." });
+    // Extract function calls if present
+    const functionCalls = response.functionCalls || [];
+
+    if (functionCalls.length > 0) {
+      res.json({ functionCalls });
+    } else {
+      res.json({ text: response.text || "No response received from AI model." });
+    }
   } catch (err: any) {
     console.error("Gemini API Error:", err);
     res.status(500).json({ error: "AI service temporarily unavailable" });

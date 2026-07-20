@@ -1199,6 +1199,8 @@ export default function App() {
                 invoices={invoices}
                 purchaseOrders={purchaseOrders}
                 bankAccounts={bankAccounts}
+                transactions={transactions}
+                employees={employees}
               />
             </ErrorBoundary>
           )}

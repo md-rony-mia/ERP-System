@@ -29,6 +29,16 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import {
+  getSalesByDateRange,
+  getCustomerLedger,
+  getSupplierLedger,
+  getProductStock,
+  getTopProducts,
+  compareRevenuePeriods,
+  getAccountsSummary,
+  AI_TOOL_DECLARATIONS
+} from '../lib/aiTools';
 
 interface AIViewProps {
   activeSubTab?: string;
@@ -38,6 +48,8 @@ interface AIViewProps {
   invoices?: any[];
   purchaseOrders?: any[];
   bankAccounts?: any[];
+  transactions?: any[];
+  employees?: any[];
 }
 
 interface Message {
@@ -64,6 +76,8 @@ export default function AIView({
   invoices = [],
   purchaseOrders = [],
   bankAccounts = [],
+  transactions = [],
+  employees = [],
 }: AIViewProps) {
   const currentTab = ['copilot', 'forecast', 'recommendation', 'insights', 'ai_reports'].includes(activeSubTab)
     ? activeSubTab
@@ -96,6 +110,7 @@ export default function AIView({
   ]);
   const [inputText, setInputText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aiHistory, setAiHistory] = useState<any[]>([]);
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([
     { id: 'rec1', material: 'Gypsum Cement Stabilizer', currentSafety: 5, suggestedSafety: 15, reason: 'Q3 regional concrete demands are projected to surge by 32%. Increasing safety reserves prevents blending stoppages.', status: 'Pending' },
@@ -159,14 +174,6 @@ export default function AIView({
   });
 
   const generateSystemInstruction = () => {
-    const stockSummary = products.length > 0 
-      ? products.slice(0, 10).map(p => `${p.name}: stock=${p.stock}, cost=৳${p.cost}`).join(', ') 
-      : 'No product data available';
-    const totalReceivables = customers.reduce((sum, c) => sum + (c.outstandingBalance || 0), 0);
-    const totalPayables = suppliers.reduce((sum, s) => sum + (s.outstandingBalance || 0), 0);
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const bankBalance = bankAccounts.reduce((sum, b) => sum + (b.balance || 0), 0);
-
     const formatDate = (date: Date) => {
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -176,70 +183,15 @@ export default function AIView({
     const today = new Date();
     const todayDateStr = formatDate(today);
 
-    // Start & end of today
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(today);
-    endOfToday.setHours(23, 59, 59, 999);
-
-    // Start & end of this month
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    // Start & end of this week (Sunday to Saturday)
-    const dayOfWeek = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - dayOfWeek);
-    startOfWeek.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    let todaysSales = 0;
-    let todaysSalesCount = 0;
-    let weekSales = 0;
-    let weekSalesCount = 0;
-    let monthSales = 0;
-    let monthSalesCount = 0;
-
-    invoices.forEach(inv => {
-      const invDate = getInvoiceLocalDate(inv.date);
-      if (!invDate) return;
-      
-      const amount = inv.total || 0;
-      const time = invDate.getTime();
-      
-      if (time >= startOfToday.getTime() && time <= endOfToday.getTime()) {
-        todaysSales += amount;
-        todaysSalesCount++;
-      }
-      if (time >= startOfWeek.getTime() && time <= endOfWeek.getTime()) {
-        weekSales += amount;
-        weekSalesCount++;
-      }
-      if (time >= startOfMonth.getTime() && time <= endOfMonth.getTime()) {
-        monthSales += amount;
-        monthSalesCount++;
-      }
-    });
-
     return `You are Nexova ERP AI assistant, a highly professional AI agent designed to help optimize manufacturing, supply chains, sales, and financial margins for Nexova ERP Solution.
-You have access to the current live ERP state. Today's date is ${todayDateStr}.
-Date-scoped and lifetime sales aggregates (computed dynamically from the live invoices):
-- Today's Sales (${todayDateStr}): ৳${todaysSales.toLocaleString()} BDT across ${todaysSalesCount} invoices
-- This Week's Sales: ৳${weekSales.toLocaleString()} BDT across ${weekSalesCount} invoices
-- This Month's Sales: ৳${monthSales.toLocaleString()} BDT across ${monthSalesCount} invoices
-- Total Invoiced Revenue (Lifetime): ৳${totalRevenue.toLocaleString()} BDT
+Today's date is ${todayDateStr}.
 
-Other live metrics:
-- Top Products Stock: [${stockSummary}]
-- Accounts Receivable: ৳${totalReceivables.toLocaleString()} BDT
-- Accounts Payable: ৳${totalPayables.toLocaleString()} BDT
-- Bank Balances: ৳${bankBalance.toLocaleString()} BDT
+You have tools available to query live business data — always call the appropriate tool to get exact figures rather than estimating or reusing a previous answer.
+Today's date is ${todayDateStr}. If a tool returns zero results for a requested period, state clearly that there were no matching records, do not substitute a different figure.
 
 Rules:
-1. If the user asks about sales/revenue for a specific date, day, week, or month, use ONLY the corresponding date-scoped figure provided above — do NOT default to the all-time Total Invoiced Revenue figure unless the user explicitly asks for an all-time or lifetime total.
-2. If no invoices exist for the requested period, clearly state that zero invoices were recorded for that period rather than substituting a different number.
+1. If the user asks about sales/revenue for a specific date, day, week, or month, call getSalesByDateRange to get the exact live records. Do NOT default to the all-time Total Invoiced Revenue figure unless the user explicitly asks for an all-time or lifetime total.
+2. If no invoices/records exist for the requested period (the tool returns zero or empty lists), clearly state that zero invoices/records were recorded for that period rather than substituting a different number or guessing.
 3. Respond professionally, helpfully and constructively in Bengali (বাংলা) and keep responses brief and focused on actionable business insights. Use BDT or BDT symbol ৳ where appropriate.`;
   };
 
@@ -271,29 +223,108 @@ Rules:
     setMessages(prev => [...prev, botPlaceholderMsg]);
 
     try {
-      const response = await fetch("/api/gemini/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: userText,
-          systemInstruction: generateSystemInstruction(),
-        }),
-      });
+      const userPart = { text: userText };
+      const newUserTurn = { role: 'user', parts: [userPart] };
+      let activeHistory = [...aiHistory, newUserTurn];
+      
+      let loopCount = 0;
+      const maxLoops = 5;
+      let keepLooping = true;
+      let finalReplyText = '';
 
-      if (!response.ok) {
-        throw new Error("API request failed");
+      while (keepLooping && loopCount < maxLoops) {
+        loopCount++;
+
+        const response = await fetch("/api/gemini/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: activeHistory,
+            systemInstruction: generateSystemInstruction(),
+            tools: AI_TOOL_DECLARATIONS
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("API request failed");
+        }
+
+        const data = await response.json();
+
+        if (data.functionCalls && data.functionCalls.length > 0) {
+          // Show a helpful Bangladeshi loading status indicating tool execution
+          const primaryCall = data.functionCalls[0];
+          setMessages(prev =>
+            prev.map(m => m.id === placeholderId ? { ...m, text: `ডেটা যাচাই করা হচ্ছে... (${primaryCall.name})` } : m)
+          );
+
+          const functionCallParts: any[] = [];
+          const functionResponseParts: any[] = [];
+
+          for (const call of data.functionCalls) {
+            const { name, args } = call;
+            functionCallParts.push({ functionCall: { name, args } });
+
+            let result: any = null;
+            try {
+              if (name === 'getSalesByDateRange') {
+                result = getSalesByDateRange(invoices, args.startDate, args.endDate);
+              } else if (name === 'getCustomerLedger') {
+                result = getCustomerLedger(customers, invoices, args.customerNameOrId);
+              } else if (name === 'getSupplierLedger') {
+                result = getSupplierLedger(suppliers, purchaseOrders, args.supplierNameOrId);
+              } else if (name === 'getProductStock') {
+                result = getProductStock(products, invoices, purchaseOrders, args.productNameOrId);
+              } else if (name === 'getTopProducts') {
+                result = getTopProducts(invoices, products, args.period, args.limit || 5);
+              } else if (name === 'compareRevenuePeriods') {
+                result = compareRevenuePeriods(invoices, args.period1Start, args.period1End, args.period2Start, args.period2End);
+              } else if (name === 'getAccountsSummary') {
+                result = getAccountsSummary(customers, suppliers, bankAccounts);
+              } else {
+                result = { error: `Tool ${name} not implemented.` };
+              }
+            } catch (err: any) {
+              result = { error: `Failed to execute tool ${name}: ${err.message}` };
+            }
+
+            functionResponseParts.push({
+              functionResponse: {
+                name,
+                response: { result }
+              }
+            });
+          }
+
+          // Append model turn with functionCalls and user turn with functionResponses
+          activeHistory = [
+            ...activeHistory,
+            { role: 'model', parts: functionCallParts },
+            { role: 'function', parts: functionResponseParts }
+          ];
+        } else {
+          // No function calls, get final text response
+          finalReplyText = data.text || "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
+          activeHistory = [
+            ...activeHistory,
+            { role: 'model', parts: [{ text: finalReplyText }] }
+          ];
+          keepLooping = false;
+        }
       }
 
-      const data = await response.json();
-      const reply = data.text || "দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
-
-      setMessages(prev =>
-        prev.map(m => m.id === placeholderId ? { ...m, text: reply } : m)
-      );
+      if (finalReplyText) {
+        setMessages(prev =>
+          prev.map(m => m.id === placeholderId ? { ...m, text: finalReplyText } : m)
+        );
+        setAiHistory(activeHistory);
+      } else {
+        throw new Error("Loop limit reached without final response text");
+      }
     } catch (err) {
-      console.error("AI View error calling Gemini proxy:", err);
+      console.error("AI View error during multi-round chat loop:", err);
       setMessages(prev =>
-        prev.map(m => m.id === placeholderId ? { ...m, text: "AI সার্ভিস সাময়িকভাবে অনুপলব্ধ আছে।" } : m)
+        prev.map(m => m.id === placeholderId ? { ...m, text: "দুঃখিত, ডেটা প্রসেসিং করার সময় একটি সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।" } : m)
       );
     } finally {
       setIsGenerating(false);
