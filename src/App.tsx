@@ -239,6 +239,31 @@ export default function App() {
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [loanAccounts, setLoanAccounts] = useState<LoanAccount[]>([]);
 
+  // --- LIFTED DRAFT STATES (SALES POS) ---
+  const [posCart, setPosCart] = useState<any[]>([]);
+  const [posSelectedCustomerId, setPosSelectedCustomerId] = useState('');
+  const [posPaymentMethod, setPosPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
+  const [posDiscount, setPosDiscount] = useState<number>(0);
+  const [posInvoiceNoInput, setPosInvoiceNoInput] = useState('');
+  const [posInvoiceDateInput, setPosInvoiceDateInput] = useState('');
+  const [posReceivedByInput, setPosReceivedByInput] = useState('');
+  const [posRecipientAddressInput, setPosRecipientAddressInput] = useState('');
+  const [posMobileNoInput, setPosMobileNoInput] = useState('');
+  const [posOrderIdInput, setPosOrderIdInput] = useState('');
+  const [posLabourCost, setPosLabourCost] = useState<number>(0);
+  const [posTransportCost, setPosTransportCost] = useState<number>(0);
+  const [posNowPayInput, setPosNowPayInput] = useState<number>(0);
+  const [posTransTypeInput, setPosTransTypeInput] = useState<string>('Credit Bill');
+
+  // --- LIFTED DRAFT STATES (PROCUREMENT PO) ---
+  const [purchasePoCart, setPurchasePoCart] = useState<any[]>([]);
+  const [purchaseSelectedSupplierId, setPurchaseSelectedSupplierId] = useState('');
+  const [purchasePoInvoiceNo, setPurchasePoInvoiceNo] = useState('');
+  const [purchasePoDate, setPurchasePoDate] = useState('');
+  const [purchasePoDiscount, setPurchasePoDiscount] = useState<number>(0);
+  const [purchasePoTransport, setPurchasePoTransport] = useState<number>(0);
+  const [purchasePoLabour, setPurchasePoLabour] = useState<number>(0);
+
   useEffect(() => {
     localStorage.setItem('nexova_products_count', String(products.length));
   }, [products]);
@@ -915,6 +940,24 @@ export default function App() {
 
   // Handle high-level shortcut routing from Dashboard view
   const handleTabChange = (tab: string, subTab: string = '') => {
+    // Check if navigating to a different tab or subtab
+    if (currentTab !== tab || currentSubTab !== subTab) {
+      let hasUnsavedChanges = false;
+      if (currentTab === 'sales' && posCart.length > 0) {
+        hasUnsavedChanges = true;
+      }
+      if (currentTab === 'purchase' && purchasePoCart.length > 0) {
+        hasUnsavedChanges = true;
+      }
+
+      if (hasUnsavedChanges) {
+        const confirmed = window.confirm("আপনার এই পাতায় অসংরক্ষিত পরিবর্তন আছে। আপনি কি নিশ্চিত পাতা ত্যাগ করতে চান? / You have unsaved changes on this page. Are you sure you want to leave?");
+        if (!confirmed) {
+          return; // Stay on the current tab
+        }
+      }
+    }
+
     setCurrentTab(tab);
     setCurrentSubTab(subTab);
     
@@ -1018,6 +1061,36 @@ export default function App() {
                   onSubTabChange={setCurrentSubTab}
                   settings={settings}
                   currentUser={currentUser}
+
+                  // Pass lifted states
+                  cart={posCart}
+                  setCart={setPosCart}
+                  selectedCustomerId={posSelectedCustomerId}
+                  setSelectedCustomerId={setPosSelectedCustomerId}
+                  paymentMethod={posPaymentMethod}
+                  setPaymentMethod={setPosPaymentMethod}
+                  discount={posDiscount}
+                  setDiscount={setPosDiscount}
+                  invoiceNoInput={posInvoiceNoInput}
+                  setInvoiceNoInput={setPosInvoiceNoInput}
+                  invoiceDateInput={posInvoiceDateInput}
+                  setInvoiceDateInput={setPosInvoiceDateInput}
+                  receivedByInput={posReceivedByInput}
+                  setReceivedByInput={setPosReceivedByInput}
+                  recipientAddressInput={posRecipientAddressInput}
+                  setRecipientAddressInput={setPosRecipientAddressInput}
+                  mobileNoInput={posMobileNoInput}
+                  setMobileNoInput={setPosMobileNoInput}
+                  orderIdInput={posOrderIdInput}
+                  setOrderIdInput={setPosOrderIdInput}
+                  labourCost={posLabourCost}
+                  setLabourCost={setPosLabourCost}
+                  transportCost={posTransportCost}
+                  setTransportCost={setPosTransportCost}
+                  nowPayInput={posNowPayInput}
+                  setNowPayInput={setPosNowPayInput}
+                  transTypeInput={posTransTypeInput}
+                  setTransTypeInput={setPosTransTypeInput}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -1037,6 +1110,22 @@ export default function App() {
                   activeSubTab={currentSubTab}
                   onTabChange={handleTabChange}
                   currentUser={currentUser}
+
+                  // Pass lifted states
+                  poCart={purchasePoCart}
+                  setPoCart={setPurchasePoCart}
+                  selectedSupplierId={purchaseSelectedSupplierId}
+                  setSelectedSupplierId={setPurchaseSelectedSupplierId}
+                  poInvoiceNo={purchasePoInvoiceNo}
+                  setPoInvoiceNo={setPurchasePoInvoiceNo}
+                  poDate={purchasePoDate}
+                  setPoDate={setPurchasePoDate}
+                  poDiscount={purchasePoDiscount}
+                  setPoDiscount={setPurchasePoDiscount}
+                  poTransport={purchasePoTransport}
+                  setPoTransport={setPurchasePoTransport}
+                  poLabour={purchasePoLabour}
+                  setPoLabour={setPurchasePoLabour}
                 />
               </Suspense>
             </ErrorBoundary>

@@ -40,6 +40,22 @@ interface PurchaseViewProps {
   activeSubTab?: string;
   onTabChange?: (tab: string, subTab?: string) => void;
   currentUser?: any;
+
+  // Lifted PO cart & fields
+  poCart?: any[];
+  setPoCart?: React.Dispatch<React.SetStateAction<any[]>>;
+  selectedSupplierId?: string;
+  setSelectedSupplierId?: React.Dispatch<React.SetStateAction<string>>;
+  poInvoiceNo?: string;
+  setPoInvoiceNo?: React.Dispatch<React.SetStateAction<string>>;
+  poDate?: string;
+  setPoDate?: React.Dispatch<React.SetStateAction<string>>;
+  poDiscount?: number;
+  setPoDiscount?: React.Dispatch<React.SetStateAction<number>>;
+  poTransport?: number;
+  setPoTransport?: React.Dispatch<React.SetStateAction<number>>;
+  poLabour?: number;
+  setPoLabour?: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function PurchaseView({
@@ -53,6 +69,22 @@ export default function PurchaseView({
   activeSubTab = 'purchase_orders',
   onTabChange,
   currentUser,
+
+  // Lifted PO props
+  poCart: propPoCart,
+  setPoCart: propSetPoCart,
+  selectedSupplierId: propSelectedSupplierId,
+  setSelectedSupplierId: propSetSelectedSupplierId,
+  poInvoiceNo: propPoInvoiceNo,
+  setPoInvoiceNo: propSetPoInvoiceNo,
+  poDate: propPoDate,
+  setPoDate: propSetPoDate,
+  poDiscount: propPoDiscount,
+  setPoDiscount: propSetPoDiscount,
+  poTransport: propPoTransport,
+  setPoTransport: propSetPoTransport,
+  poLabour: propPoLabour,
+  setPoLabour: propSetPoLabour,
 }: PurchaseViewProps) {
   // Bind current selected view directly to activeSubTab
   const currentTab = [
@@ -623,15 +655,33 @@ export default function PurchaseView({
   };
 
   // --- ERP ACTIVE PROCUREMENT THEME STATES ---
-  const [poInvoiceNo, setPoInvoiceNo] = useState(generateDateTimeInvoiceNo('PO'));
-  const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0]);
+  const [localPoInvoiceNo, setLocalPoInvoiceNo] = useState(generateDateTimeInvoiceNo('PO'));
+  const poInvoiceNo = propPoInvoiceNo !== undefined ? propPoInvoiceNo : localPoInvoiceNo;
+  const setPoInvoiceNo = propSetPoInvoiceNo !== undefined ? propSetPoInvoiceNo : setLocalPoInvoiceNo;
+
+  const [localPoDate, setLocalPoDate] = useState(new Date().toISOString().split('T')[0]);
+  const poDate = propPoDate !== undefined ? propPoDate : localPoDate;
+  const setPoDate = propSetPoDate !== undefined ? propSetPoDate : setLocalPoDate;
+
   const [poProductId, setPoProductId] = useState(products[0]?.id || '');
   const [poQty, setPoQty] = useState<number | string>(1);
   const [poCost, setPoCost] = useState<number | string>(products[0]?.cost || 0);
-  const [poCart, setPoCart] = useState<any[]>([]);
-  const [poDiscount, setPoDiscount] = useState(0);
-  const [poTransport, setPoTransport] = useState(0);
-  const [poLabour, setPoLabour] = useState(0);
+
+  const [localPoCart, setLocalPoCart] = useState<any[]>([]);
+  const poCart = propPoCart !== undefined ? propPoCart : localPoCart;
+  const setPoCart = propSetPoCart !== undefined ? propSetPoCart : setLocalPoCart;
+
+  const [localPoDiscount, setLocalPoDiscount] = useState(0);
+  const poDiscount = propPoDiscount !== undefined ? propPoDiscount : localPoDiscount;
+  const setPoDiscount = propSetPoDiscount !== undefined ? propSetPoDiscount : setLocalPoDiscount;
+
+  const [localPoTransport, setLocalPoTransport] = useState(0);
+  const poTransport = propPoTransport !== undefined ? propPoTransport : localPoTransport;
+  const setPoTransport = propSetPoTransport !== undefined ? propSetPoTransport : setLocalPoTransport;
+
+  const [localPoLabour, setLocalPoLabour] = useState(0);
+  const poLabour = propPoLabour !== undefined ? propPoLabour : localPoLabour;
+  const setPoLabour = propSetPoLabour !== undefined ? propSetPoLabour : setLocalPoLabour;
 
   // --- ERP ACTIVE PROCUREMENT RETURNS STATES ---
   const [pretId, setPretId] = useState(generateDateTimeInvoiceNo('PRET'));
@@ -857,7 +907,9 @@ export default function PurchaseView({
   };
 
   // PO Form fallback states
-  const [selectedSupplierId, setSelectedSupplierId] = useState(suppliers[0]?.id || '');
+  const [localSelectedSupplierId, setLocalSelectedSupplierId] = useState(suppliers[0]?.id || '');
+  const selectedSupplierId = propSelectedSupplierId !== undefined ? propSelectedSupplierId : localSelectedSupplierId;
+  const setSelectedSupplierId = propSetSelectedSupplierId !== undefined ? propSetSelectedSupplierId : setLocalSelectedSupplierId;
   const [poItems, setPoItems] = useState<{ productId: string; quantity: number; cost: number }[]>([
     { productId: products[0]?.id || '', quantity: 1, cost: products[0]?.cost || 0 },
   ]);

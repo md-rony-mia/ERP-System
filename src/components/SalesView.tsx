@@ -35,6 +35,36 @@ interface SalesViewProps {
   onSubTabChange?: (tab: string) => void;
   settings?: AppSettings;
   currentUser?: any;
+
+  // Lifted POS cart & fields
+  cart?: SaleItem[];
+  setCart?: React.Dispatch<React.SetStateAction<SaleItem[]>>;
+  selectedCustomerId?: string;
+  setSelectedCustomerId?: React.Dispatch<React.SetStateAction<string>>;
+  paymentMethod?: 'Cash' | 'Credit' | 'Mobile Banking';
+  setPaymentMethod?: React.Dispatch<React.SetStateAction<'Cash' | 'Credit' | 'Mobile Banking'>>;
+  discount?: number;
+  setDiscount?: React.Dispatch<React.SetStateAction<number>>;
+  invoiceNoInput?: string;
+  setInvoiceNoInput?: React.Dispatch<React.SetStateAction<string>>;
+  invoiceDateInput?: string;
+  setInvoiceDateInput?: React.Dispatch<React.SetStateAction<string>>;
+  receivedByInput?: string;
+  setReceivedByInput?: React.Dispatch<React.SetStateAction<string>>;
+  recipientAddressInput?: string;
+  setRecipientAddressInput?: React.Dispatch<React.SetStateAction<string>>;
+  mobileNoInput?: string;
+  setMobileNoInput?: React.Dispatch<React.SetStateAction<string>>;
+  orderIdInput?: string;
+  setOrderIdInput?: React.Dispatch<React.SetStateAction<string>>;
+  labourCost?: number;
+  setLabourCost?: React.Dispatch<React.SetStateAction<number>>;
+  transportCost?: number;
+  setTransportCost?: React.Dispatch<React.SetStateAction<number>>;
+  nowPayInput?: number;
+  setNowPayInput?: React.Dispatch<React.SetStateAction<number>>;
+  transTypeInput?: string;
+  setTransTypeInput?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function SalesView({
@@ -49,6 +79,36 @@ export default function SalesView({
   onSubTabChange,
   settings,
   currentUser,
+
+  // Lifted props
+  cart: propCart,
+  setCart: propSetCart,
+  selectedCustomerId: propSelectedCustomerId,
+  setSelectedCustomerId: propSetSelectedCustomerId,
+  paymentMethod: propPaymentMethod,
+  setPaymentMethod: propSetPaymentMethod,
+  discount: propDiscount,
+  setDiscount: propSetDiscount,
+  invoiceNoInput: propInvoiceNoInput,
+  setInvoiceNoInput: propSetInvoiceNoInput,
+  invoiceDateInput: propInvoiceDateInput,
+  setInvoiceDateInput: propSetInvoiceDateInput,
+  receivedByInput: propReceivedByInput,
+  setReceivedByInput: propSetReceivedByInput,
+  recipientAddressInput: propRecipientAddressInput,
+  setRecipientAddressInput: propSetRecipientAddressInput,
+  mobileNoInput: propMobileNoInput,
+  setMobileNoInput: propSetMobileNoInput,
+  orderIdInput: propOrderIdInput,
+  setOrderIdInput: propSetOrderIdInput,
+  labourCost: propLabourCost,
+  setLabourCost: propSetLabourCost,
+  transportCost: propTransportCost,
+  setTransportCost: propSetTransportCost,
+  nowPayInput: propNowPayInput,
+  setNowPayInput: propSetNowPayInput,
+  transTypeInput: propTransTypeInput,
+  setTransTypeInput: propSetTransTypeInput,
 }: SalesViewProps) {
   // Map activeSubTab to local salesTab routing
   const salesTab = [
@@ -207,10 +267,22 @@ export default function SalesView({
 
   // --- POS STATES ---
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [cart, setCart] = useState<SaleItem[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
-  const [discount, setDiscount] = useState<number>(0);
+  const [localCart, setLocalCart] = useState<SaleItem[]>([]);
+  const cart = propCart !== undefined ? propCart : localCart;
+  const setCart = propSetCart !== undefined ? propSetCart : setLocalCart;
+
+  const [localSelectedCustomerId, setLocalSelectedCustomerId] = useState('');
+  const selectedCustomerId = propSelectedCustomerId !== undefined ? propSelectedCustomerId : localSelectedCustomerId;
+  const setSelectedCustomerId = propSetSelectedCustomerId !== undefined ? propSetSelectedCustomerId : setLocalSelectedCustomerId;
+
+  const [localPaymentMethod, setLocalPaymentMethod] = useState<'Cash' | 'Credit' | 'Mobile Banking'>('Cash');
+  const paymentMethod = propPaymentMethod !== undefined ? propPaymentMethod : localPaymentMethod;
+  const setPaymentMethod = propSetPaymentMethod !== undefined ? propSetPaymentMethod : setLocalPaymentMethod;
+
+  const [localDiscount, setLocalDiscount] = useState<number>(0);
+  const discount = propDiscount !== undefined ? propDiscount : localDiscount;
+  const setDiscount = propSetDiscount !== undefined ? propSetDiscount : setLocalDiscount;
+
   const taxRate = React.useMemo(() => {
     if (settings?.taxes && settings.taxes.length > 0) {
       const activeSalesTaxes = settings.taxes.filter((t: any) => 
@@ -225,12 +297,30 @@ export default function SalesView({
   const [posCategory, setPosCategory] = useState('All');
 
   // --- ERP THEME & INPUT STATES FOR HIGH PRECISION MATCHING ---
-  const [invoiceNoInput, setInvoiceNoInput] = useState(generateDateTimeInvoiceNo('INV'));
-  const [invoiceDateInput, setInvoiceDateInput] = useState(new Date().toISOString().split('T')[0]);
-  const [receivedByInput, setReceivedByInput] = useState('');
-  const [recipientAddressInput, setRecipientAddressInput] = useState('');
-  const [mobileNoInput, setMobileNoInput] = useState('');
-  const [orderIdInput, setOrderIdInput] = useState('');
+  const [localInvoiceNoInput, setLocalInvoiceNoInput] = useState(generateDateTimeInvoiceNo('INV'));
+  const invoiceNoInput = propInvoiceNoInput !== undefined ? propInvoiceNoInput : localInvoiceNoInput;
+  const setInvoiceNoInput = propSetInvoiceNoInput !== undefined ? propSetInvoiceNoInput : setLocalInvoiceNoInput;
+
+  const [localInvoiceDateInput, setLocalInvoiceDateInput] = useState(new Date().toISOString().split('T')[0]);
+  const invoiceDateInput = propInvoiceDateInput !== undefined ? propInvoiceDateInput : localInvoiceDateInput;
+  const setInvoiceDateInput = propSetInvoiceDateInput !== undefined ? propSetInvoiceDateInput : setLocalInvoiceDateInput;
+
+  const [localReceivedByInput, setLocalReceivedByInput] = useState('');
+  const receivedByInput = propReceivedByInput !== undefined ? propReceivedByInput : localReceivedByInput;
+  const setReceivedByInput = propSetReceivedByInput !== undefined ? propSetReceivedByInput : setLocalReceivedByInput;
+
+  const [localRecipientAddressInput, setLocalRecipientAddressInput] = useState('');
+  const recipientAddressInput = propRecipientAddressInput !== undefined ? propRecipientAddressInput : localRecipientAddressInput;
+  const setRecipientAddressInput = propSetRecipientAddressInput !== undefined ? propSetRecipientAddressInput : setLocalRecipientAddressInput;
+
+  const [localMobileNoInput, setLocalMobileNoInput] = useState('');
+  const mobileNoInput = propMobileNoInput !== undefined ? propMobileNoInput : localMobileNoInput;
+  const setMobileNoInput = propSetMobileNoInput !== undefined ? propSetMobileNoInput : setLocalMobileNoInput;
+
+  const [localOrderIdInput, setLocalOrderIdInput] = useState('');
+  const orderIdInput = propOrderIdInput !== undefined ? propOrderIdInput : localOrderIdInput;
+  const setOrderIdInput = propSetOrderIdInput !== undefined ? propSetOrderIdInput : setLocalOrderIdInput;
+
   const [barcodeInput, setBarcodeInput] = useState('');
   const [pcsInput, setPcsInput] = useState<number | string>(1);
   const [rateDisInput, setRateDisInput] = useState<number | string>(0);
@@ -289,10 +379,21 @@ export default function SalesView({
   const [activePopupContext, setActivePopupContext] = useState<'pos_cust' | 'ret_cust' | 'pos_prod' | 'ret_prod'>('pos_cust');
 
   // Overhead/Offer grid
-  const [labourCost, setLabourCost] = useState<number>(0);
-  const [transportCost, setTransportCost] = useState<number>(0);
-  const [nowPayInput, setNowPayInput] = useState<number>(0);
-  const [transTypeInput, setTransTypeInput] = useState<string>('Credit Bill');
+  const [localLabourCost, setLocalLabourCost] = useState<number>(0);
+  const labourCost = propLabourCost !== undefined ? propLabourCost : localLabourCost;
+  const setLabourCost = propSetLabourCost !== undefined ? propSetLabourCost : setLocalLabourCost;
+
+  const [localTransportCost, setLocalTransportCost] = useState<number>(0);
+  const transportCost = propTransportCost !== undefined ? propTransportCost : localTransportCost;
+  const setTransportCost = propSetTransportCost !== undefined ? propSetTransportCost : setLocalTransportCost;
+
+  const [localNowPayInput, setLocalNowPayInput] = useState<number>(0);
+  const nowPayInput = propNowPayInput !== undefined ? propNowPayInput : localNowPayInput;
+  const setNowPayInput = propSetNowPayInput !== undefined ? propSetNowPayInput : setLocalNowPayInput;
+
+  const [localTransTypeInput, setLocalTransTypeInput] = useState<string>('Credit Bill');
+  const transTypeInput = propTransTypeInput !== undefined ? propTransTypeInput : localTransTypeInput;
+  const setTransTypeInput = propSetTransTypeInput !== undefined ? propSetTransTypeInput : setLocalTransTypeInput;
 
   // Search popup modal flags
   const [showCustPopupModal, setShowCustPopupModal] = useState(false);
