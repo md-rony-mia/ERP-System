@@ -977,6 +977,7 @@ export default function App() {
                 customers={customers}
                 invoices={invoices}
                 suppliers={suppliers}
+                purchaseOrders={purchaseOrders}
                 onTabChange={handleTabChange}
                 isVisualEditMode={isVisualEditMode}
                 activeSubTab={currentSubTab}

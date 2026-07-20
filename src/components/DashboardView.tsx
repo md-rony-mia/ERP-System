@@ -4,10 +4,12 @@ import {
   Product,
   Supplier,
   Customer,
+  PurchaseOrder,
 } from '../types';
 import FinanceDashboard from './FinanceDashboard';
 import InventoryDashboard from './InventoryDashboard';
 import SalesDashboard from './SalesDashboard';
+import PurchaseDashboard from './PurchaseDashboard';
 import * as Icons from 'lucide-react';
 import {
   TrendingUp,
@@ -51,6 +53,7 @@ interface DashboardViewProps {
   products: Product[];
   suppliers: Supplier[];
   customers: Customer[];
+  purchaseOrders?: PurchaseOrder[];
   onTabChange: (tab: string, subTab?: string) => void;
   isVisualEditMode?: boolean;
   activeSubTab?: string;
@@ -115,6 +118,7 @@ export default function DashboardView({
   products,
   suppliers,
   customers,
+  purchaseOrders = [],
   onTabChange,
   isVisualEditMode = false,
   activeSubTab = '',
@@ -837,6 +841,16 @@ export default function DashboardView({
         suppliers={suppliers}
         customers={customers}
         invoices={invoices}
+        onTabChange={onTabChange}
+      />
+    );
+  }
+  if (activeSubTab === 'purchase_dash') {
+    return (
+      <PurchaseDashboard
+        purchaseOrders={purchaseOrders}
+        products={products}
+        suppliers={suppliers}
         onTabChange={onTabChange}
       />
     );
