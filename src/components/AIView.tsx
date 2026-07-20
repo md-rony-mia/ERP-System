@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Sparkles,
   Bot,
@@ -71,17 +73,20 @@ export default function AIView({
 
   useEffect(() => {
     fetch("/api/health")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Server error");
+        return res.json();
+      })
       .then(data => {
         if (typeof data.aiEnabled === "boolean") {
           setAiEnabled(data.aiEnabled);
         } else {
-          setAiEnabled(true);
+          setAiEnabled(false);
         }
       })
       .catch(err => {
         console.error("AI check error:", err);
-        setAiEnabled(true);
+        setAiEnabled(false);
       });
   }, []);
 
@@ -97,24 +102,61 @@ export default function AIView({
     { id: 'rec2', material: 'Coal Coke Catalyst', currentSafety: 10, suggestedSafety: 25, reason: 'Port raw-unloading delays reported in Chittagong may affect delivery lead times by 12 days.', status: 'Pending' }
   ]);
 
+  const getInvoiceLocalDate = (dateStr: string) => {
+    if (!dateStr) return null;
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const y = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10) - 1;
+      const d = parseInt(match[3], 10);
+      return new Date(y, m, d);
+    }
+    const parsed = new Date(dateStr);
+    if (isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
   // --- CHART DATA FOR AI FORECAST ---
+  const getMonthlyActualSales = (year: number, monthZeroIndexed: number) => {
+    return invoices.reduce((sum, inv) => {
+      const invDate = getInvoiceLocalDate(inv.date);
+      if (invDate && invDate.getFullYear() === year && invDate.getMonth() === monthZeroIndexed) {
+        return sum + (inv.total || 0);
+      }
+      return sum;
+    }, 0);
+  };
+
+  const actualMay = getMonthlyActualSales(2026, 4);
+  const actualJun = getMonthlyActualSales(2026, 5);
+  const actualJul = getMonthlyActualSales(2026, 6);
+  const actualAug = getMonthlyActualSales(2026, 7);
+  const actualSep = getMonthlyActualSales(2026, 8);
+  const actualOct = getMonthlyActualSales(2026, 9);
+
   const revenueForecastData = [
-    { month: 'May 2026', Actual: 2400000, Forecast: 2400000 },
-    { month: 'Jun 2026', Actual: 2850000, Forecast: 2850000 },
-    { month: 'Jul 2026', Actual: 3100000, Forecast: 3200000 },
+    { month: 'May 2026', Actual: actualMay, Forecast: 2400000 },
+    { month: 'Jun 2026', Actual: actualJun, Forecast: 2850000 },
+    { month: 'Jul 2026', Actual: actualJul, Forecast: 3200000 },
     { month: 'Aug 2026', Forecast: 3500000 },
     { month: 'Sep 2026', Forecast: 3950000 },
     { month: 'Oct 2026', Forecast: 4100000 }
-  ];
+  ].map(item => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    
+    const monthMap: Record<string, number> = { 'May': 4, 'Jun': 5, 'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9 };
+    const prefix = item.month.split(' ')[0];
+    const itemMonth = monthMap[prefix];
+    const itemYear = 2026;
 
-  const steelPriceTrendData = [
-    { week: 'Wk 24', price: 68000 },
-    { week: 'Wk 25', price: 67200 },
-    { week: 'Wk 26', price: 66500 },
-    { week: 'Wk 27', price: 65800 },
-    { week: 'Wk 28', price: 65000 },
-    { week: 'Wk 29', price: 64100 } // price is dropping, perfect buy recommendation!
-  ];
+    if (itemYear > currentYear || (itemYear === currentYear && itemMonth > currentMonth)) {
+      const { Actual, ...rest } = item;
+      return rest;
+    }
+    return item;
+  });
 
   const generateSystemInstruction = () => {
     const stockSummary = products.length > 0 
@@ -125,15 +167,80 @@ export default function AIView({
     const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
     const bankBalance = bankAccounts.reduce((sum, b) => sum + (b.balance || 0), 0);
 
+    const formatDate = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+    const today = new Date();
+    const todayDateStr = formatDate(today);
+
+    // Start & end of today
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // Start & end of this month
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Start & end of this week (Sunday to Saturday)
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    let todaysSales = 0;
+    let todaysSalesCount = 0;
+    let weekSales = 0;
+    let weekSalesCount = 0;
+    let monthSales = 0;
+    let monthSalesCount = 0;
+
+    invoices.forEach(inv => {
+      const invDate = getInvoiceLocalDate(inv.date);
+      if (!invDate) return;
+      
+      const amount = inv.total || 0;
+      const time = invDate.getTime();
+      
+      if (time >= startOfToday.getTime() && time <= endOfToday.getTime()) {
+        todaysSales += amount;
+        todaysSalesCount++;
+      }
+      if (time >= startOfWeek.getTime() && time <= endOfWeek.getTime()) {
+        weekSales += amount;
+        weekSalesCount++;
+      }
+      if (time >= startOfMonth.getTime() && time <= endOfMonth.getTime()) {
+        monthSales += amount;
+        monthSalesCount++;
+      }
+    });
+
     return `You are Nexova ERP AI assistant, a highly professional AI agent designed to help optimize manufacturing, supply chains, sales, and financial margins for Nexova ERP Solution.
-You have access to the current live ERP state:
+You have access to the current live ERP state. Today's date is ${todayDateStr}.
+Date-scoped and lifetime sales aggregates (computed dynamically from the live invoices):
+- Today's Sales (${todayDateStr}): ৳${todaysSales.toLocaleString()} BDT across ${todaysSalesCount} invoices
+- This Week's Sales: ৳${weekSales.toLocaleString()} BDT across ${weekSalesCount} invoices
+- This Month's Sales: ৳${monthSales.toLocaleString()} BDT across ${monthSalesCount} invoices
+- Total Invoiced Revenue (Lifetime): ৳${totalRevenue.toLocaleString()} BDT
+
+Other live metrics:
 - Top Products Stock: [${stockSummary}]
 - Accounts Receivable: ৳${totalReceivables.toLocaleString()} BDT
 - Accounts Payable: ৳${totalPayables.toLocaleString()} BDT
-- Total Invoiced Revenue: ৳${totalRevenue.toLocaleString()} BDT
 - Bank Balances: ৳${bankBalance.toLocaleString()} BDT
 
-Respond professionally, helpfully and constructively in Bengali and keep responses brief and focused on actionable business insights. Use BDT or BDT symbol ৳ where appropriate.`;
+Rules:
+1. If the user asks about sales/revenue for a specific date, day, week, or month, use ONLY the corresponding date-scoped figure provided above — do NOT default to the all-time Total Invoiced Revenue figure unless the user explicitly asks for an all-time or lifetime total.
+2. If no invoices exist for the requested period, clearly state that zero invoices were recorded for that period rather than substituting a different number.
+3. Respond professionally, helpfully and constructively in Bengali (বাংলা) and keep responses brief and focused on actionable business insights. Use BDT or BDT symbol ৳ where appropriate.`;
   };
 
   // --- ACTIONS ---
@@ -224,13 +331,17 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
                 <Bot className="h-5 w-5 text-indigo-600" />
                 <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">Nexova ERP Copilot Terminal</span>
               </div>
-              {aiEnabled === false ? (
+              {aiEnabled === null ? (
                 <span className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
-                  <span className="h-2 w-2 rounded-full bg-slate-300"></span> AI Disabled
+                  <span className="h-2 w-2 rounded-full bg-slate-300 animate-pulse"></span> Checking AI Status...
+                </span>
+              ) : aiEnabled === false ? (
+                <span className="flex items-center gap-1.5 text-[10px] text-rose-500 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-rose-500"></span> AI Assistant Unavailable
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Offline AI Model Active
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> AI Assistant Active
                 </span>
               )}
             </div>
@@ -249,7 +360,61 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
                       ? 'bg-indigo-600 text-white font-medium'
                       : 'bg-slate-50 border border-slate-100 text-slate-600 leading-relaxed font-medium'
                   }`}>
-                    <p>{m.text}</p>
+                    {m.sender === 'user' ? (
+                      <p className="whitespace-pre-wrap">{m.text}</p>
+                    ) : (
+                      <div className="markdown-body space-y-1.5 overflow-x-auto text-xs">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-2 border border-slate-200 rounded-lg max-w-full">
+                                <table className="w-full text-left border-collapse text-[11px] text-slate-700 font-sans">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            thead: ({ children }) => (
+                              <thead className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                {children}
+                              </thead>
+                            ),
+                            tbody: ({ children }) => (
+                              <tbody className="divide-y divide-slate-100">
+                                {children}
+                              </tbody>
+                            ),
+                            tr: ({ children }) => (
+                              <tr className="hover:bg-slate-50/50">
+                                {children}
+                              </tr>
+                            ),
+                            th: ({ children }) => (
+                              <th className="py-2 px-3 font-bold text-left border border-slate-200 bg-slate-50 text-slate-600">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="py-2 px-3 border border-slate-200 text-slate-600 whitespace-nowrap md:whitespace-normal">
+                                {children}
+                              </td>
+                            ),
+                            p: ({ children }) => (
+                              <p className="leading-relaxed mb-1 last:mb-0">{children}</p>
+                            ),
+                            h1: ({ children }) => <h1 className="text-sm font-bold text-slate-800 mt-2 mb-1">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-xs font-bold text-slate-800 mt-2 mb-1">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-xs font-semibold text-slate-700 mt-1.5 mb-1">{children}</h3>,
+                            ul: ({ children }) => <ul className="list-disc pl-4 space-y-1 my-1.5">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1 my-1.5">{children}</ol>,
+                            li: ({ children }) => <li className="text-xs text-slate-600 list-item">{children}</li>,
+                            strong: ({ children }) => <strong className="font-bold text-slate-800">{children}</strong>
+                          }}
+                        >
+                          {m.text}
+                        </ReactMarkdown>
+                      </div>
+                    )}
                     <span className={`text-[9px] block text-right font-mono ${
                       m.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'
                     }`}>{m.timestamp}</span>
@@ -262,10 +427,10 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
             {aiEnabled !== false && (
               <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-1.5">
                 <button
-                  onClick={() => setInputText('What is the price trend of steel?')}
+                  onClick={() => setInputText('আজকের সেল কত?')}
                   className="text-[10px] bg-white border border-slate-200 rounded px-2 py-1 text-slate-600 hover:border-indigo-400 cursor-pointer"
                 >
-                  📊 Price trend of steel?
+                  📊 আজকের সেল কত? (Today's Sales?)
                 </button>
                 <button
                   onClick={() => setInputText('Give me August revenue forecast')}
@@ -335,37 +500,27 @@ Respond professionally, helpfully and constructively in Bengali and keep respons
       )}
 
       {currentTab === 'forecast' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-4">
-            <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">6-Month Predictive Revenue Forecast (BDT)</h3>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueForecastData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value) => [value ? `৳${Number(value).toLocaleString()}` : '', 'BDT']} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="Actual" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="Forecast" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+        <div className="max-w-4xl mx-auto bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
+          <div>
+            <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 flex items-center gap-2">
+              📊 6-Month Predictive Revenue Forecast (BDT)
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+              "Actual" values are dynamically computed from real monthly invoice sums inside the system. "Forecast" values represent predictive projections of our goals (not actual system records, and should not be presented as historical facts).
+            </p>
           </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-4">
-            <h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Billet Raw Steel Purchase Price Trend (Ton)</h3>
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={steelPriceTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="week" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} domain={[60000, 70000]} />
-                  <Tooltip formatter={(value) => [value ? `৳${Number(value).toLocaleString()}` : '', 'BDT']} />
-                  <Bar dataKey="price" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueForecastData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value) => [value ? `৳${Number(value).toLocaleString()}` : '', 'BDT']} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" name="Actual Revenue (Real Data)" dataKey="Actual" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" name="Forecast Target (Predictive Projection)" dataKey="Forecast" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

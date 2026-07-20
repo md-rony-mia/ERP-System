@@ -25,17 +25,13 @@ const ai = new GoogleGenAI({
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    aiEnabled: process.env.AI_FEATURE_ENABLED === "true"
+    aiEnabled: true
   });
 });
 
 // Gemini proxy endpoint to protect key
 app.post("/api/gemini/generate", async (req, res) => {
   try {
-    if (process.env.AI_FEATURE_ENABLED !== "true") {
-      return res.status(503).json({ error: "AI features are currently disabled by the administrator." });
-    }
-
     const { prompt, systemInstruction } = req.body;
     if (!prompt) {
       return res.status(400).json({ error: "Prompt is required" });
