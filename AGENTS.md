@@ -17,6 +17,6 @@ This file contains persistent rules, coding conventions, and instructions that t
 কোনো কোড পরিবর্তন, ফিচার ডেভেলপমেন্ট, বাগ ফিক্স বা সাজেশন দেওয়ার আগে, প্রতিবার নিচের ধাপগুলো অনুসরণ করো — চাই আগের সেশনের memory/context যাই বলুক না কেন, কারণ repo আমার অজান্তেই আপডেট হতে পারে:
 
 Fresh clone নাও: git clone https://github.com/md-rony-mia/ERP-System.git দিয়ে সবসময় GitHub থেকে সরাসরি সর্বশেষ কোড নিয়ে এখানে update করে নাও — কখনো পুরনো memory/summary কে সত্য ধরে নিয়ে কাজ শুরু কোরো না।
-রিসেন্ট পরিবর্তন যাচাই করো:
+রিসেন্ট পরিবর্তন যাচাই করো
 
 
