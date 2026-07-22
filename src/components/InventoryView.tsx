@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Product, formatBoxQty } from '../types';
+import { Product, Branch, formatBoxQty } from '../types';
+import { isProductVisibleInBranch, getEffectiveStock } from '../lib/branchUtils';
 import {
   Search,
   Plus,
@@ -92,6 +93,8 @@ interface InventoryViewProps {
   currentUser?: any;
   invoices?: any[];
   purchaseOrders?: any[];
+  currentBranchId?: string;
+  branches?: Branch[];
 }
 
 export default function InventoryView({
@@ -104,6 +107,8 @@ export default function InventoryView({
   currentUser,
   invoices = [],
   purchaseOrders = [],
+  currentBranchId,
+  branches = [],
 }: InventoryViewProps) {
   // Navigation mapping if activeSubTab is parsed
   const currentTab = [
@@ -1106,8 +1111,20 @@ export default function InventoryView({
     setGeneratedBarcodes(list);
   };
 
+  // --- ACTIVE BRANCH & BRANCH STOCK HELPERS ---
+  const activeBranch = branches.find((b) => b.id === currentBranchId);
+  const isIndependentBranch = activeBranch?.stockMode === 'independent';
+
+  const checkProductVisible = (p: Product) => isProductVisibleInBranch(p, currentBranchId, branches);
+  const getProdEffectiveStock = (p: Product) => getEffectiveStock(p, currentBranchId, branches);
+
   // --- FILTERS LOGIC ---
   const filteredProducts = products.filter((p) => {
+    // 1. Branch filter
+    if (!checkProductVisible(p)) {
+      return false;
+    }
+
     const query = searchQuery.toLowerCase();
     const matchSearch =
       p.name.toLowerCase().includes(query) ||
@@ -1119,11 +1136,13 @@ export default function InventoryView({
         return val && String(val).toLowerCase().includes(query);
       });
     const matchCat = categoryFilter === 'All' || p.category === categoryFilter;
+    
+    const effectiveStock = getProdEffectiveStock(p);
     let matchStock = true;
     if (stockFilter === 'Low') {
-      matchStock = p.stock <= p.alertQty && p.stock > 0;
+      matchStock = effectiveStock <= p.alertQty && effectiveStock > 0;
     } else if (stockFilter === 'Out') {
-      matchStock = p.stock === 0;
+      matchStock = effectiveStock === 0;
     }
     return matchSearch && matchCat && matchStock;
   });
@@ -1136,6 +1155,32 @@ export default function InventoryView({
           ========================================= */}
       {currentTab === 'products' && (
         <div className="space-y-6">
+          {activeBranch && currentBranchId !== 'all' && (
+            <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs shadow-xs animate-in fade-in duration-200 ${
+              isIndependentBranch
+                ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+                : 'bg-indigo-50/90 border-indigo-200 text-indigo-900'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl font-bold text-xs shrink-0 ${
+                  isIndependentBranch ? 'bg-amber-200/70 text-amber-900' : 'bg-indigo-200/70 text-indigo-900'
+                }`}>
+                  🏢 {activeBranch.branchCode}
+                </div>
+                <div>
+                  <span className="font-extrabold text-xs block font-display">
+                    অ্যাক্টিভ ফিল্টারড শাখা: {activeBranch.name} ({isIndependentBranch ? 'স্বতন্ত্র/পৃথক স্টক মোড - Independent Stock' : 'শেয়ার্ড ইনভেন্টরি মোড - Shared Stock'})
+                  </span>
+                  <span className="text-[11px] opacity-90 mt-0.5 block leading-relaxed">
+                    {isIndependentBranch
+                      ? 'এই শাখাটি "পৃথক স্টক মোডে" সক্রিয়। এখানে শুধুমাত্র এই শাখার নিজস্ব সংরক্ষিত স্টক এবং এই শাখার আওতাধীন পণ্যসমূহ প্রদর্শিত ও ফিল্টার করা হচ্ছে।'
+                      : 'এই শাখায় কেন্দ্রীয় শেয়ার্ড স্টক ও ক্যাটালগ অ্যাক্টিভ রয়েছে।'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-800 font-display">Products Directory</h2>
@@ -1341,7 +1386,8 @@ export default function InventoryView({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.map((p) => {
-                      const isLow = p.stock <= p.alertQty;
+                      const effStock = getProdEffectiveStock(p);
+                      const isLow = effStock <= p.alertQty;
                       return (
                          <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors ${selectedProductIds.includes(p.id) ? 'bg-indigo-50/30' : ''}`}>
                           <td className="py-4 px-4 text-center w-10">
@@ -1380,18 +1426,18 @@ export default function InventoryView({
                                 <div className="flex flex-col items-center">
                                   <span
                                     className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                                      p.stock === 0
+                                      effStock === 0
                                         ? 'bg-rose-50 text-rose-700 border border-rose-100'
                                         : isLow
                                         ? 'bg-amber-50 text-amber-700 border border-amber-100'
                                         : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
                                     }`}
                                   >
-                                    {p.stock} {p.unit}
+                                    {effStock} {p.unit}
                                   </span>
-                                  {p.pcsPerBox && p.pcsPerBox > 1 && p.stock > 0 && (
+                                  {p.pcsPerBox && p.pcsPerBox > 1 && effStock > 0 && (
                                     <span className="text-[9px] font-semibold text-indigo-600 mt-1 block">
-                                      {formatBoxQty(p.stock, p.pcsPerBox)}
+                                      {formatBoxQty(effStock, p.pcsPerBox)}
                                     </span>
                                   )}
                                 </div>

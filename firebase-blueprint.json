@@ -97,6 +97,38 @@
       },
       "required": ["id", "accountName", "balance", "type"]
     },
+    "Branch": {
+      "title": "Branch",
+      "description": "An enterprise branch location or outlet.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "branchCode": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "managerName": { "type": "string" },
+        "status": { "type": "string" },
+        "isMainBranch": { "type": "boolean" },
+        "stockMode": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "branchCode", "status", "isMainBranch", "stockMode"]
+    },
+    "BranchStock": {
+      "title": "BranchStock",
+      "description": "Specific product inventory count per branch location for independent stock mode.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "productId": { "type": "string" },
+        "stock": { "type": "number" },
+        "alertQty": { "type": "number" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["id", "branchId", "productId", "stock"]
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "A financial ledger log tracking monetary deposits and withdrawals.",

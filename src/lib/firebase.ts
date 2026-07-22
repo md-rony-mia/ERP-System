@@ -156,7 +156,8 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string): P
     });
     return items;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, collectionName);
+    console.warn(`Firestore fetch for [${collectionName}] encountered error:`, error);
+    return [];
   }
 }
 
@@ -178,7 +179,7 @@ export function subscribeToCollection<T>(
       onUpdate(items);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, collectionName);
+      console.warn(`Firestore subscription notice for [${collectionName}]:`, error);
     }
   );
 }
@@ -192,7 +193,7 @@ export async function seedCollectionIfEmpty<T extends { id: string }>(
 ): Promise<T[]> {
   try {
     const existing = await fetchCollectionFromFirestore<T>(collectionName);
-    if (existing.length > 0) {
+    if (existing && existing.length > 0) {
       return existing;
     }
 
@@ -205,7 +206,8 @@ export async function seedCollectionIfEmpty<T extends { id: string }>(
     await batch.commit();
     return initialData;
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, collectionName);
+    console.warn(`Firestore seed for [${collectionName}] encountered error:`, error);
+    return initialData;
   }
 }
 

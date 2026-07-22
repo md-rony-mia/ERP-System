@@ -3,6 +3,7 @@ import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
 import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
 import { createNewUserWithSecondaryApp, db, auth } from '../lib/firebase';
 import { fetchErrorLogsFromFirestore, clearErrorLogsFromFirestore, ErrorLogEntry } from '../lib/errorLogger';
+import BranchManagementView from './BranchManagementView';
 import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import * as Icons from 'lucide-react';
@@ -62,6 +63,7 @@ interface BankingAndLoanViewProps {
   onImportData?: (importedData: any) => void;
   systemData?: any;
   currentUser?: any;
+  onBranchChange?: () => void;
 }
 
 export default function BankingAndLoanView({
@@ -79,6 +81,7 @@ export default function BankingAndLoanView({
   onImportData,
   systemData,
   currentUser,
+  onBranchChange,
 }: BankingAndLoanViewProps) {
   // --- SUB-TAB ROUTERS ---
   const subTab = activeSubTab || (currentTab === 'loan' ? 'loan_accounts' : 'bank_accounts');
@@ -116,7 +119,13 @@ export default function BankingAndLoanView({
   const [tz, setTz] = useState(settings?.timezone || 'Asia/Dhaka');
 
   // --- SUB-MENU SELECTOR STATE ---
-  const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>('system_settings');
+  const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>(activeSubTab || 'system_settings');
+
+  useEffect(() => {
+    if (activeSubTab && currentTab === 'settings') {
+      setSelectedSettingsTab(activeSubTab);
+    }
+  }, [activeSubTab, currentTab]);
 
   // --- ERROR LOGS STATE ---
   const [errorLogEntries, setErrorLogEntries] = useState<ErrorLogEntry[]>([]);
@@ -2142,9 +2151,10 @@ export default function BankingAndLoanView({
               <p className="text-[10px] text-slate-400 mt-0.5">Configure and calibrate your ERP environment</p>
             </div>
 
-            {/* Scrollable Container for 18 menu items */}
+            {/* Scrollable Container for menu items */}
             <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
               {[
+                { id: 'branches', label: 'Branches (শাখাসমূহ)', icon: Building },
                 { id: 'tax_rates', label: 'Tax Rates', icon: Percent },
                 { id: 'payment_methods', label: 'Payment Method', icon: CreditCard },
                 { id: 'add_suppliers_setting', label: 'Add Suppliers Setting', icon: Truck },
@@ -2196,6 +2206,11 @@ export default function BankingAndLoanView({
 
           {/* Dynamic Content Pane */}
           <div className="flex-1 p-8 overflow-y-auto max-h-[640px]">
+            {/* 0. BRANCHES MANAGEMENT */}
+            {selectedSettingsTab === 'branches' && (
+              <BranchManagementView currentUser={currentUser} onBranchChange={onBranchChange} />
+            )}
+
             {/* 1. TAX RATES */}
             {selectedSettingsTab === 'tax_rates' && (
               <div className="space-y-6 animate-in fade-in duration-200">

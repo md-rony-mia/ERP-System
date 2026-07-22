@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
-import { Supplier, PurchaseOrder, Product, POItem, formatBoxQty, AppSettings, getSystemDate } from '../types';
+import { Supplier, PurchaseOrder, Product, POItem, Branch, formatBoxQty, AppSettings, getSystemDate } from '../types';
+import { filterPurchaseOrdersByBranch, isProductVisibleInBranch, getEffectiveStock } from '../lib/branchUtils';
 import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   ShoppingCart,
@@ -57,6 +58,8 @@ interface PurchaseViewProps {
   poLabour?: number;
   setPoLabour?: React.Dispatch<React.SetStateAction<number>>;
   settings?: AppSettings;
+  currentBranchId?: string;
+  branches?: Branch[];
 }
 
 export default function PurchaseView({
@@ -71,6 +74,8 @@ export default function PurchaseView({
   onTabChange,
   currentUser,
   settings,
+  currentBranchId,
+  branches = [],
 
   // Lifted PO props
   poCart: propPoCart,
@@ -665,9 +670,9 @@ export default function PurchaseView({
   const poDate = propPoDate !== undefined ? propPoDate : localPoDate;
   const setPoDate = propSetPoDate !== undefined ? propSetPoDate : setLocalPoDate;
 
-  const [poProductId, setPoProductId] = useState(products[0]?.id || '');
+  const [poProductId, setPoProductId] = useState('');
   const [poQty, setPoQty] = useState<number | string>(1);
-  const [poCost, setPoCost] = useState<number | string>(products[0]?.cost || 0);
+  const [poCost, setPoCost] = useState<number | string>(0);
 
   const [localPoCart, setLocalPoCart] = useState<any[]>([]);
   const poCart = propPoCart !== undefined ? propPoCart : localPoCart;
@@ -754,6 +759,9 @@ export default function PurchaseView({
     if (p) {
       setPoCost(p.cost);
       setPoBarcode(p.sku);
+    } else {
+      setPoCost(0);
+      setPoBarcode('');
     }
   };
 
@@ -810,6 +818,9 @@ export default function PurchaseView({
         },
       ]);
     }
+    setPoProductId('');
+    setPoBarcode('');
+    setPoCost(0);
     setPoQty(1);
     setPoRateDis(0);
   };
@@ -896,6 +907,9 @@ export default function PurchaseView({
     if (p) {
       setPretCost(p.cost);
       setPretBarcode(p.sku);
+    } else {
+      setPretCost(0);
+      setPretBarcode('');
     }
   };
 
@@ -933,6 +947,9 @@ export default function PurchaseView({
         },
       ]);
     }
+    setPretProductId('');
+    setPretBarcode('');
+    setPretCost(0);
     setPretQty(1);
     setPretRateDis(0);
   };
@@ -1018,7 +1035,7 @@ export default function PurchaseView({
   const selectedSupplierId = propSelectedSupplierId !== undefined ? propSelectedSupplierId : localSelectedSupplierId;
   const setSelectedSupplierId = propSetSelectedSupplierId !== undefined ? propSetSelectedSupplierId : setLocalSelectedSupplierId;
   const [poItems, setPoItems] = useState<{ productId: string; quantity: number; cost: number }[]>([
-    { productId: products[0]?.id || '', quantity: 1, cost: products[0]?.cost || 0 },
+    { productId: '', quantity: 1, cost: 0 },
   ]);
 
   // Supplier Form
@@ -1044,7 +1061,7 @@ export default function PurchaseView({
 
   // --- ACTION HANDLERS ---
   const handleAddPoItemLine = () => {
-    setPoItems([...poItems, { productId: products[0]?.id || '', quantity: 1, cost: products[0]?.cost || 0 }]);
+    setPoItems([...poItems, { productId: '', quantity: 1, cost: 0 }]);
   };
 
   const handleUpdatePoItemField = (index: number, field: 'productId' | 'quantity' | 'cost', value: any) => {
@@ -1103,7 +1120,7 @@ export default function PurchaseView({
 
     onAddPurchaseOrder(newPO);
     setShowPoModal(false);
-    setPoItems([{ productId: products[0]?.id || '', quantity: 1, cost: products[0]?.cost || 0 }]);
+    setPoItems([{ productId: '', quantity: 1, cost: 0 }]);
   };
 
   const handleSupSubmit = (e: React.FormEvent) => {
@@ -1864,7 +1881,7 @@ export default function PurchaseView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {purchaseOrders.map((po) => {
+                {filterPurchaseOrdersByBranch(purchaseOrders, currentBranchId, branches).map((po) => {
                   const isReceived = po.status === 'Received';
                   return (
                     <tr key={po.id} className="hover:bg-slate-50/30 transition-colors">
@@ -3375,7 +3392,7 @@ export default function PurchaseView({
                             className="block w-full text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg p-2 outline-none"
                           >
                             <option value="">-- পণ্য সিলেক্ট করুন --</option>
-                            {products.map(p => (
+                            {products.filter(p => isProductVisibleInBranch(p, currentBranchId, branches)).map(p => (
                               <option key={p.id} value={p.name}>{p.name} ({p.sku})</option>
                             ))}
                           </select>
@@ -3951,7 +3968,8 @@ export default function PurchaseView({
                         onChange={(e) => handleUpdatePoItemField(idx, 'productId', e.target.value)}
                         className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs focus:outline-none"
                       >
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name} (৳{p.cost})</option>)}
+                        <option value="">-- প্রোডাক্ট সিলেক্ট করুন --</option>
+                        {products.filter(p => isProductVisibleInBranch(p, currentBranchId, branches)).map(p => <option key={p.id} value={p.id}>{p.name} (৳{p.cost})</option>)}
                       </select>
                       <input
                         type="number" required min="1" placeholder="Qty" value={item.quantity}
@@ -4210,8 +4228,8 @@ export default function PurchaseView({
                   onChange={(e) => setPrProductId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold text-slate-800"
                 >
-                  <option value="">-- Choose Material --</option>
-                  {products.map(p => (
+                  <option value="">-- Choose Material / প্রোডাক্ট সিলেক্ট করুন --</option>
+                  {products.filter(p => isProductVisibleInBranch(p, currentBranchId, branches)).map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
                   ))}
                 </select>
@@ -4280,8 +4298,8 @@ export default function PurchaseView({
                   onChange={(e) => setRfqProductId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs focus:outline-none font-bold text-slate-800"
                 >
-                  <option value="">-- Choose Material --</option>
-                  {products.map(p => (
+                  <option value="">-- Choose Material / প্রোডাক্ট সিলেক্ট করুন --</option>
+                  {products.filter(p => isProductVisibleInBranch(p, currentBranchId, branches)).map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -4525,6 +4543,7 @@ export default function PurchaseView({
               />
               <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                 {products
+                  .filter((p) => isProductVisibleInBranch(p, currentBranchId, branches))
                   .filter((p) => {
                     const term = prodPopupSearch.toLowerCase();
                     return (
@@ -4555,18 +4574,20 @@ export default function PurchaseView({
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-emerald-600">Cost: ৳{p.cost}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Stock: {p.stock} units</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Stock: {getEffectiveStock(p, currentBranchId, branches)} units</div>
                       </div>
                     </div>
                   ))}
-                {products.filter((p) => {
-                  const term = prodPopupSearch.toLowerCase();
-                  return (
-                    p.name.toLowerCase().includes(term) ||
-                    p.sku.toLowerCase().includes(term) ||
-                    p.category.toLowerCase().includes(term)
-                  );
-                }).length === 0 && (
+                {products
+                  .filter((p) => isProductVisibleInBranch(p, currentBranchId, branches))
+                  .filter((p) => {
+                    const term = prodPopupSearch.toLowerCase();
+                    return (
+                      p.name.toLowerCase().includes(term) ||
+                      p.sku.toLowerCase().includes(term) ||
+                      p.category.toLowerCase().includes(term)
+                    );
+                  }).length === 0 && (
                   <div className="text-center py-6 text-slate-400">No matching products found.</div>
                 )}
               </div>

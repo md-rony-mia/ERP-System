@@ -1,3 +1,50 @@
+export interface BranchEnabledFeatures {
+  sales: boolean;
+  purchase: boolean;
+  inventory: boolean;
+  accounting: boolean;
+  banking: boolean;
+  crm: boolean;
+  employee: boolean;
+  manufacturing: boolean;
+  projects: boolean;
+  documents: boolean;
+}
+
+export interface BranchSharedFeatures {
+  productCatalog: boolean;
+  customerList: boolean;
+  supplierList: boolean;
+  chartOfAccounts: boolean;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  branchCode: string;
+  address: string;
+  phone: string;
+  managerName: string;
+  status: 'Active' | 'Inactive';
+  isMainBranch: boolean;
+  stockMode: 'shared' | 'independent';
+  enabledFeatures: BranchEnabledFeatures;
+  sharedFeatures: BranchSharedFeatures;
+  assignedUserIds?: string[];
+  createdAt: string;
+}
+
+export interface BranchStock {
+  id: string; // branchId_productId
+  branchId: string;
+  productId: string;
+  stock: number;
+  reservedQty?: number;
+  allocatedQty?: number;
+  alertQty?: number;
+  lastUpdated?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -10,6 +57,8 @@ export interface Product {
   stock: number;
   alertQty: number;
   pcsPerBox?: number;
+  branchId?: string;
+  branchStocks?: Record<string, number>;
   // Advanced Enterprise Inventory parameters
   reservedQty?: number;
   allocatedQty?: number;
@@ -31,6 +80,7 @@ export interface Customer {
   email: string;
   group: string;
   outstandingBalance: number;
+  branchId?: string;
 }
 
 export interface Supplier {
@@ -41,6 +91,7 @@ export interface Supplier {
   companyName: string;
   group: string;
   outstandingBalance: number;
+  branchId?: string;
 }
 
 export interface SaleItem {
@@ -69,6 +120,7 @@ export interface Invoice {
   isPaid: boolean;
   labourCost?: number;
   transportCost?: number;
+  branchId?: string;
 }
 
 export interface POItem {
@@ -89,6 +141,7 @@ export interface PurchaseOrder {
   subtotal: number;
   total: number;
   status: 'Ordered' | 'Received' | 'Cancelled';
+  branchId?: string;
 }
 
 export interface BankAccount {
@@ -109,6 +162,7 @@ export interface Transaction {
   accountId: string; // references BankAccount
   category: string;
   referenceNo?: string;
+  branchId?: string;
 }
 
 export interface AccountHead {
@@ -187,6 +241,8 @@ export interface UserSetting {
   role: string;
   status: 'Active' | 'Inactive';
   avatar: string;
+  assignedBranchIds?: string[];
+  currentBranchId?: string;
 }
 
 export interface AppSettings {

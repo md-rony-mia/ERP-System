@@ -48,15 +48,25 @@ import {
   Cell,
 } from 'recharts';
 
+import { MainDashboardView } from './Dashboard/DashboardView';
+import { BankAccount, LoanAccount, Employee, Transaction, Attendance, Branch } from '../types';
+
 interface DashboardViewProps {
   invoices: Invoice[];
   products: Product[];
   suppliers: Supplier[];
   customers: Customer[];
   purchaseOrders?: PurchaseOrder[];
+  bankAccounts?: BankAccount[];
+  loanAccounts?: LoanAccount[];
+  employees?: Employee[];
+  transactions?: Transaction[];
+  attendances?: Attendance[];
   onTabChange: (tab: string, subTab?: string) => void;
   isVisualEditMode?: boolean;
   activeSubTab?: string;
+  currentBranchId?: string;
+  branches?: Branch[];
 }
 
 // Lightweight custom animated counter for high visual polish
@@ -119,9 +129,16 @@ export default function DashboardView({
   suppliers,
   customers,
   purchaseOrders = [],
+  bankAccounts = [],
+  loanAccounts = [],
+  employees = [],
+  transactions = [],
+  attendances = [],
   onTabChange,
   isVisualEditMode = false,
   activeSubTab = '',
+  currentBranchId = 'all',
+  branches = [],
 }: DashboardViewProps) {
   // Balance mask state
   const [showValues, setShowValues] = useState(false);
@@ -855,6 +872,25 @@ export default function DashboardView({
       />
     );
   }
+
+  // Default C-Suite Executive Dashboard render
+  return (
+    <MainDashboardView
+      invoices={invoices}
+      products={products}
+      customers={customers}
+      suppliers={suppliers}
+      bankAccounts={bankAccounts}
+      loanAccounts={loanAccounts}
+      employees={employees}
+      purchaseOrders={purchaseOrders}
+      transactions={transactions}
+      attendances={attendances}
+      onTabChange={onTabChange}
+      currentBranchId={currentBranchId}
+      branches={branches}
+    />
+  );
 
   return (
     <div className="space-y-6 animate-fade-up">

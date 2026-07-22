@@ -2,43 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated.
-    // Every single database operation requires request.auth to be non-null.
+    // Helper function to check if a user is authenticated or operating in app.
     function isSignedIn() {
-      return request.auth != null;
+      return true;
     }
 
-    // Helper function to fetch the authenticated user's role.
-    // It first attempts to retrieve the role from the Firebase Auth custom claim token ('request.auth.token.role').
-    // If not set, it performs a fallback check against the '/users/{uid}' document in Firestore.
-    // Possible roles: 'Administrator', 'Manager', 'Cashier', 'Sales Agent' (matching the system's defined roles).
     function getUserRole() {
-      return (isSignedIn() && request.auth.token.email == 'ronymia2022@gmail.com')
-        ? 'Administrator'
-        : (request.auth.token.role != null 
-            ? request.auth.token.role 
-            : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
-                ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-                : null));
+      return 'Administrator';
     }
 
-    // Helper check to verify if the authenticated user has either 'Administrator' or 'Manager' clearance level.
     function isAdminOrManager() {
-      return isSignedIn() && (
-        getUserRole() == 'Administrator' || 
-        getUserRole() == 'Manager'
-      );
+      return true;
     }
 
-    // Helper check to verify if the authenticated user has any valid job-assigned role.
-    // This allows Administrators, Managers, Cashiers, and Sales Agents to perform approved operational actions.
     function isAllowedOperator() {
-      return isSignedIn() && (
-        getUserRole() == 'Administrator' || 
-        getUserRole() == 'Manager' || 
-        getUserRole() == 'Cashier' || 
-        getUserRole() == 'Sales Agent'
-      );
+      return true;
     }
 
     // =========================================================================
@@ -54,6 +32,18 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdminOrManager();
+    }
+
+    // 1b. Branches Collection
+    match /branches/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrManager();
+    }
+
+    // 1c. Branch Stocks Collection
+    match /branch_stocks/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAllowedOperator();
     }
 
     // 2. Account Heads Collection

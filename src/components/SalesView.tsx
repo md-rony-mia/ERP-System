@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { validatePositiveNumber } from '../lib/validation';
-import { Product, Customer, Invoice, SaleItem, formatBoxQty, AppSettings, getSystemDate } from '../types';
+import { Product, Customer, Invoice, SaleItem, Branch, formatBoxQty, AppSettings, getSystemDate } from '../types';
+import { filterInvoicesByBranch, isProductVisibleInBranch, getEffectiveStock } from '../lib/branchUtils';
 import ExcelImportModal, { FieldSchema } from './ExcelImportModal';
 import {
   Search,
@@ -65,6 +66,8 @@ interface SalesViewProps {
   setNowPayInput?: React.Dispatch<React.SetStateAction<number>>;
   transTypeInput?: string;
   setTransTypeInput?: React.Dispatch<React.SetStateAction<string>>;
+  currentBranchId?: string;
+  branches?: Branch[];
 }
 
 export default function SalesView({
@@ -79,6 +82,8 @@ export default function SalesView({
   onSubTabChange,
   settings,
   currentUser,
+  currentBranchId,
+  branches = [],
 
   // Lifted props
   cart: propCart,
@@ -1538,6 +1543,7 @@ export default function SalesView({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {products
+                        .filter(p => isProductVisibleInBranch(p, currentBranchId, branches))
                         .filter(p => p.name.toLowerCase().includes(prodPopupSearch.toLowerCase()) || p.sku.toLowerCase().includes(prodPopupSearch.toLowerCase()))
                         .map((p) => {
                           // Make showroom ceramic brand prefixes dynamically
@@ -1627,7 +1633,7 @@ export default function SalesView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices
+                {filterInvoicesByBranch(invoices, currentBranchId, branches)
                   .filter((inv) => {
                     return (
                       inv.invoiceNo.toLowerCase().includes(invoiceSearch.toLowerCase()) ||

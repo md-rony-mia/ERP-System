@@ -5,13 +5,32 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
 
+// Resilient lazy load helper with retry logic for transient dynamic import failures
+const lazyWithRetry = (factory: () => Promise<any>) =>
+  lazy(async () => {
+    try {
+      return await factory();
+    } catch (error) {
+      console.warn('Dynamic module import failed, attempting retry...', error);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      try {
+        return await factory();
+      } catch (retryError) {
+        console.error('Module reload failed:', retryError);
+        // Force soft refresh on chunk error
+        window.location.reload();
+        return new Promise(() => {}) as any;
+      }
+    }
+  });
+
 // Lazy load large per-module view components (>2000 lines) to support optimal bundle size split
-const InventoryView = lazy(() => import('./components/InventoryView'));
-const SalesView = lazy(() => import('./components/SalesView'));
-const PurchaseView = lazy(() => import('./components/PurchaseView'));
-const EmployeeView = lazy(() => import('./components/EmployeeView'));
-const BankingAndLoanView = lazy(() => import('./components/BankingAndLoanView'));
-const ReportsView = lazy(() => import('./components/ReportsView'));
+const InventoryView = lazyWithRetry(() => import('./components/InventoryView'));
+const SalesView = lazyWithRetry(() => import('./components/SalesView'));
+const PurchaseView = lazyWithRetry(() => import('./components/PurchaseView'));
+const EmployeeView = lazyWithRetry(() => import('./components/EmployeeView'));
+const BankingAndLoanView = lazyWithRetry(() => import('./components/BankingAndLoanView'));
+const ReportsView = lazyWithRetry(() => import('./components/ReportsView'));
 
 import AccountingView from './components/AccountingView';
 import GridReportView from './components/GridReportView';
@@ -55,7 +74,9 @@ import {
   LoanAccount,
   AppSettings,
   getSystemDate,
+  Branch,
 } from './types';
+import { INITIAL_DEFAULT_BRANCHES } from './components/BranchManagementView';
 
 import {
   INITIAL_PRODUCTS,
@@ -244,6 +265,21 @@ export default function App() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [loanAccounts, setLoanAccounts] = useState<LoanAccount[]>([]);
+  const [branches, setBranches] = useState<Branch[]>(() => {
+    const saved = localStorage.getItem('nexova_branches_v2');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.warn('Error reading local branches:', e);
+      }
+    }
+    return INITIAL_DEFAULT_BRANCHES;
+  });
+  const [currentBranchId, setCurrentBranchId] = useState<string>(() => {
+    return localStorage.getItem('nexova_current_branch_id') || 'all';
+  });
 
   // --- LIFTED DRAFT STATES (SALES POS) ---
   const generateDateTimeInvoiceNo = (prefix: string) => {
@@ -385,6 +421,7 @@ export default function App() {
             seedCollectionIfEmpty('employees', INITIAL_EMPLOYEES),
             seedCollectionIfEmpty('attendances', INITIAL_ATTENDANCE),
             seedCollectionIfEmpty('loanAccounts', INITIAL_LOANS),
+            seedCollectionIfEmpty('branches', INITIAL_DEFAULT_BRANCHES),
           ]);
 
           const initialSettingsWithSeed: AppSettings = {
@@ -513,6 +550,30 @@ export default function App() {
             if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.loanAccounts)) {
               isRemoteUpdateRef.current['loanAccounts'] = true;
               setLoanAccounts(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Branch>('branches', (items) => {
+            if (items && items.length > 0) {
+              const sorted = [...items].sort((a, b) => (b.isMainBranch ? 1 : 0) - (a.isMainBranch ? 1 : 0));
+              setBranches(sorted);
+              try {
+                localStorage.setItem('nexova_branches_v2', JSON.stringify(sorted));
+              } catch (e) {}
+            } else {
+              const saved = localStorage.getItem('nexova_branches_v2');
+              if (saved) {
+                try {
+                  const parsed = JSON.parse(saved);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setBranches(parsed);
+                    return;
+                  }
+                } catch (e) {}
+              }
+              setBranches(INITIAL_DEFAULT_BRANCHES);
             }
           })
         );
@@ -646,16 +707,35 @@ export default function App() {
 
   // INVENTORY MUTATORS
   const handleAddProduct = (newProd: Omit<Product, 'id'>) => {
+    const branchStocksMap: Record<string, number> = { ...(newProd.branchStocks || {}) };
+    if (currentBranchId && currentBranchId !== 'all') {
+      branchStocksMap[currentBranchId] = newProd.stock;
+    }
     const p: Product = {
       ...newProd,
       id: `p_dynamic_${Date.now()}`,
+      branchId: newProd.branchId || (currentBranchId && currentBranchId !== 'all' ? currentBranchId : undefined),
+      branchStocks: branchStocksMap,
     };
     setProducts((prev) => [...prev, p]);
   };
 
   const handleEditStock = (productId: string, newStockVal: number) => {
     setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, stock: newStockVal } : p))
+      prev.map((p) => {
+        if (p.id === productId) {
+          const updatedBranchStocks = { ...(p.branchStocks || {}) };
+          if (currentBranchId && currentBranchId !== 'all') {
+            updatedBranchStocks[currentBranchId] = newStockVal;
+          }
+          return {
+            ...p,
+            stock: (!currentBranchId || currentBranchId === 'all') ? newStockVal : (p.branchId === currentBranchId ? newStockVal : p.stock),
+            branchStocks: updatedBranchStocks,
+          };
+        }
+        return p;
+      })
     );
   };
 
@@ -718,15 +798,37 @@ export default function App() {
 
   // SALES / POS MUTATORS
   const handleAddInvoice = (newInvoice: Invoice) => {
+    const invBranchId = newInvoice.branchId || (currentBranchId !== 'all' ? currentBranchId : undefined);
+    const invoiceWithBranch = { ...newInvoice, branchId: invBranchId };
+
     // 1. Append invoice
-    setInvoices((prev) => [...prev, newInvoice]);
+    setInvoices((prev) => [...prev, invoiceWithBranch]);
 
     // 2. Subtract product stocks
+    const invBranch = branches.find((b) => b.id === invBranchId);
+    const isIndep = invBranch?.stockMode === 'independent';
+
     setProducts((prev) =>
       prev.map((p) => {
         const soldItem = newInvoice.items.find((it) => it.productId === p.id);
         if (soldItem) {
-          return { ...p, stock: Math.max(0, p.stock - soldItem.quantity) };
+          if (isIndep && invBranchId) {
+            const currentIndepStock = p.branchStocks?.[invBranchId] ?? (p.branchId === invBranchId ? p.stock : 0);
+            const updatedBranchStocks = {
+              ...(p.branchStocks || {}),
+              [invBranchId]: Math.max(0, currentIndepStock - soldItem.quantity),
+            };
+            return {
+              ...p,
+              branchStocks: updatedBranchStocks,
+            };
+          } else {
+            // Shared branch or central main stock
+            return {
+              ...p,
+              stock: Math.max(0, p.stock - soldItem.quantity),
+            };
+          }
         }
         return p;
       })
@@ -819,7 +921,8 @@ export default function App() {
   };
 
   const handleAddPurchaseOrder = (newPO: PurchaseOrder) => {
-    setPurchaseOrders((prev) => [...prev, newPO]);
+    const poBranchId = newPO.branchId || (currentBranchId !== 'all' ? currentBranchId : undefined);
+    setPurchaseOrders((prev) => [...prev, { ...newPO, branchId: poBranchId }]);
   };
 
   const handleReceivePurchaseOrder = (poId: string) => {
@@ -831,12 +934,28 @@ export default function App() {
       prev.map((p) => (p.id === poId ? { ...p, status: 'Received' as const } : p))
     );
 
+    const poBranchId = po.branchId || (currentBranchId !== 'all' ? currentBranchId : undefined);
+    const poBranch = branches.find((b) => b.id === poBranchId);
+    const isIndep = poBranch?.stockMode === 'independent';
+
     // 2. Replenish inventory product stocks
     setProducts((prev) =>
       prev.map((p) => {
         const item = po.items.find((line) => line.productId === p.id);
         if (item) {
-          return { ...p, stock: p.stock + item.quantity };
+          if (isIndep && poBranchId) {
+            const currentIndepStock = p.branchStocks?.[poBranchId] ?? (p.branchId === poBranchId ? p.stock : 0);
+            const updatedBranchStocks = {
+              ...(p.branchStocks || {}),
+              [poBranchId]: currentIndepStock + item.quantity,
+            };
+            return {
+              ...p,
+              branchStocks: updatedBranchStocks,
+            };
+          } else {
+            return { ...p, stock: p.stock + item.quantity };
+          }
         }
         return p;
       })
@@ -1207,6 +1326,12 @@ export default function App() {
           onToggleVisualEditMode={() => setIsVisualEditMode(!isVisualEditMode)}
           currentUser={currentUser}
           onLogout={handleLogout}
+          branches={branches}
+          currentBranchId={currentBranchId}
+          onBranchSelect={(id) => {
+            setCurrentBranchId(id);
+            localStorage.setItem('nexova_current_branch_id', id);
+          }}
         />
 
         {/* Dynamic content render views */}
@@ -1268,9 +1393,16 @@ export default function App() {
                 invoices={invoices}
                 suppliers={suppliers}
                 purchaseOrders={purchaseOrders}
+                bankAccounts={bankAccounts}
+                loanAccounts={loanAccounts}
+                employees={employees}
+                transactions={transactions}
+                attendances={attendances}
                 onTabChange={handleTabChange}
                 isVisualEditMode={isVisualEditMode}
                 activeSubTab={currentSubTab}
+                currentBranchId={currentBranchId}
+                branches={branches}
               />
             </ErrorBoundary>
           )}
@@ -1282,12 +1414,14 @@ export default function App() {
                   products={products}
                   onAddProduct={handleAddProduct}
                   onUpdateStock={handleEditStock}
-                  onDeleteProduct={(id) => setProducts((prev) => prev.filter((p) => p.id !== id))}
+                  onDeleteProduct={(id: string) => setProducts((prev) => prev.filter((p) => p.id !== id))}
                   activeSubTab={currentSubTab}
                   onUpdateProducts={setProducts}
                   currentUser={currentUser}
                   invoices={invoices}
                   purchaseOrders={purchaseOrders}
+                  currentBranchId={currentBranchId}
+                  branches={branches}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -1308,6 +1442,8 @@ export default function App() {
                   onSubTabChange={setCurrentSubTab}
                   settings={settings}
                   currentUser={currentUser}
+                  currentBranchId={currentBranchId}
+                  branches={branches}
 
                   // Pass lifted states
                   cart={posCart}
@@ -1358,6 +1494,8 @@ export default function App() {
                   onTabChange={handleTabChange}
                   currentUser={currentUser}
                   settings={settings}
+                  currentBranchId={currentBranchId}
+                  branches={branches}
 
                   // Pass lifted states
                   poCart={purchasePoCart}
@@ -1428,6 +1566,17 @@ export default function App() {
                   onImportData={handleImportData}
                   systemData={systemData}
                   currentUser={currentUser}
+                  onBranchChange={() => {
+                    const saved = localStorage.getItem('nexova_branches_v2');
+                    if (saved) {
+                      try {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                          setBranches(parsed);
+                        }
+                      } catch (e) {}
+                    }
+                  }}
                 />
               </Suspense>
             </ErrorBoundary>
