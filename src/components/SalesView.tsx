@@ -1116,8 +1116,9 @@ export default function SalesView({
                       </tr>
                       {/* Filter inputs under columns */}
                       <tr className="bg-slate-50 border-b border-slate-300">
+                        {/* index key safe: fixed-order static list */}
                         {Array.from({ length: 10 }).map((_, idx) => (
-                          <td key={idx} className="p-0.5 border-r border-slate-200">
+                          <td key={`pos-cart-col-${idx}`} className="p-0.5 border-r border-slate-200">
                             <div className="flex items-center bg-white border border-slate-200 px-0.5">
                               <span className="text-[9px] text-emerald-600 font-mono scale-90 select-none mr-0.5">ABC</span>
                               <input
@@ -1132,6 +1133,7 @@ export default function SalesView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
+                      {/* index key safe: cart row selection bound to array index */}
                       {cart.map((item, idx) => {
                         const isSelected = selectedCartItemIndex === idx;
                         const p = products.find(prod => prod.id === item.productId);
@@ -1146,7 +1148,7 @@ export default function SalesView({
 
                         return (
                           <tr
-                            key={idx}
+                            key={`pos-cart-row-${idx}`}
                             onClick={() => setSelectedCartItemIndex(isSelected ? null : idx)}
                             className={`cursor-pointer transition-colors ${
                               isSelected
@@ -2184,8 +2186,9 @@ export default function SalesView({
                       </tr>
                       {/* Filter inputs under columns */}
                       <tr className="bg-slate-50 border-b border-slate-300">
+                        {/* index key safe: fixed-order static list */}
                         {Array.from({ length: 10 }).map((_, idx) => (
-                          <td key={idx} className="p-0.5 border-r border-slate-200">
+                          <td key={`ret-cart-col-${idx}`} className="p-0.5 border-r border-slate-200">
                             <div className="flex items-center bg-white border border-slate-200 px-0.5">
                               <span className="text-[9px] text-amber-600 font-mono scale-90 select-none mr-0.5">ABC</span>
                               <input
@@ -2200,6 +2203,7 @@ export default function SalesView({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 font-mono">
+                      {/* index key safe: return cart row selection bound to array index */}
                       {retCart.map((item, idx) => {
                         const isSelected = selectedRetCartItemIndex === idx;
                         const p = products.find(prod => prod.id === item.productId);
@@ -2214,7 +2218,7 @@ export default function SalesView({
 
                         return (
                           <tr
-                            key={idx}
+                            key={`ret-cart-row-${idx}`}
                             onClick={() => setSelectedRetCartItemIndex(isSelected ? null : idx)}
                             className={`cursor-pointer transition-colors ${
                               isSelected
@@ -4260,12 +4264,13 @@ export default function SalesView({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-dotted divide-slate-400 text-slate-800">
+                          {/* index key safe: printable voucher items ordered list */}
                           {invoiceToPrint.items.map((item, index) => {
                             const originalProd = products.find(p => p.id === item.productId);
                             const discountPerPcs = item.discount || 0;
                             const netRateVal = item.netRate || item.price;
                             return (
-                              <tr key={`${item.productId}-${index}`} className="hover:bg-slate-50/30">
+                              <tr key={`print-item-${item.productId || 'prod'}-${index}`} className="hover:bg-slate-50/30">
                                 <td className="py-2.5 px-2 text-center border-r border-dotted border-slate-400 font-semibold">{index + 1}</td>
                                 <td className="py-2.5 px-3 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2.5 px-2 text-center border-r border-dotted border-slate-400">{localGetItemClass(item.name)}</td>
@@ -4436,10 +4441,11 @@ export default function SalesView({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-dotted divide-slate-400 text-slate-800">
+                          {/* index key safe: printable delivery challan items ordered list */}
                           {invoiceToPrint.items.map((item, idx) => {
                             const originalProd = products.find(p => p.id === item.productId);
                             return (
-                              <tr key={`${item.productId}-${idx}`} className="hover:bg-slate-50/20">
+                              <tr key={`challan-cust-${item.productId || 'prod'}-${idx}`} className="hover:bg-slate-50/20">
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{idx + 1}</td>
                                 <td className="py-2 px-2 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{localGetItemClass(item.name)}</td>
@@ -4521,10 +4527,11 @@ export default function SalesView({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-dotted divide-slate-400 text-slate-800">
+                          {/* index key safe: printable delivery challan items ordered list */}
                           {invoiceToPrint.items.map((item, idx) => {
                             const originalProd = products.find(p => p.id === item.productId);
                             return (
-                              <tr key={`godown-${item.productId}-${idx}`} className="hover:bg-slate-50/20">
+                              <tr key={`challan-godown-${item.productId || 'prod'}-${idx}`} className="hover:bg-slate-50/20">
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{idx + 1}</td>
                                 <td className="py-2 px-2 text-left border-r border-dotted border-slate-400 font-bold">{item.name}</td>
                                 <td className="py-2 px-1.5 text-center border-r border-dotted border-slate-400 font-semibold">{localGetItemClass(item.name)}</td>

@@ -1481,6 +1481,7 @@ export default function App() {
             <ErrorBoundary variant="section" sectionName="Gemini AI Assistant Module">
               <AIView
                 activeSubTab={currentSubTab}
+                settings={settings}
                 products={products}
                 customers={customers}
                 suppliers={suppliers}

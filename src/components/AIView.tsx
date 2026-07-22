@@ -29,6 +29,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import { AppSettings, getSystemDate } from '../types';
 import {
   getSalesByDateRange,
   getCustomerLedger,
@@ -42,6 +43,7 @@ import {
 
 interface AIViewProps {
   activeSubTab?: string;
+  settings?: AppSettings;
   products?: any[];
   customers?: any[];
   suppliers?: any[];
@@ -70,6 +72,7 @@ interface Recommendation {
 
 export default function AIView({
   activeSubTab = 'copilot',
+  settings,
   products = [],
   customers = [],
   suppliers = [],
@@ -157,7 +160,11 @@ export default function AIView({
     { month: 'Sep 2026', Forecast: 3950000 },
     { month: 'Oct 2026', Forecast: 4100000 }
   ].map(item => {
-    const today = new Date();
+    const sysDateStr = getSystemDate(settings);
+    const sysDateParts = sysDateStr.split('-').map(Number);
+    const today = (sysDateParts.length === 3 && !isNaN(sysDateParts[0]))
+      ? new Date(sysDateParts[0], sysDateParts[1] - 1, sysDateParts[2])
+      : new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     
@@ -174,14 +181,7 @@ export default function AIView({
   });
 
   const generateSystemInstruction = () => {
-    const formatDate = (date: Date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-    const today = new Date();
-    const todayDateStr = formatDate(today);
+    const todayDateStr = getSystemDate(settings);
 
     return `You are Nexova ERP AI assistant, a highly professional AI agent designed to help optimize manufacturing, supply chains, sales, and financial margins for Nexova ERP Solution.
 Today's date is ${todayDateStr}.
@@ -276,7 +276,7 @@ Rules:
               } else if (name === 'getProductStock') {
                 result = getProductStock(products, invoices, purchaseOrders, args.productNameOrId);
               } else if (name === 'getTopProducts') {
-                result = getTopProducts(invoices, products, args.period, args.limit || 5);
+                result = getTopProducts(invoices, products, args.period, args.limit || 5, getSystemDate(settings));
               } else if (name === 'compareRevenuePeriods') {
                 result = compareRevenuePeriods(invoices, args.period1Start, args.period1End, args.period2Start, args.period2End);
               } else if (name === 'getAccountsSummary') {

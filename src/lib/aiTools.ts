@@ -205,10 +205,14 @@ export function getTopProducts(
   invoices: Invoice[],
   products: Product[],
   period: 'today' | 'this_week' | 'this_month' | 'this_year' | 'all',
-  limit: number = 5
+  limit: number = 5,
+  systemDateStr?: string
 ) {
-  const today = new Date();
-  const todayStr = getLocalDateString(today);
+  const todayStr = systemDateStr || getLocalDateString(new Date());
+  const dateParts = todayStr.split('-').map(Number);
+  const today = (dateParts.length === 3 && !isNaN(dateParts[0]))
+    ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+    : new Date();
   
   // Set date ranges
   let startStr = '';
