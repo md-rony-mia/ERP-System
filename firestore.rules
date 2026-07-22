@@ -285,6 +285,16 @@ service cloud.firestore {
       allow write: if isAllowedOperator();
     }
 
+    // =========================================================================
+    // SECTION B.3: ERROR LOGS & DIAGNOSTICS COLLECTION
+    // =========================================================================
+    // Allows any authenticated user / operator to CREATE crash report logs when exceptions occur.
+    // Restricts READ and DELETE access strictly to Administrators to protect system diagnostics.
+    match /error_logs/{docId} {
+      allow create: if isAllowedOperator() || isSignedIn();
+      allow read, delete: if isSignedIn() && getUserRole() == 'Administrator';
+    }
+
 
     // =========================================================================
     // SECTION C: FALLBACK SAFETY NET

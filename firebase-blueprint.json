@@ -191,9 +191,29 @@
         "role": { "type": "string" }
       },
       "required": ["uid", "role"]
+    },
+    "ErrorLog": {
+      "title": "ErrorLog",
+      "description": "System error log entry captured during component crashes or exceptions.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string" },
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "userId": { "type": "string" },
+        "userRole": { "type": "string" },
+        "currentTab": { "type": "string" },
+        "currentSubTab": { "type": "string" },
+        "userAgent": { "type": "string" }
+      },
+      "required": ["timestamp", "message"]
     }
   },
   "firestore": {
+    "/error_logs/{docId}": {
+      "schema": "ErrorLog",
+      "description": "Captured error logs for Administrator inspection."
+    },
     "/settings/{docId}": {
       "schema": "AppSettings",
       "description": "Global enterprise configuration settings."
