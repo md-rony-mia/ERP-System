@@ -340,20 +340,29 @@ export default function SalesView({
   const rateInputRef = React.useRef<HTMLInputElement>(null);
   const barcodeInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Focus and keydown transition handlers
+  // Focus and keydown transition handlers for POS Barcode Scanner (USB/Bluetooth keyboard wedge)
   const handleBarcodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (selectedProductId) {
+      const rawCode = barcodeInput.trim();
+
+      // Look up product by matching SKU/Barcode or Product ID (case-insensitive)
+      const matched = products.find(
+        p => p.sku.trim().toLowerCase() === rawCode.toLowerCase() || p.id.toLowerCase() === rawCode.toLowerCase()
+      );
+
+      if (matched) {
+        handleSelectProduct(matched.id);
+        setTimeout(() => {
+          pcsInputRef.current?.focus();
+          pcsInputRef.current?.select();
+        }, 50);
+      } else if (selectedProductId) {
+        // Product was already selected via onChange, transition focus to Quantity input
         pcsInputRef.current?.focus();
         pcsInputRef.current?.select();
-      } else if (barcodeInput.trim()) {
-        const matched = products.find(p => p.sku.toLowerCase() === barcodeInput.trim().toLowerCase());
-        if (matched) {
-          handleSelectProduct(matched.id);
-        } else {
-          alert('Product not found for barcode: ' + barcodeInput);
-        }
+      } else if (rawCode) {
+        alert('No product found matching barcode / SKU: ' + rawCode);
       }
     }
   };
@@ -1015,7 +1024,10 @@ export default function SalesView({
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
                   <div>
-                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5">Barcode</label>
+                    <label className="block text-[10px] text-slate-500 font-semibold mb-0.5 flex items-center justify-between">
+                      <span>Barcode</span>
+                      <span className="text-[9px] text-emerald-600 font-bold">⚡ Scanner Ready</span>
+                    </label>
                     <input
                       type="text"
                       ref={barcodeInputRef}

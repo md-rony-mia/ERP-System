@@ -99,6 +99,11 @@ export default function ReportsView({
   const [activeFromDate, setActiveFromDate] = useState('2026-07-07');
   const [activeToDate, setActiveToDate] = useState('2026-07-14');
 
+  // Overdue Payment Reminders & VAT/Mushak State
+  const [copiedCustomerId, setCopiedCustomerId] = useState<string | null>(null);
+  const [vatFromDate, setVatFromDate] = useState('2026-07-01');
+  const [vatToDate, setVatToDate] = useState('2026-07-31');
+
   // Interactive Grid States
   const [ledgerSortField, setLedgerSortField] = useState('date');
   const [ledgerSortOrder, setLedgerSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -893,6 +898,332 @@ export default function ReportsView({
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Overdue Payment Reminder List
+  const renderOverdueReminders = () => {
+    // Note: Automated SMS/WhatsApp sending is not directly enabled because it requires integration with an external API provider (e.g. Twilio, Bulksmsbd, or Greenweb) and secret API keys/account credentials which are outside this codebase. Manual copy-to-clipboard allows users to paste reminders directly into WhatsApp/SMS.
+
+    const overdueCustomers = customers
+      .filter((c) => (c.outstandingBalance || 0) > 0)
+      .sort((a, b) => (b.outstandingBalance || 0) - (a.outstandingBalance || 0));
+
+    const totalOverdue = overdueCustomers.reduce((sum, c) => sum + (c.outstandingBalance || 0), 0);
+
+    const handleCopyReminder = (c: Customer) => {
+      const companyName = 'Nexova ERP';
+      const balanceStr = (c.outstandingBalance || 0).toLocaleString();
+      const msg = `প্রিয় ${c.name}, আপনার প্রতিষ্ঠান/অ্যাকাউন্টে বর্তমান বকেয়া পরিমাণ ৳${balanceStr}। অনুগ্রহ করে দ্রুত পরিশোধ করার জন্য বিনীত অনুরোধ জানাচ্ছি। (Dear ${c.name}, your outstanding balance is ৳${balanceStr}. Please settle the payment at your earliest convenience.) — ${companyName}`;
+
+      navigator.clipboard.writeText(msg).then(() => {
+        setCopiedCustomerId(c.id);
+        setTimeout(() => setCopiedCustomerId(null), 2000);
+      }).catch(() => {
+        alert('Failed to copy to clipboard.');
+      });
+    };
+
+    const getDaysSinceLastInvoice = (customerId: string) => {
+      const custInvoices = invoices
+        .filter((inv) => inv.customerId === customerId)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (custInvoices.length === 0) return { days: null, dateStr: 'No Invoices' };
+      const lastInv = custInvoices[0];
+      const invTime = new Date(lastInv.date).getTime();
+      const nowTime = new Date().getTime();
+      const diffDays = Math.max(0, Math.floor((nowTime - invTime) / (1000 * 60 * 60 * 24)));
+      return { days: diffDays, dateStr: lastInv.date };
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Metric Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-rose-50/50 border border-rose-200/80 p-4 rounded-2xl shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-rose-500 tracking-wider block">Total Overdue Receivables</span>
+            <span className="text-2xl font-black text-rose-700 font-mono mt-1 block">৳{totalOverdue.toLocaleString()}</span>
+            <span className="text-[11px] text-rose-600 font-medium">Pending collection across all accounts</span>
+          </div>
+          <div className="bg-amber-50/50 border border-amber-200/80 p-4 rounded-2xl shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-amber-600 tracking-wider block">Overdue Accounts Count</span>
+            <span className="text-2xl font-black text-amber-800 font-mono mt-1 block">{overdueCustomers.length} Customers</span>
+            <span className="text-[11px] text-amber-600 font-medium">With outstanding balance &gt; ৳0</span>
+          </div>
+          <div className="bg-indigo-50/50 border border-indigo-200/80 p-4 rounded-2xl shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider block">Average Overdue / Account</span>
+            <span className="text-2xl font-black text-indigo-900 font-mono mt-1 block">
+              ৳{overdueCustomers.length > 0 ? Math.round(totalOverdue / overdueCustomers.length).toLocaleString() : 0}
+            </span>
+            <span className="text-[11px] text-indigo-600 font-medium">Mean credit exposure</span>
+          </div>
+        </div>
+
+        {/* Info Banner on Manual Copy */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold">Manual SMS / WhatsApp Reminder Mode:</span> Click "Copy Reminder Message" next to any customer to copy a pre-formatted Bengali+English payment request. You can paste it directly into WhatsApp, Viber, or SMS apps.
+            <span className="block text-[10px] text-blue-600 mt-0.5 font-mono">* Direct automated SMS delivery requires external SMS Gateway integration (e.g., Twilio or Bangladeshi SMS portal) with API keys.</span>
+          </div>
+        </div>
+
+        {/* Customer Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="p-4 bg-slate-50/50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Customer Overdue Receivables & Reminder Dispatch</h4>
+            <span className="text-[11px] text-slate-500 font-mono">Sorted by Outstanding Balance (High to Low)</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100/60 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Customer Name</th>
+                  <th className="py-2.5 px-4">Mobile / Contact</th>
+                  <th className="py-2.5 px-4 text-right">Last Invoice Date</th>
+                  <th className="py-2.5 px-4 text-center">Days Elapsed</th>
+                  <th className="py-2.5 px-4 text-right">Outstanding Balance</th>
+                  <th className="py-2.5 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                {overdueCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      No overdue customer accounts found! All balances are cleared.
+                    </td>
+                  </tr>
+                ) : (
+                  overdueCustomers.map((c) => {
+                    const { days, dateStr } = getDaysSinceLastInvoice(c.id);
+                    const isCopied = copiedCustomerId === c.id;
+
+                    return (
+                      <tr key={`overdue-${c.id}`} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-4 font-bold text-slate-800">
+                          {c.name}
+                          {c.group && <span className="block text-[10px] text-slate-400 font-normal">{c.group}</span>}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-600">{c.phone || 'N/A'}</td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-500">{dateStr}</td>
+                        <td className="py-3 px-4 text-center font-mono">
+                          {days !== null ? (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${days > 60 ? 'bg-rose-100 text-rose-700' : days > 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {days} {days === 1 ? 'day' : 'days'} ago
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-[10px]">N/A</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-rose-600 text-sm">
+                          ৳{(c.outstandingBalance || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            onClick={() => handleCopyReminder(c)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 mx-auto ${
+                              isCopied
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200'
+                            }`}
+                          >
+                            {isCopied ? (
+                              <>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-3.5 w-3.5" />
+                                <span>Copy Reminder Message</span>
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Basic VAT / Mushak-Style Sales Report
+  const renderMushakVatReport = () => {
+    const filteredInvoices = invoices.filter((inv) => {
+      if (!vatFromDate && !vatToDate) return true;
+      if (vatFromDate && inv.date < vatFromDate) return false;
+      if (vatToDate && inv.date > vatToDate) return false;
+      return true;
+    });
+
+    const totalSales = filteredInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+    const totalVAT = filteredInvoices.reduce((sum, inv) => sum + (inv.taxAmount || 0), 0);
+    const totalTaxable = filteredInvoices.reduce((sum, inv) => {
+      const sub = inv.subtotal || 0;
+      const disc = inv.discount || 0;
+      const taxable = Math.max(0, sub - disc);
+      return sum + (taxable > 0 ? taxable : inv.total || 0);
+    }, 0);
+
+    const handleExportCSV = () => {
+      const headers = [
+        'Invoice No',
+        'Invoice Date',
+        'Customer Name',
+        'Payment Method',
+        'Taxable Amount (BDT)',
+        'VAT Rate (%)',
+        'VAT Amount (BDT)',
+        'Total Invoice Amount (BDT)',
+      ];
+
+      const rows = filteredInvoices.map((inv) => {
+        const taxable = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
+        return [
+          `"${inv.invoiceNo || ''}"`,
+          `"${inv.date || ''}"`,
+          `"${(inv.customerName || '').replace(/"/g, '""')}"`,
+          `"${inv.paymentMethod || 'Cash'}"`,
+          (taxable > 0 ? taxable : inv.total || 0).toFixed(2),
+          (inv.taxRate || 0).toFixed(2),
+          (inv.taxAmount || 0).toFixed(2),
+          (inv.total || 0).toFixed(2),
+        ].join(',');
+      });
+
+      const csvString = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `vat_mushak_sales_report_${vatFromDate}_to_${vatToDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Controls & Date Range Filter */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+              <Calendar className="h-4 w-4 text-indigo-600" />
+              <span>VAT Statement Period:</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <label className="text-slate-500 text-[11px]">From:</label>
+              <input
+                type="date"
+                value={vatFromDate}
+                onChange={(e) => setVatFromDate(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-slate-500 text-[11px]">To:</label>
+              <input
+                type="date"
+                value={vatToDate}
+                onChange={(e) => setVatToDate(e.target.value)}
+                className="bg-slate-50 border border-slate-300 rounded px-2 py-1 font-mono text-xs focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition-colors flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            <span>Export to CSV (NBR Format)</span>
+          </button>
+        </div>
+
+        {/* NBR Disclaimer Note */}
+        <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2">
+          <HelpCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold">Important Tax Notice:</span> This VAT / Mushak sales report provides formatted transaction figures and VAT collection summaries for data-preparation purposes to assist with manual submission into Bangladesh NBR's VAT return portal. It is an internal report, not a certified tax filing document or official Mushak 6.3 certificate.
+          </div>
+        </div>
+
+        {/* Summary Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-xs">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Invoices</span>
+            <span className="text-xl font-black text-slate-800 font-mono mt-1 block">{filteredInvoices.length}</span>
+          </div>
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl shadow-xs">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Gross Sales</span>
+            <span className="text-xl font-black text-slate-900 font-mono mt-1 block">৳{totalSales.toLocaleString()}</span>
+          </div>
+          <div className="bg-indigo-50/60 border border-indigo-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Taxable / VAT-Eligible Base</span>
+            <span className="text-xl font-black text-indigo-900 font-mono mt-1 block">৳{totalTaxable.toLocaleString()}</span>
+          </div>
+          <div className="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-xl shadow-xs">
+            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Total VAT Collected</span>
+            <span className="text-xl font-black text-emerald-800 font-mono mt-1 block">৳{totalVAT.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Breakdown Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="p-4 bg-slate-50/50 border-b border-slate-200">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Per-Invoice Sales VAT Ledger Breakdown</h4>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100/60 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Invoice No</th>
+                  <th className="py-2.5 px-4">Date</th>
+                  <th className="py-2.5 px-4">Customer</th>
+                  <th className="py-2.5 px-4">Method</th>
+                  <th className="py-2.5 px-4 text-right">Taxable Amount</th>
+                  <th className="py-2.5 px-4 text-center">VAT %</th>
+                  <th className="py-2.5 px-4 text-right">VAT Amount</th>
+                  <th className="py-2.5 px-4 text-right">Total Invoice</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                {filteredInvoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                      No sales invoices found for the selected date range ({vatFromDate} to {vatToDate}).
+                    </td>
+                  </tr>
+                ) : (
+                  filteredInvoices.map((inv) => {
+                    const taxable = Math.max(0, (inv.subtotal || 0) - (inv.discount || 0));
+                    const taxableAmt = taxable > 0 ? taxable : inv.total || 0;
+                    return (
+                      <tr key={`vat-inv-${inv.id}`} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-indigo-600">{inv.invoiceNo}</td>
+                        <td className="py-3 px-4 font-mono text-slate-500">{inv.date}</td>
+                        <td className="py-3 px-4 font-bold text-slate-800">{inv.customerName}</td>
+                        <td className="py-3 px-4 text-slate-500">{inv.paymentMethod}</td>
+                        <td className="py-3 px-4 text-right font-mono text-slate-700">৳{taxableAmt.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-center font-mono text-slate-500">{inv.taxRate || 0}%</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">৳{(inv.taxAmount || 0).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-slate-900">৳{(inv.total || 0).toLocaleString()}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -3959,6 +4290,11 @@ export default function ReportsView({
         return 'Statement of Profit & Loss';
       case 'ar_ageing':
         return 'Accounts Receivable Ageing';
+      case 'overdue_reminders':
+        return 'Overdue Payment Reminders List';
+      case 'mushak_vat':
+      case 'tax_report':
+        return 'VAT / Mushak Sales Statement Report';
       case 'ap_ageing':
         return 'Accounts Payable Ageing';
       case 'profit_report':
@@ -4012,6 +4348,11 @@ export default function ReportsView({
         return renderProfitLoss();
       case 'ar_ageing':
         return renderArAgeing();
+      case 'overdue_reminders':
+        return renderOverdueReminders();
+      case 'mushak_vat':
+      case 'tax_report':
+        return renderMushakVatReport();
       case 'ap_ageing':
         return renderApAgeing();
       case 'profit_report':
