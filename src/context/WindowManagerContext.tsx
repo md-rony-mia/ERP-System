@@ -189,17 +189,34 @@ export const WindowManagerProvider: React.FC<{ children: ReactNode }> = ({ child
     setWindows((prev) => {
       const filtered = prev.filter((w) => w.id !== id);
       
-      // If closing active window, activate remaining
+      // If no windows left after closing, automatically re-open Executive Dashboard window as default
+      if (filtered.length === 0) {
+        const meta = getTabTitleAndIcon('dashboard', '');
+        return [
+          {
+            id: 'dashboard',
+            title: meta.title || 'নির্বাহী ড্যাশবোর্ড',
+            iconName: meta.iconName || 'LayoutDashboard',
+            tab: 'dashboard',
+            subTab: '',
+            isMinimized: false,
+            isActive: true,
+            type: 'view',
+            openedAt: Date.now(),
+          },
+        ];
+      }
+
+      // If closing active window, activate remaining unminimized window
       const closingWinWasActive = prev.find((w) => w.id === id)?.isActive;
-      if (closingWinWasActive && filtered.length > 0) {
+      if (closingWinWasActive) {
         const remainingOpen = filtered.filter((w) => !w.isMinimized);
         if (remainingOpen.length > 0) {
           const nextActive = remainingOpen[remainingOpen.length - 1];
           return filtered.map((w) => (w.id === nextActive.id ? { ...w, isActive: true } : w));
         } else {
-          // Unminimize first window
-          filtered[0].isMinimized = false;
-          filtered[0].isActive = true;
+          // If all remaining windows are minimized, keep them minimized so Desktop shows Executive Dashboard
+          return filtered.map((w) => ({ ...w, isActive: false }));
         }
       }
 
@@ -208,7 +225,7 @@ export const WindowManagerProvider: React.FC<{ children: ReactNode }> = ({ child
 
     setWindows((curr) => {
       const activeWin = curr.find((w) => w.isActive && !w.isMinimized);
-      setActiveWindowId(activeWin ? activeWin.id : null);
+      setActiveWindowId(activeWin ? activeWin.id : 'dashboard');
       return curr;
     });
   };

@@ -105,6 +105,7 @@ const LazyLoadingFallback = () => (
 
 function AppContent() {
   const { windows, openWindow } = useWindowManager();
+  const hasActiveUnminimizedWindow = windows.some((win) => win.isActive && !win.isMinimized);
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [currentSubTab, setCurrentSubTab] = useState('');
   const [isVisualEditMode, setIsVisualEditMode] = useState(false);
@@ -1410,6 +1411,46 @@ function AppContent() {
                       <span>Export Backup Now</span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* DEFAULT DESKTOP WORKSPACE (EXECUTIVE DASHBOARD) WHEN ALL WINDOWS ARE MINIMIZED */}
+              {!hasActiveUnminimizedWindow && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900/90 text-slate-100 rounded-xl border border-slate-800 shadow-sm backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="font-bold text-xs font-display text-slate-100">
+                        নেক্সোভা ডেস্কটপ (Nexova Desktop) — নির্বাহী ড্যাশবোর্ড
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        ডেস্কটপ ভিউ
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 hidden sm:inline font-mono">
+                      সব উইন্ডো মিনিমাইজড। নিচে টাস্কবার থেকে যেকোনো উইন্ডো নির্বাচন করুন।
+                    </span>
+                  </div>
+
+                  <ErrorBoundary variant="section" sectionName="Dashboard Module">
+                    <DashboardView
+                      products={products}
+                      customers={customers}
+                      invoices={invoices}
+                      suppliers={suppliers}
+                      purchaseOrders={purchaseOrders}
+                      bankAccounts={bankAccounts}
+                      loanAccounts={loanAccounts}
+                      employees={employees}
+                      transactions={transactions}
+                      attendances={attendances}
+                      onTabChange={handleTabChange}
+                      isVisualEditMode={isVisualEditMode}
+                      activeSubTab={currentSubTab}
+                      currentBranchId={currentBranchId}
+                      branches={branches}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
 
