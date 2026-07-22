@@ -56,6 +56,7 @@ import {
   db,
   onAuthStateChange,
   signOutUser,
+  isFirebaseConfigured,
   Unsubscribe,
 } from './lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -156,22 +157,43 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (fbUser) => {
       if (fbUser) {
-        try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const profile = userDocSnap.data();
-            setCurrentUser(profile);
-            localStorage.setItem('nexova_current_user', JSON.stringify(profile));
-          } else {
-            // Profile doc doesn't exist yet, we'll let Login component create it on first sign-in
+        let profileFound = false;
+        if (isFirebaseConfigured) {
+          try {
+            const userDocRef = doc(db, 'users', fbUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const profile = userDocSnap.data();
+              setCurrentUser(profile);
+              localStorage.setItem('nexova_current_user', JSON.stringify(profile));
+              profileFound = true;
+            }
+          } catch (err) {
+            console.warn("Firestore user profile fetch notice:", err);
           }
-        } catch (err) {
-          console.error("Error fetching user profile:", err);
+        }
+        if (!profileFound) {
+          const stored = localStorage.getItem('nexova_current_user');
+          if (stored) {
+            try {
+              setCurrentUser(JSON.parse(stored));
+            } catch (e) {
+              console.warn("Invalid local user json:", e);
+            }
+          }
         }
       } else {
-        setCurrentUser(null);
-        localStorage.removeItem('nexova_current_user');
+        const stored = localStorage.getItem('nexova_current_user');
+        if (!isFirebaseConfigured && stored) {
+          try {
+            setCurrentUser(JSON.parse(stored));
+          } catch (e) {
+            setCurrentUser(null);
+          }
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('nexova_current_user');
+        }
       }
       setAuthChecked(true);
     });

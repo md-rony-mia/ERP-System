@@ -398,48 +398,48 @@ Rules:
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm]}
                           components={{
-                            table: ({ children }) => (
+                            table: ({ children }: any) => (
                               <div className="overflow-x-auto my-2 border border-slate-200 rounded-lg max-w-full">
                                 <table className="w-full text-left border-collapse text-[11px] text-slate-700 font-sans">
                                   {children}
                                 </table>
                               </div>
                             ),
-                            thead: ({ children }) => (
+                            thead: ({ children }: any) => (
                               <thead className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                 {children}
                               </thead>
                             ),
-                            tbody: ({ children }) => (
+                            tbody: ({ children }: any) => (
                               <tbody className="divide-y divide-slate-100">
                                 {children}
                               </tbody>
                             ),
-                            tr: ({ children }) => (
+                            tr: ({ children }: any) => (
                               <tr className="hover:bg-slate-50/50">
                                 {children}
                               </tr>
                             ),
-                            th: ({ children }) => (
+                            th: ({ children }: any) => (
                               <th className="py-2 px-3 font-bold text-left border border-slate-200 bg-slate-50 text-slate-600">
                                 {children}
                               </th>
                             ),
-                            td: ({ children }) => (
+                            td: ({ children }: any) => (
                               <td className="py-2 px-3 border border-slate-200 text-slate-600 whitespace-nowrap md:whitespace-normal">
                                 {children}
                               </td>
                             ),
-                            p: ({ children }) => (
+                            p: ({ children }: any) => (
                               <p className="leading-relaxed mb-1 last:mb-0">{children}</p>
                             ),
-                            h1: ({ children }) => <h1 className="text-sm font-bold text-slate-800 mt-2 mb-1">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-xs font-bold text-slate-800 mt-2 mb-1">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-xs font-semibold text-slate-700 mt-1.5 mb-1">{children}</h3>,
-                            ul: ({ children }) => <ul className="list-disc pl-4 space-y-1 my-1.5">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1 my-1.5">{children}</ol>,
-                            li: ({ children }) => <li className="text-xs text-slate-600 list-item">{children}</li>,
-                            strong: ({ children }) => <strong className="font-bold text-slate-800">{children}</strong>
+                            h1: ({ children }: any) => <h1 className="text-sm font-bold text-slate-800 mt-2 mb-1">{children}</h1>,
+                            h2: ({ children }: any) => <h2 className="text-xs font-bold text-slate-800 mt-2 mb-1">{children}</h2>,
+                            h3: ({ children }: any) => <h3 className="text-xs font-semibold text-slate-700 mt-1.5 mb-1">{children}</h3>,
+                            ul: ({ children }: any) => <ul className="list-disc pl-4 space-y-1 my-1.5">{children}</ul>,
+                            ol: ({ children }: any) => <ol className="list-decimal pl-4 space-y-1 my-1.5">{children}</ol>,
+                            li: ({ children }: any) => <li className="text-xs text-slate-600 list-item">{children}</li>,
+                            strong: ({ children }: any) => <strong className="font-bold text-slate-800">{children}</strong>
                           }}
                         >
                           {m.text}
