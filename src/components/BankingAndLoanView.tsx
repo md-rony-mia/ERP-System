@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BankAccount, LoanAccount, Transaction, AppSettings } from '../types';
 import { navEngine, NavigationItem, NavigationGroup } from '../lib/navigationEngine';
 import { createNewUserWithSecondaryApp, db, auth } from '../lib/firebase';
+import { fetchErrorLogsFromFirestore, clearErrorLogsFromFirestore, ErrorLogEntry } from '../lib/errorLogger';
 import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail, updatePassword } from 'firebase/auth';
 import * as Icons from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   Smartphone,
   Users,
   Percent,
+  Bug,
   TrendingUp,
   FileText,
   AlertTriangle,
@@ -115,6 +117,44 @@ export default function BankingAndLoanView({
 
   // --- SUB-MENU SELECTOR STATE ---
   const [selectedSettingsTab, setSelectedSettingsTab] = useState<string>('system_settings');
+
+  // --- ERROR LOGS STATE ---
+  const [errorLogEntries, setErrorLogEntries] = useState<ErrorLogEntry[]>([]);
+  const [isLoadingErrorLogs, setIsLoadingErrorLogs] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [shouldTriggerTestError, setShouldTriggerTestError] = useState(false);
+
+  useEffect(() => {
+    if (selectedSettingsTab === 'error_logs') {
+      loadErrorLogs();
+    }
+  }, [selectedSettingsTab]);
+
+  const loadErrorLogs = async () => {
+    setIsLoadingErrorLogs(true);
+    try {
+      const logs = await fetchErrorLogsFromFirestore();
+      setErrorLogEntries(logs);
+    } catch (e) {
+      console.error('Error fetching logs from Firestore:', e);
+    } finally {
+      setIsLoadingErrorLogs(false);
+    }
+  };
+
+  const handleClearErrorLogs = async () => {
+    if (!window.confirm('Are you sure you want to clear all error log entries?')) return;
+    setIsLoadingErrorLogs(true);
+    try {
+      await clearErrorLogsFromFirestore();
+      setErrorLogEntries([]);
+      alert('Error logs cleared successfully.');
+    } catch (e) {
+      alert('Failed to clear error logs.');
+    } finally {
+      setIsLoadingErrorLogs(false);
+    }
+  };
 
   // --- CUSTOM DIALOG & NOTIFICATION STATES ---
   const [confirmActionType, setConfirmActionType] = useState<'reset' | 'clear' | null>(null);
@@ -1083,6 +1123,8 @@ export default function BankingAndLoanView({
     }
   };
 
+  // Note: True automated background backup without human action requires a server-side scheduled background job
+  // (e.g. Cloud Functions + Cloud Scheduler). This client-side reminder system prompts admins to run manual exports periodically.
   const handleExportJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(systemData, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -1091,6 +1133,15 @@ export default function BankingAndLoanView({
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+
+    // Record lastBackupAt timestamp in AppSettings and persist to Firestore
+    const nowIso = new Date().toISOString();
+    if (onUpdateSettings) {
+      onUpdateSettings({
+        ...settings,
+        lastBackupAt: nowIso,
+      } as AppSettings);
+    }
   };
 
   const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2113,6 +2164,7 @@ export default function BankingAndLoanView({
                 { id: 'purchase_setting', label: 'Purchase Setting', icon: ShoppingBag },
                 { id: 'entry_setting', label: 'Entry Setting', icon: Database },
                 { id: 'date_setting', label: 'Date Change (তারিখ পরিবর্তন)', icon: Icons.Calendar },
+                { id: 'error_logs', label: 'Error Logs (ব্যর্থতা লগ)', icon: Bug },
               ].map((menu) => {
                 const IconComponent = menu.icon;
                 const isSelected = selectedSettingsTab === menu.id;
@@ -4617,8 +4669,139 @@ export default function BankingAndLoanView({
               </div>
             )}
 
+            {/* 19. ERROR LOGS & CRASH TRACKER */}
+            {selectedSettingsTab === 'error_logs' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {shouldTriggerTestError && (() => { throw new Error('Test Component Error triggered by Administrator for logging verification!'); })()}
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 font-display flex items-center gap-2">
+                      <Bug className="h-4 w-4 text-rose-600" />
+                      <span>Enterprise System Error Logs & Crash Tracker</span>
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Automated Firestore crash-log capture for component errors and system exceptions.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShouldTriggerTestError(true)}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                      <span>Trigger Test Error</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={loadErrorLogs}
+                      disabled={isLoadingErrorLogs}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${isLoadingErrorLogs ? 'animate-spin' : ''}`} />
+                      <span>Refresh Logs</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearErrorLogs}
+                      disabled={isLoadingErrorLogs || errorLogEntries.length === 0}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Clear Logs</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 flex items-start gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-slate-800">Privacy & Sanitization Safeguard:</span> Log entries only capture high-level component context, stack traces, and non-sensitive identifiers. Full customer PII or invoice payloads are never stored in error logs.
+                  </div>
+                </div>
+
+                {isLoadingErrorLogs ? (
+                  <div className="p-12 text-center text-slate-400 font-mono text-xs flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                    <span>Loading Firestore error logs...</span>
+                  </div>
+                ) : errorLogEntries.length === 0 ? (
+                  <div className="p-12 border border-slate-200 rounded-xl text-center bg-slate-50/30 text-slate-500 text-xs">
+                    <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                    <p className="font-bold text-slate-700 text-sm">No Error Logs Recorded</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Your system is running smoothly without caught component crashes. Click "Trigger Test Error" above to verify the pipeline.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                          <th className="p-3">Timestamp</th>
+                          <th className="p-3">Error Message</th>
+                          <th className="p-3">Context / Tab</th>
+                          <th className="p-3">User & Role</th>
+                          <th className="p-3 text-center">Stack Trace</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                        {errorLogEntries.map((log) => {
+                          const isExpanded = expandedLogId === log.id;
+                          return (
+                            <React.Fragment key={log.id || log.timestamp}>
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                                  {new Date(log.timestamp).toLocaleString()}
+                                </td>
+                                <td className="p-3 font-mono text-rose-700 font-bold max-w-xs truncate">
+                                  {log.message}
+                                </td>
+                                <td className="p-3">
+                                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-bold">
+                                    {log.currentTab || 'App'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-slate-600 text-[11px]">
+                                  <span className="font-bold">{log.userId}</span>
+                                  <span className="block text-[10px] text-slate-400 uppercase">{log.userRole}</span>
+                                </td>
+                                <td className="p-3 text-center">
+                                  {log.stack ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedLogId(isExpanded ? null : log.id || log.timestamp)}
+                                      className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold transition-all"
+                                    >
+                                      {isExpanded ? 'Hide Stack' : 'View Stack'}
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400 text-[10px]">N/A</span>
+                                  )}
+                                </td>
+                              </tr>
+                              {isExpanded && log.stack && (
+                                <tr className="bg-slate-900 text-emerald-400">
+                                  <td colSpan={5} className="p-4 font-mono text-[10px] whitespace-pre-wrap overflow-x-auto">
+                                    <div className="max-h-60 overflow-y-auto">
+                                      <span className="text-slate-400 block mb-1 font-sans font-bold uppercase text-[9px]">Diagnostic Stack Trace:</span>
+                                      {log.stack}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* DYNAMIC FALLBACK FOR ALL OTHER SUBSYSTEM/ADMIN SETTINGS TABS */}
-            {!['tax_rates', 'payment_methods', 'add_suppliers_setting', 'add_customers_setting', 'add_product_setting', 'pos_setting', 'collection_payment_settings', 'users', 'roles', 'loan_setting', 'system_settings', 'menu_management', 'navigation_builder', 'delete_history', 'sales_return_setting', 'sales_order_setting', 'activity_log', 'purchase_setting', 'entry_setting', 'date_setting'].includes(selectedSettingsTab) && (
+            {!['tax_rates', 'payment_methods', 'add_suppliers_setting', 'add_customers_setting', 'add_product_setting', 'pos_setting', 'collection_payment_settings', 'users', 'roles', 'loan_setting', 'system_settings', 'menu_management', 'navigation_builder', 'delete_history', 'sales_return_setting', 'sales_order_setting', 'activity_log', 'purchase_setting', 'entry_setting', 'date_setting', 'error_logs'].includes(selectedSettingsTab) && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <div>

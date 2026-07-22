@@ -262,6 +262,7 @@ export interface AppSettings {
   isDbSeeded?: boolean;
   systemDateMode?: 'auto' | 'custom';
   systemCustomDate?: string;
+  lastBackupAt?: string;
 }
 
 export function formatBoxQty(pcs: number, pcsPerBox?: number): string {

@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Terminal, ChevronDown, ChevronRight, Home } from 'lucide-react';
+import { logErrorToFirestore } from '../lib/errorLogger';
 
 interface Props {
   children: ReactNode;
@@ -41,15 +42,14 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     console.error("Component Stack Trace:", errorInfo.componentStack);
     console.error("==========================================");
 
-    // TODO: Wire up persistent cloud logging or analytics reporting services here:
-    // Example: Sentry integration
-    // if (window.Sentry) {
-    //   window.Sentry.withScope((scope) => {
-    //     scope.setTag("module", this.props.sectionName || "root");
-    //     scope.setExtra("componentStack", errorInfo.componentStack);
-    //     window.Sentry.captureException(error);
-    //   });
-    // }
+    // Write crash log entry to Firestore error_logs collection
+    logErrorToFirestore({
+      message: error?.message || 'Component Crash Error',
+      stack: `${error?.stack || ''}\nComponent Stack:${errorInfo?.componentStack || ''}`,
+      extraContext: this.props.sectionName || 'Top-Level App',
+    }).catch((err) => {
+      console.error("Failed to execute logErrorToFirestore promise:", err);
+    });
 
     this.setState({ errorInfo });
   }
