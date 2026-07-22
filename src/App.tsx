@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -30,11 +30,13 @@ import { navEngine } from './lib/navigationEngine';
 import {
   seedCollectionIfEmpty,
   fetchCollectionFromFirestore,
+  subscribeToCollection,
   saveSettingsToFirestore,
   syncCollectionToFirestore,
   db,
   onAuthStateChange,
   signOutUser,
+  Unsubscribe,
 } from './lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -298,7 +300,56 @@ export default function App() {
 
   const [loading, setLoading] = useState(true);
 
-  // Firestore initial load & seed effect
+  // Track latest state values in a ref so snapshot listeners can compare without stale closures
+  const latestStateRef = useRef({
+    settings,
+    products,
+    customers,
+    suppliers,
+    invoices,
+    purchaseOrders,
+    bankAccounts,
+    transactions,
+    accountHeads,
+    employees,
+    attendances,
+    loanAccounts,
+  });
+
+  useEffect(() => {
+    latestStateRef.current = {
+      settings,
+      products,
+      customers,
+      suppliers,
+      invoices,
+      purchaseOrders,
+      bankAccounts,
+      transactions,
+      accountHeads,
+      employees,
+      attendances,
+      loanAccounts,
+    };
+  }, [
+    settings,
+    products,
+    customers,
+    suppliers,
+    invoices,
+    purchaseOrders,
+    bankAccounts,
+    transactions,
+    accountHeads,
+    employees,
+    attendances,
+    loanAccounts,
+  ]);
+
+  // Track if a state change was triggered by a remote Firestore subscription update
+  const isRemoteUpdateRef = useRef<Record<string, boolean>>({});
+
+  // Firestore real-time subscriptions & seed effect
   useEffect(() => {
     if (!authChecked) return;
 
@@ -307,176 +358,286 @@ export default function App() {
       return;
     }
 
-    async function loadData() {
+    let isSubscribed = true;
+    const unsubs: Unsubscribe[] = [];
+
+    async function initRealtimeSubscriptions() {
       setLoading(true);
       try {
-        // Load settings
+        // 1. Fetch settings once to check seeding status
         const settingsDocs = await fetchCollectionFromFirestore<any>('settings');
-        const appSettingsDoc = settingsDocs.find(d => d.id === 'app');
-        if (appSettingsDoc) {
-          // Remove the id field added by fetchCollectionFromFirestore to match AppSettings type
-          const { id, ...sanitizedSettings } = appSettingsDoc;
-          const mergedSettings = {
-            ...DEFAULT_SETTINGS,
-            ...sanitizedSettings,
-            // Ensure usersList is loaded if missing
-            usersList: (sanitizedSettings.usersList && sanitizedSettings.usersList.length > 0)
-              ? sanitizedSettings.usersList
-              : DEFAULT_SETTINGS.usersList
-          };
-          setSettings(mergedSettings as AppSettings);
-        } else {
-          await saveSettingsToFirestore(DEFAULT_SETTINGS);
-          setSettings(DEFAULT_SETTINGS);
-        }
+        const appSettingsDoc = settingsDocs.find((d) => d.id === 'app');
 
-        // Seed or load collections
         const isDbSeeded = appSettingsDoc?.isDbSeeded === true;
 
-        if (isDbSeeded) {
-          // Database is marked as seeded/initialized. Directly load the data without automatic seeding
-          const loadedProducts = await fetchCollectionFromFirestore<Product>('products');
-          setProducts(loadedProducts || []);
-
-          const loadedCustomers = await fetchCollectionFromFirestore<Customer>('customers');
-          setCustomers(loadedCustomers || []);
-
-          const loadedSuppliers = await fetchCollectionFromFirestore<Supplier>('suppliers');
-          setSuppliers(loadedSuppliers || []);
-
-          const loadedInvoices = await fetchCollectionFromFirestore<Invoice>('invoices');
-          setInvoices(loadedInvoices || []);
-
-          const loadedPOs = await fetchCollectionFromFirestore<PurchaseOrder>('purchaseOrders');
-          setPurchaseOrders(loadedPOs || []);
-
-          const loadedBankAccounts = await fetchCollectionFromFirestore<BankAccount>('bankAccounts');
-          setBankAccounts(loadedBankAccounts || []);
-
-          const loadedTransactions = await fetchCollectionFromFirestore<Transaction>('transactions');
-          setTransactions(loadedTransactions || []);
-
-          const loadedAccountHeads = await fetchCollectionFromFirestore<AccountHead>('accountHeads');
-          setAccountHeads(loadedAccountHeads || []);
-
-          const loadedEmployees = await fetchCollectionFromFirestore<Employee>('employees');
-          setEmployees(loadedEmployees || []);
-
-          const loadedAttendances = await fetchCollectionFromFirestore<Attendance>('attendances');
-          setAttendances(loadedAttendances || []);
-
-          const loadedLoans = await fetchCollectionFromFirestore<LoanAccount>('loanAccounts');
-          setLoanAccounts(loadedLoans || []);
-        } else {
+        if (!isDbSeeded) {
           // Brand new database, run initial seeding
-          const seededProducts = await seedCollectionIfEmpty('products', INITIAL_PRODUCTS);
-          setProducts(seededProducts || []);
+          await Promise.all([
+            seedCollectionIfEmpty('products', INITIAL_PRODUCTS),
+            seedCollectionIfEmpty('customers', INITIAL_CUSTOMERS),
+            seedCollectionIfEmpty('suppliers', INITIAL_SUPPLIERS),
+            seedCollectionIfEmpty('invoices', INITIAL_INVOICES),
+            seedCollectionIfEmpty('purchaseOrders', INITIAL_PO),
+            seedCollectionIfEmpty('bankAccounts', INITIAL_BANK_ACCOUNTS),
+            seedCollectionIfEmpty('transactions', INITIAL_TRANSACTIONS),
+            seedCollectionIfEmpty('accountHeads', INITIAL_ACCOUNT_HEADS),
+            seedCollectionIfEmpty('employees', INITIAL_EMPLOYEES),
+            seedCollectionIfEmpty('attendances', INITIAL_ATTENDANCE),
+            seedCollectionIfEmpty('loanAccounts', INITIAL_LOANS),
+          ]);
 
-          const seededCustomers = await seedCollectionIfEmpty('customers', INITIAL_CUSTOMERS);
-          setCustomers(seededCustomers || []);
-
-          const seededSuppliers = await seedCollectionIfEmpty('suppliers', INITIAL_SUPPLIERS);
-          setSuppliers(seededSuppliers || []);
-
-          const seededInvoices = await seedCollectionIfEmpty('invoices', INITIAL_INVOICES);
-          setInvoices(seededInvoices || []);
-
-          const seededPOs = await seedCollectionIfEmpty('purchaseOrders', INITIAL_PO);
-          setPurchaseOrders(seededPOs || []);
-
-          const seededBankAccounts = await seedCollectionIfEmpty('bankAccounts', INITIAL_BANK_ACCOUNTS);
-          setBankAccounts(seededBankAccounts || []);
-
-          const seededTransactions = await seedCollectionIfEmpty('transactions', INITIAL_TRANSACTIONS);
-          setTransactions(seededTransactions || []);
-
-          const seededAccountHeads = await seedCollectionIfEmpty('accountHeads', INITIAL_ACCOUNT_HEADS);
-          setAccountHeads(seededAccountHeads || []);
-
-          const seededEmployees = await seedCollectionIfEmpty('employees', INITIAL_EMPLOYEES);
-          setEmployees(seededEmployees || []);
-
-          const seededAttendances = await seedCollectionIfEmpty('attendances', INITIAL_ATTENDANCE);
-          setAttendances(seededAttendances || []);
-
-          const seededLoans = await seedCollectionIfEmpty('loanAccounts', INITIAL_LOANS);
-          setLoanAccounts(seededLoans || []);
-
-          // Save settings with isDbSeeded: true to prevent automatic re-seeding next time
           const initialSettingsWithSeed: AppSettings = {
             ...DEFAULT_SETTINGS,
-            isDbSeeded: true
+            isDbSeeded: true,
           };
           await saveSettingsToFirestore(initialSettingsWithSeed);
-          setSettings(initialSettingsWithSeed);
         }
+
+        if (!isSubscribed) return;
+
+        // 2. Subscribe to real-time updates for all 11 core collections + settings
+        unsubs.push(
+          subscribeToCollection<any>('settings', (docs) => {
+            const appSettingsDoc = docs.find((d) => d.id === 'app');
+            if (appSettingsDoc) {
+              const { id, ...sanitizedSettings } = appSettingsDoc;
+              const mergedSettings = {
+                ...DEFAULT_SETTINGS,
+                ...sanitizedSettings,
+                usersList:
+                  sanitizedSettings.usersList && sanitizedSettings.usersList.length > 0
+                    ? sanitizedSettings.usersList
+                    : DEFAULT_SETTINGS.usersList,
+              };
+              if (JSON.stringify(mergedSettings) !== JSON.stringify(latestStateRef.current.settings)) {
+                isRemoteUpdateRef.current['settings'] = true;
+                setSettings(mergedSettings as AppSettings);
+              }
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Product>('products', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.products)) {
+              isRemoteUpdateRef.current['products'] = true;
+              setProducts(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Customer>('customers', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.customers)) {
+              isRemoteUpdateRef.current['customers'] = true;
+              setCustomers(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Supplier>('suppliers', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.suppliers)) {
+              isRemoteUpdateRef.current['suppliers'] = true;
+              setSuppliers(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Invoice>('invoices', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.invoices)) {
+              isRemoteUpdateRef.current['invoices'] = true;
+              setInvoices(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<PurchaseOrder>('purchaseOrders', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.purchaseOrders)) {
+              isRemoteUpdateRef.current['purchaseOrders'] = true;
+              setPurchaseOrders(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<BankAccount>('bankAccounts', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.bankAccounts)) {
+              isRemoteUpdateRef.current['bankAccounts'] = true;
+              setBankAccounts(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Transaction>('transactions', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.transactions)) {
+              isRemoteUpdateRef.current['transactions'] = true;
+              setTransactions(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<AccountHead>('accountHeads', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.accountHeads)) {
+              isRemoteUpdateRef.current['accountHeads'] = true;
+              setAccountHeads(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Employee>('employees', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.employees)) {
+              isRemoteUpdateRef.current['employees'] = true;
+              setEmployees(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<Attendance>('attendances', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.attendances)) {
+              isRemoteUpdateRef.current['attendances'] = true;
+              setAttendances(items || []);
+            }
+          })
+        );
+
+        unsubs.push(
+          subscribeToCollection<LoanAccount>('loanAccounts', (items) => {
+            if (JSON.stringify(items || []) !== JSON.stringify(latestStateRef.current.loanAccounts)) {
+              isRemoteUpdateRef.current['loanAccounts'] = true;
+              setLoanAccounts(items || []);
+            }
+          })
+        );
       } catch (e) {
-        console.error('Error loading Firestore data on mount:', e);
+        console.error('Error initializing real-time subscriptions:', e);
       } finally {
-        setLoading(false);
+        if (isSubscribed) {
+          setLoading(false);
+        }
       }
     }
-    loadData();
+
+    initRealtimeSubscriptions();
+
+    return () => {
+      isSubscribed = false;
+      unsubs.forEach((unsub) => unsub && unsub());
+    };
   }, [currentUser, authChecked]);
 
   // Synchronize changes to Firestore when states update, AFTER initial load is done!
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['settings']) {
+      isRemoteUpdateRef.current['settings'] = false;
+      return;
+    }
     saveSettingsToFirestore(settings);
   }, [settings, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['products']) {
+      isRemoteUpdateRef.current['products'] = false;
+      return;
+    }
     syncCollectionToFirestore('products', products);
   }, [products, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['customers']) {
+      isRemoteUpdateRef.current['customers'] = false;
+      return;
+    }
     syncCollectionToFirestore('customers', customers);
   }, [customers, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['suppliers']) {
+      isRemoteUpdateRef.current['suppliers'] = false;
+      return;
+    }
     syncCollectionToFirestore('suppliers', suppliers);
   }, [suppliers, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['invoices']) {
+      isRemoteUpdateRef.current['invoices'] = false;
+      return;
+    }
     syncCollectionToFirestore('invoices', invoices);
   }, [invoices, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['purchaseOrders']) {
+      isRemoteUpdateRef.current['purchaseOrders'] = false;
+      return;
+    }
     syncCollectionToFirestore('purchaseOrders', purchaseOrders);
   }, [purchaseOrders, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['bankAccounts']) {
+      isRemoteUpdateRef.current['bankAccounts'] = false;
+      return;
+    }
     syncCollectionToFirestore('bankAccounts', bankAccounts);
   }, [bankAccounts, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['transactions']) {
+      isRemoteUpdateRef.current['transactions'] = false;
+      return;
+    }
     syncCollectionToFirestore('transactions', transactions);
   }, [transactions, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['accountHeads']) {
+      isRemoteUpdateRef.current['accountHeads'] = false;
+      return;
+    }
     syncCollectionToFirestore('accountHeads', accountHeads);
   }, [accountHeads, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['employees']) {
+      isRemoteUpdateRef.current['employees'] = false;
+      return;
+    }
     syncCollectionToFirestore('employees', employees);
   }, [employees, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['attendances']) {
+      isRemoteUpdateRef.current['attendances'] = false;
+      return;
+    }
     syncCollectionToFirestore('attendances', attendances);
   }, [attendances, loading, currentUser]);
 
   useEffect(() => {
     if (loading || !currentUser) return;
+    if (isRemoteUpdateRef.current['loanAccounts']) {
+      isRemoteUpdateRef.current['loanAccounts'] = false;
+      return;
+    }
     syncCollectionToFirestore('loanAccounts', loanAccounts);
   }, [loanAccounts, loading, currentUser]);
 

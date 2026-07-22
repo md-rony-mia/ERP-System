@@ -1,8 +1,10 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDocs, collection, writeBatch, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDocs, collection, writeBatch, deleteDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, User as FirebaseUser } from 'firebase/auth';
 import { AppSettings } from '../types';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+export type { Unsubscribe };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -147,6 +149,29 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string): P
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, collectionName);
   }
+}
+
+/**
+ * Subscribes to real-time updates for a collection in Firestore
+ */
+export function subscribeToCollection<T>(
+  collectionName: string,
+  onUpdate: (items: T[]) => void
+): Unsubscribe {
+  const colRef = collection(db, collectionName);
+  return onSnapshot(
+    colRef,
+    (querySnapshot) => {
+      const items: T[] = [];
+      querySnapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() } as T);
+      });
+      onUpdate(items);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, collectionName);
+    }
+  );
 }
 
 /**
