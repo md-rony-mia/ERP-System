@@ -106,9 +106,26 @@ const LazyLoadingFallback = () => (
 function AppContent() {
   const { windows, openWindow } = useWindowManager();
   const hasActiveUnminimizedWindow = windows.some((win) => win.isActive && !win.isMinimized);
+  const activeUnminimizedWindow = windows.find((win) => win.isActive && !win.isMinimized);
+
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [currentSubTab, setCurrentSubTab] = useState('');
   const [isVisualEditMode, setIsVisualEditMode] = useState(false);
+
+  useEffect(() => {
+    if (activeUnminimizedWindow) {
+      setCurrentTab(activeUnminimizedWindow.tab);
+      setCurrentSubTab(activeUnminimizedWindow.subTab || '');
+    } else {
+      setCurrentTab('dashboard');
+      setCurrentSubTab('');
+    }
+  }, [
+    activeUnminimizedWindow?.id,
+    activeUnminimizedWindow?.tab,
+    activeUnminimizedWindow?.subTab,
+    windows,
+  ]);
 
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
