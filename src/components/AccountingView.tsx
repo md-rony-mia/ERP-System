@@ -260,7 +260,7 @@ export default function AccountingView({
     .reduce((sum, t) => sum + t.amount, 0);
 
   const operatingExpenses = transactions
-    .filter((t) => t.type === 'Expense' && t.category !== 'Cost of Goods Sold')
+    .filter((t) => t.type === 'Expense' && t.category !== 'Cost of Goods Sold' && t.category !== 'Manufacturing Cost')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const grossProfit = totalSalesRevenue - costOfGoods;
@@ -660,7 +660,7 @@ export default function AccountingView({
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-2">
               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block font-display text-indigo-600">Other Ad-hoc Expenditures</span>
               <span className="text-lg font-bold text-slate-800 block">
-                ৳{transactions.filter(t => t.type === 'Expense' && !['Office Rent', 'Salaries'].includes(t.category)).reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                ৳{transactions.filter(t => t.type === 'Expense' && !['Office Rent', 'Salaries', 'Cost of Goods Sold', 'Manufacturing Cost'].includes(t.category)).reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
               </span>
               <span className="text-[10px] text-slate-400">Dynamically compiled from general ledger postings</span>
             </div>
@@ -681,7 +681,7 @@ export default function AccountingView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {transactions.filter(t => t.type === 'Expense').slice().reverse().map((t) => (
+                {transactions.filter(t => t.type === 'Expense' && t.category !== 'Cost of Goods Sold' && t.category !== 'Manufacturing Cost').slice().reverse().map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/30 transition-colors">
                     <td className="py-3.5 px-6 text-slate-500 font-medium">{t.date || '2026-07-06'}</td>
                     <td className="py-3.5 px-6 font-mono font-bold text-rose-600">{t.referenceNo || 'EXP-JV'}</td>
