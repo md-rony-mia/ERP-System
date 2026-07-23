@@ -46,6 +46,9 @@ import AIView from './components/AIView';
 import IntegrationView from './components/IntegrationView';
 import FixedAssetsView from './components/FixedAssetsView';
 import { navEngine } from './lib/navigationEngine';
+import { WindowManagerProvider, useWindowManager } from './context/WindowManagerContext';
+import WindowHeader from './components/WindowHeader';
+import Taskbar from './components/Taskbar';
 
 import {
   seedCollectionIfEmpty,
@@ -56,6 +59,7 @@ import {
   db,
   onAuthStateChange,
   signOutUser,
+  isFirebaseConfigured,
   Unsubscribe,
 } from './lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -99,10 +103,29 @@ const LazyLoadingFallback = () => (
   </div>
 );
 
-export default function App() {
+function AppContent() {
+  const { windows, openWindow } = useWindowManager();
+  const hasActiveUnminimizedWindow = windows.some((win) => win.isActive && !win.isMinimized);
+  const activeUnminimizedWindow = windows.find((win) => win.isActive && !win.isMinimized);
+
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [currentSubTab, setCurrentSubTab] = useState('');
   const [isVisualEditMode, setIsVisualEditMode] = useState(false);
+
+  useEffect(() => {
+    if (activeUnminimizedWindow) {
+      setCurrentTab(activeUnminimizedWindow.tab);
+      setCurrentSubTab(activeUnminimizedWindow.subTab || '');
+    } else {
+      setCurrentTab('dashboard');
+      setCurrentSubTab('');
+    }
+  }, [
+    activeUnminimizedWindow?.id,
+    activeUnminimizedWindow?.tab,
+    activeUnminimizedWindow?.subTab,
+    windows,
+  ]);
 
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -156,22 +179,43 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (fbUser) => {
       if (fbUser) {
-        try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const profile = userDocSnap.data();
-            setCurrentUser(profile);
-            localStorage.setItem('nexova_current_user', JSON.stringify(profile));
-          } else {
-            // Profile doc doesn't exist yet, we'll let Login component create it on first sign-in
+        let profileFound = false;
+        if (isFirebaseConfigured) {
+          try {
+            const userDocRef = doc(db, 'users', fbUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+              const profile = userDocSnap.data();
+              setCurrentUser(profile);
+              localStorage.setItem('nexova_current_user', JSON.stringify(profile));
+              profileFound = true;
+            }
+          } catch (err) {
+            console.warn("Firestore user profile fetch notice:", err);
           }
-        } catch (err) {
-          console.error("Error fetching user profile:", err);
+        }
+        if (!profileFound) {
+          const stored = localStorage.getItem('nexova_current_user');
+          if (stored) {
+            try {
+              setCurrentUser(JSON.parse(stored));
+            } catch (e) {
+              console.warn("Invalid local user json:", e);
+            }
+          }
         }
       } else {
-        setCurrentUser(null);
-        localStorage.removeItem('nexova_current_user');
+        const stored = localStorage.getItem('nexova_current_user');
+        if (!isFirebaseConfigured && stored) {
+          try {
+            setCurrentUser(JSON.parse(stored));
+          } catch (e) {
+            setCurrentUser(null);
+          }
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('nexova_current_user');
+        }
       }
       setAuthChecked(true);
     });
@@ -1263,6 +1307,7 @@ export default function App() {
 
     setCurrentTab(tab);
     setCurrentSubTab(subTab);
+    openWindow(tab, subTab);
     
     // Track recent navigation item visits
     const matchedItem = navEngine.getAllItems().find(item => item.tab === tab && item.subTab === subTab);
@@ -1276,6 +1321,7 @@ export default function App() {
     const { tab, subTab } = pendingNavigation;
     setCurrentTab(tab);
     setCurrentSubTab(subTab);
+    openWindow(tab, subTab);
     
     // Track recent navigation item visits
     const matchedItem = navEngine.getAllItems().find(item => item.tab === tab && item.subTab === subTab);
@@ -1354,7 +1400,7 @@ export default function App() {
           }
 
           return (
-            <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+            <main className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 pb-20">
               {/* Scheduled Backup Reminder Banner for Administrator */}
               {isBackupOverdue && (
                 <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 px-4 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 shadow-xs animate-in fade-in">
@@ -1385,7 +1431,61 @@ export default function App() {
                 </div>
               )}
 
-              {currentTab === 'dashboard' && (
+              {/* DEFAULT DESKTOP WORKSPACE (EXECUTIVE DASHBOARD) WHEN ALL WINDOWS ARE MINIMIZED */}
+              {!hasActiveUnminimizedWindow && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900/90 text-slate-100 rounded-xl border border-slate-800 shadow-sm backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="font-bold text-xs font-display text-slate-100">
+                        নেক্সোভা ডেস্কটপ (Nexova Desktop) — নির্বাহী ড্যাশবোর্ড
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        ডেস্কটপ ভিউ
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 hidden sm:inline font-mono">
+                      সব উইন্ডো মিনিমাইজড। নিচে টাস্কবার থেকে যেকোনো উইন্ডো নির্বাচন করুন।
+                    </span>
+                  </div>
+
+                  <ErrorBoundary variant="section" sectionName="Dashboard Module">
+                    <DashboardView
+                      products={products}
+                      customers={customers}
+                      invoices={invoices}
+                      suppliers={suppliers}
+                      purchaseOrders={purchaseOrders}
+                      bankAccounts={bankAccounts}
+                      loanAccounts={loanAccounts}
+                      employees={employees}
+                      transactions={transactions}
+                      attendances={attendances}
+                      onTabChange={handleTabChange}
+                      isVisualEditMode={isVisualEditMode}
+                      activeSubTab={currentSubTab}
+                      currentBranchId={currentBranchId}
+                      branches={branches}
+                    />
+                  </ErrorBoundary>
+                </div>
+              )}
+
+              {windows.map((win) => {
+                const isWinActive = win.isActive && !win.isMinimized;
+                const tabKey = win.tab;
+                const subTabKey = win.subTab || currentSubTab;
+
+                return (
+                  <div
+                    key={win.id}
+                    className={isWinActive ? "block space-y-4 animate-in fade-in duration-150" : "hidden"}
+                  >
+                    {tabKey !== 'excel-import' && (
+                      <WindowHeader id={win.id} title={win.title} iconName={win.iconName} />
+                    )}
+
+                    {tabKey === 'dashboard' && (
             <ErrorBoundary variant="section" sectionName="Dashboard Module">
               <DashboardView
                 products={products}
@@ -1407,7 +1507,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'inventory' && (
+          {tabKey === 'inventory' && (
             <ErrorBoundary variant="section" sectionName="Inventory Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <InventoryView
@@ -1415,7 +1515,7 @@ export default function App() {
                   onAddProduct={handleAddProduct}
                   onUpdateStock={handleEditStock}
                   onDeleteProduct={(id: string) => setProducts((prev) => prev.filter((p) => p.id !== id))}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                   onUpdateProducts={setProducts}
                   currentUser={currentUser}
                   invoices={invoices}
@@ -1427,7 +1527,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'sales' && (
+          {tabKey === 'sales' && (
             <ErrorBoundary variant="section" sectionName="Sales & Billing Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <SalesView
@@ -1438,7 +1538,7 @@ export default function App() {
                   onAddCustomer={handleAddCustomer}
                   onUpdateCustomers={setCustomers}
                   onRecordCollection={handleRecordCollection}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                   onSubTabChange={setCurrentSubTab}
                   settings={settings}
                   currentUser={currentUser}
@@ -1479,7 +1579,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'purchase' && (
+          {tabKey === 'purchase' && (
             <ErrorBoundary variant="section" sectionName="Purchase & Inbound Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <PurchaseView
@@ -1490,7 +1590,7 @@ export default function App() {
                   onUpdateSuppliers={setSuppliers}
                   onAddPurchaseOrder={handleAddPurchaseOrder}
                   onReceivePurchaseOrder={handleReceivePurchaseOrder}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                   onTabChange={handleTabChange}
                   currentUser={currentUser}
                   settings={settings}
@@ -1517,7 +1617,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'employee' && (
+          {tabKey === 'employee' && (
             <ErrorBoundary variant="section" sectionName="HR & Employee Management Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <EmployeeView
@@ -1525,38 +1625,38 @@ export default function App() {
                   attendances={attendances}
                   onAddEmployee={handleAddEmployee}
                   onUpdateAttendance={handleUpdateAttendance}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                 />
               </Suspense>
             </ErrorBoundary>
           )}
 
-          {currentTab === 'accounting' && (
+          {tabKey === 'accounting' && (
             <ErrorBoundary variant="section" sectionName="General Ledger & Accounting Module">
-              {currentSubTab === 'assets' ? (
-                <FixedAssetsView activeSubTab={currentSubTab} currentUser={currentUser} />
+              {subTabKey === 'assets' ? (
+                <FixedAssetsView activeSubTab={subTabKey} currentUser={currentUser} />
               ) : (
                 <AccountingView
                   accountHeads={accountHeads}
                   transactions={transactions}
                   bankAccounts={bankAccounts}
                   onLogTransaction={handleLogTransaction}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                   settings={settings}
                 />
               )}
             </ErrorBoundary>
           )}
 
-          {(currentTab === 'banking' || currentTab === 'loan' || currentTab === 'settings') && (
+          {(tabKey === 'banking' || tabKey === 'loan' || tabKey === 'settings') && (
             <ErrorBoundary variant="section" sectionName="Banking, Loans & Settings Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <BankingAndLoanView
                   bankAccounts={bankAccounts}
                   loanAccounts={loanAccounts}
                   transactions={transactions}
-                  currentTab={currentTab as 'banking' | 'loan' | 'settings'}
-                  activeSubTab={currentSubTab}
+                  currentTab={tabKey as 'banking' | 'loan' | 'settings'}
+                  activeSubTab={subTabKey}
                   onAddBankAccount={handleAddBankAccount}
                   onAddLoan={handleAddLoan}
                   settings={settings}
@@ -1582,7 +1682,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'reports' && (
+          {tabKey === 'reports' && (
             <ErrorBoundary variant="section" sectionName="Standard PDF & Ledger Reports Module">
               <Suspense fallback={<LazyLoadingFallback />}>
                 <ReportsView
@@ -1595,7 +1695,7 @@ export default function App() {
                   transactions={transactions}
                   accountHeads={accountHeads}
                   employees={employees}
-                  activeSubTab={currentSubTab}
+                  activeSubTab={subTabKey}
                   currentUser={currentUser}
                   onUpdateInvoices={setInvoices}
                   onUpdateTransactions={setTransactions}
@@ -1607,7 +1707,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'gridReport' && (
+          {tabKey === 'gridReport' && (
             <ErrorBoundary variant="section" sectionName="Dynamic Custom Grid Reports Module">
               <GridReportView
                 products={products}
@@ -1621,12 +1721,12 @@ export default function App() {
                 onUpdateSuppliers={setSuppliers}
                 onUpdateTransactions={setTransactions}
                 isVisualEditMode={isVisualEditMode}
-                currentSubTab={currentSubTab}
+                currentSubTab={subTabKey}
               />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'rdlReport' && (
+          {tabKey === 'rdlReport' && (
             <ErrorBoundary variant="section" sectionName="RDL Template Report Builder Module">
               <RdlReportView
                 products={products}
@@ -1635,51 +1735,51 @@ export default function App() {
                 invoices={invoices}
                 transactions={transactions}
                 isVisualEditMode={isVisualEditMode}
-                currentSubTab={currentSubTab}
+                currentSubTab={subTabKey}
               />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'crm' && (
+          {tabKey === 'crm' && (
             <ErrorBoundary variant="section" sectionName="CRM & Leads Module">
-              <CRMView activeSubTab={currentSubTab} currentUser={currentUser} />
+              <CRMView activeSubTab={subTabKey} currentUser={currentUser} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'projects' && (
+          {tabKey === 'projects' && (
             <ErrorBoundary variant="section" sectionName="Projects & Timesheets Module">
-              <ProjectsView activeSubTab={currentSubTab} currentUser={currentUser} />
+              <ProjectsView activeSubTab={subTabKey} currentUser={currentUser} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'manufacturing' && (
+          {tabKey === 'manufacturing' && (
             <ErrorBoundary variant="section" sectionName="Manufacturing Production Module">
-              <ManufacturingView activeSubTab={currentSubTab} currentUser={currentUser} />
+              <ManufacturingView activeSubTab={subTabKey} currentUser={currentUser} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'service' && (
+          {tabKey === 'service' && (
             <ErrorBoundary variant="section" sectionName="Service Tickets & Helpdesk Module">
-              <ServiceView activeSubTab={currentSubTab} currentUser={currentUser} />
+              <ServiceView activeSubTab={subTabKey} currentUser={currentUser} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'documents' && (
+          {tabKey === 'documents' && (
             <ErrorBoundary variant="section" sectionName="Document Repository & Contracts Module">
-              <DocumentsView activeSubTab={currentSubTab} />
+              <DocumentsView activeSubTab={subTabKey} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'workflow' && (
+          {tabKey === 'workflow' && (
             <ErrorBoundary variant="section" sectionName="Business Workflow Approval Engine">
-              <WorkflowView activeSubTab={currentSubTab} />
+              <WorkflowView activeSubTab={subTabKey} />
             </ErrorBoundary>
           )}
 
-          {currentTab === 'ai' && (
+          {tabKey === 'ai' && (
             <ErrorBoundary variant="section" sectionName="Gemini AI Assistant Module">
               <AIView
-                activeSubTab={currentSubTab}
+                activeSubTab={subTabKey}
                 settings={settings}
                 products={products}
                 customers={customers}
@@ -1693,15 +1793,15 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {currentTab === 'integration' && (
+          {tabKey === 'integration' && (
             <ErrorBoundary variant="section" sectionName="Third-Party Integration Engine">
-              <IntegrationView activeSubTab={currentSubTab} />
+              <IntegrationView activeSubTab={subTabKey} />
             </ErrorBoundary>
           )}
 
           {/* Quick empty fallback screen for other secondary/reports links to prevent app crashes */}
           {!['dashboard', 'inventory', 'sales', 'purchase', 'employee', 'accounting', 'banking', 'loan', 'settings', 'reports', 'gridReport', 'rdlReport', 'crm', 'projects', 'manufacturing', 'service', 'documents', 'workflow', 'ai', 'integration'].includes(
-            currentTab
+            tabKey
           ) && (
             <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-sm">
               <span className="text-4xl">📊</span>
@@ -1719,10 +1819,16 @@ export default function App() {
               </button>
             </div>
           )}
-        </main>
+                  </div>
+                );
+              })}
+            </main>
       );
     })()}
       </div>
+
+      {/* Taskbar OS-style dock */}
+      <Taskbar currentUser={currentUser} />
     </div>
 
     {/* Beautiful Global Neo-brutalist Alert Modal */}
@@ -1824,5 +1930,13 @@ export default function App() {
     )}
 
     </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <WindowManagerProvider>
+      <AppContent />
+    </WindowManagerProvider>
   );
 }

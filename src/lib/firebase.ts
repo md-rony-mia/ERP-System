@@ -5,40 +5,117 @@ import { AppSettings } from '../types';
 
 export type { Unsubscribe };
 
+const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+
+export const isFirebaseConfigured = typeof rawApiKey === 'string' &&
+  rawApiKey.trim().length > 0 &&
+  !rawApiKey.includes('MY_FIREBASE_API_KEY');
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  apiKey: isFirebaseConfigured ? rawApiKey : 'AIzaSyDummyKeyForLocalDevelopmentOnly1234',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
   firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase safely
+const apps = getApps();
+const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
 
-// Initialize Firestore with custom databaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+// Initialize Firestore with custom databaseId safely
+let firestoreInstance: ReturnType<typeof getFirestore>;
+try {
+  firestoreInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+} catch (e) {
+  console.warn("Firestore initialization notice:", e);
+  firestoreInstance = {} as any;
+}
+export const db = firestoreInstance;
+
+// Initialize Auth safely
+let authInstance: ReturnType<typeof getAuth>;
+try {
+  authInstance = getAuth(app);
+} catch (e) {
+  console.warn("Firebase Auth initialization notice:", e);
+  authInstance = { currentUser: null } as any;
+}
+export const auth = authInstance;
 
 export function signIn(email: string, password: string) {
+  if (!isFirebaseConfigured) {
+    const mockUid = 'demo-user-' + (email ? Math.abs(email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) : '1');
+    return Promise.resolve({
+      user: {
+        uid: mockUid,
+        email: email || 'admin@nexova.com',
+        displayName: (email ? email.split('@')[0] : 'Admin'),
+        emailVerified: true,
+      }
+    } as any);
+  }
   return signInWithEmailAndPassword(auth, email, password);
 }
 
 export function signOutUser() {
-  return signOut(auth);
+  if (!isFirebaseConfigured) {
+    return Promise.resolve();
+  }
+  try {
+    return signOut(auth);
+  } catch (err) {
+    console.warn("Sign out warning:", err);
+    return Promise.resolve();
+  }
 }
 
 export function onAuthStateChange(callback: (user: FirebaseUser | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  if (!isFirebaseConfigured) {
+    const stored = localStorage.getItem('nexova_current_user');
+    if (stored) {
+      try {
+        const u = JSON.parse(stored);
+        callback({
+          uid: u.uid || 'demo-user-1',
+          email: u.email || 'admin@nexova.com',
+          displayName: u.name || 'Admin',
+        } as any);
+      } catch (e) {
+        callback(null);
+      }
+    } else {
+      callback(null);
+    }
+    return () => {};
+  }
+  try {
+    return onAuthStateChanged(
+      auth,
+      (user) => callback(user),
+      (error) => {
+        console.warn("Firebase auth state change error:", error);
+        callback(null);
+      }
+    );
+  } catch (err) {
+    console.warn("Firebase auth subscription failed:", err);
+    callback(null);
+    return () => {};
+  }
 }
 
 export async function createNewUserWithSecondaryApp(email: string, password: string, name: string, role: string, username: string) {
+  if (!isFirebaseConfigured) {
+    const mockUid = 'user-' + Date.now();
+    return { uid: mockUid, email, name, role };
+  }
   let secondaryApp;
   const secondaryAppName = "SecondaryAppForUserCreation";
-  const apps = getApps();
-  const existingApp = apps.find(a => a.name === secondaryAppName);
+  const existingApps = getApps();
+  const existingApp = existingApps.find(a => a.name === secondaryAppName);
   if (existingApp) {
     secondaryApp = existingApp;
   } else {
@@ -124,11 +201,20 @@ export async function saveDocToFirestore<T extends { id: string }>(
   collectionName: string,
   data: T
 ) {
+  if (!isFirebaseConfigured) {
+    try {
+      localStorage.setItem(`nexova_doc_${collectionName}_${data.id}`, JSON.stringify(data));
+    } catch (e) {}
+    return;
+  }
   try {
     const docRef = doc(db, collectionName, data.id);
     await setDoc(docRef, data);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${collectionName}/${data.id}`);
+    console.warn(`Firestore saveDoc error for [${collectionName}/${data.id}]:`, error);
+    try {
+      localStorage.setItem(`nexova_doc_${collectionName}_${data.id}`, JSON.stringify(data));
+    } catch (e) {}
   }
 }
 
@@ -136,11 +222,20 @@ export async function saveDocToFirestore<T extends { id: string }>(
  * Saves settings to a single document 'app' in settings collection
  */
 export async function saveSettingsToFirestore(settings: AppSettings) {
+  if (!isFirebaseConfigured) {
+    try {
+      localStorage.setItem('nexova_app_settings', JSON.stringify(settings));
+    } catch (e) {}
+    return;
+  }
   try {
     const docRef = doc(db, 'settings', 'app');
     await setDoc(docRef, settings);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'settings/app');
+    console.warn('Firestore saveSettings error:', error);
+    try {
+      localStorage.setItem('nexova_app_settings', JSON.stringify(settings));
+    } catch (e) {}
   }
 }
 
@@ -148,6 +243,15 @@ export async function saveSettingsToFirestore(settings: AppSettings) {
  * Fetches all documents from a collection
  */
 export async function fetchCollectionFromFirestore<T>(collectionName: string): Promise<T[]> {
+  if (!isFirebaseConfigured) {
+    const stored = localStorage.getItem(`nexova_col_${collectionName}`);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {}
+    }
+    return [];
+  }
   try {
     const querySnapshot = await getDocs(collection(db, collectionName));
     const items: T[] = [];
@@ -157,6 +261,12 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string): P
     return items;
   } catch (error) {
     console.warn(`Firestore fetch for [${collectionName}] encountered error:`, error);
+    const stored = localStorage.getItem(`nexova_col_${collectionName}`);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {}
+    }
     return [];
   }
 }
@@ -168,20 +278,40 @@ export function subscribeToCollection<T>(
   collectionName: string,
   onUpdate: (items: T[]) => void
 ): Unsubscribe {
-  const colRef = collection(db, collectionName);
-  return onSnapshot(
-    colRef,
-    (querySnapshot) => {
-      const items: T[] = [];
-      querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as T);
-      });
-      onUpdate(items);
-    },
-    (error) => {
-      console.warn(`Firestore subscription notice for [${collectionName}]:`, error);
+  if (!isFirebaseConfigured) {
+    const stored = localStorage.getItem(`nexova_col_${collectionName}`);
+    if (stored) {
+      try {
+        onUpdate(JSON.parse(stored));
+      } catch (e) {}
     }
-  );
+    return () => {};
+  }
+  try {
+    const colRef = collection(db, collectionName);
+    return onSnapshot(
+      colRef,
+      (querySnapshot) => {
+        const items: T[] = [];
+        querySnapshot.forEach((doc) => {
+          items.push({ id: doc.id, ...doc.data() } as T);
+        });
+        onUpdate(items);
+      },
+      (error) => {
+        console.warn(`Firestore subscription notice for [${collectionName}]:`, error);
+        const stored = localStorage.getItem(`nexova_col_${collectionName}`);
+        if (stored) {
+          try {
+            onUpdate(JSON.parse(stored));
+          } catch (e) {}
+        }
+      }
+    );
+  } catch (err) {
+    console.warn(`Firestore subscribe catch notice for [${collectionName}]:`, err);
+    return () => {};
+  }
 }
 
 /**
@@ -191,6 +321,19 @@ export async function seedCollectionIfEmpty<T extends { id: string }>(
   collectionName: string,
   initialData: T[]
 ): Promise<T[]> {
+  if (!isFirebaseConfigured) {
+    const stored = localStorage.getItem(`nexova_col_${collectionName}`);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    try {
+      localStorage.setItem(`nexova_col_${collectionName}`, JSON.stringify(initialData));
+    } catch (e) {}
+    return initialData;
+  }
   try {
     const existing = await fetchCollectionFromFirestore<T>(collectionName);
     if (existing && existing.length > 0) {
@@ -207,6 +350,9 @@ export async function seedCollectionIfEmpty<T extends { id: string }>(
     return initialData;
   } catch (error) {
     console.warn(`Firestore seed for [${collectionName}] encountered error:`, error);
+    try {
+      localStorage.setItem(`nexova_col_${collectionName}`, JSON.stringify(initialData));
+    } catch (e) {}
     return initialData;
   }
 }
@@ -218,6 +364,14 @@ export async function syncCollectionToFirestore<T extends { id: string }>(
   collectionName: string,
   currentItems: T[]
 ) {
+  try {
+    localStorage.setItem(`nexova_col_${collectionName}`, JSON.stringify(currentItems));
+  } catch (e) {}
+
+  if (!isFirebaseConfigured) {
+    return;
+  }
+
   try {
     // 1. Fetch current IDs in Firestore
     const querySnapshot = await getDocs(collection(db, collectionName));
@@ -239,7 +393,7 @@ export async function syncCollectionToFirestore<T extends { id: string }>(
       await deleteDoc(docRef);
     }
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, collectionName);
+    console.warn(`Firestore sync error for [${collectionName}]:`, error);
   }
 }
 

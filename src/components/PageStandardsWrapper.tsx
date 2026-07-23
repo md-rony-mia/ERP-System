@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShieldAlert, AlertTriangle, Inbox, RefreshCw, Clock, ArrowLeft, ArrowUpRight, Copy } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Inbox, RefreshCw, Clock, ArrowLeft, ArrowUpRight, Copy, Minus } from 'lucide-react';
+import { useWindowManager } from '../context/WindowManagerContext';
 
 interface PageStandardsWrapperProps {
   title: string;
@@ -42,7 +43,16 @@ export default function PageStandardsWrapper({
   onBack,
   children,
 }: PageStandardsWrapperProps) {
-  
+  let minimizeWindow: ((id: string) => void) | undefined;
+  let activeWindowId: string | null = null;
+  try {
+    const wm = useWindowManager();
+    minimizeWindow = wm.minimizeWindow;
+    activeWindowId = wm.activeWindowId;
+  } catch (e) {
+    // WindowManager optional fallback
+  }
+
   // 1. PERMISSION CHECK GATE
   const hasPermission = React.useMemo(() => {
     if (!permissionRoles || !currentUser?.role) return true;
@@ -151,12 +161,21 @@ export default function PageStandardsWrapper({
           </div>
         </div>
 
-        {/* Dynamic Action Toolbar */}
-        {actionToolbar && (
-          <div className="flex flex-wrap items-center gap-2">
-            {actionToolbar}
-          </div>
-        )}
+        {/* Dynamic Action Toolbar & Window Minimize Control */}
+        <div className="flex flex-wrap items-center gap-2">
+          {actionToolbar}
+          {minimizeWindow && activeWindowId && (
+            <button
+              onClick={() => minimizeWindow && activeWindowId && minimizeWindow(activeWindowId)}
+              type="button"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors border border-slate-200/80 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+              title="মিনিমাইজ করুন (Minimize to Taskbar)"
+            >
+              <Minus className="h-3.5 w-3.5 text-amber-600" />
+              <span className="hidden sm:inline">মিনিমাইজ</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 5. LOADING SKELETON LOADER */}

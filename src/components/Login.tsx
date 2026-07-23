@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Lock, LogIn, AlertCircle, Info, Loader2 } from 'lucide-react';
 import { AppSettings } from '../types';
-import { db, signIn, signOutUser } from '../lib/firebase';
+import { db, signIn, signOutUser, isFirebaseConfigured } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface LoginProps {
@@ -58,25 +58,47 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
       const userCredential = await signIn(emailToAuth, password);
       const fbUser = userCredential.user;
 
-      // Fetch or create user profile in Firestore
-      const userDocRef = doc(db, 'users', fbUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
       let profileData;
-      if (!userDocSnap.exists()) {
+      if (isFirebaseConfigured) {
+        try {
+          const userDocRef = doc(db, 'users', fbUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            profileData = userDocSnap.data();
+          } else {
+            const matchedUser = actualUsersList.find(
+              (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase() || u.username.toLowerCase() === identifier.toLowerCase()
+            );
+            profileData = {
+              uid: fbUser.uid,
+              name: matchedUser ? matchedUser.name : (fbUser.displayName || fbUser.email?.split('@')[0] || 'Unknown User'),
+              email: fbUser.email || '',
+              role: matchedUser ? matchedUser.role : 'Administrator',
+              status: matchedUser ? matchedUser.status : 'Active'
+            };
+            try {
+              await setDoc(userDocRef, profileData);
+            } catch (err) {
+              console.warn("Could not save user profile to firestore:", err);
+            }
+          }
+        } catch (err) {
+          console.warn("Firestore profile fetch failed, falling back to local user match:", err);
+        }
+      }
+
+      if (!profileData) {
         const matchedUser = actualUsersList.find(
-          (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase()
-        );
+          (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase() || u.username.toLowerCase() === identifier.toLowerCase()
+        ) || actualUsersList[0];
         profileData = {
-          uid: fbUser.uid,
-          name: matchedUser ? matchedUser.name : (fbUser.displayName || fbUser.email?.split('@')[0] || 'Unknown User'),
-          email: fbUser.email || '',
-          role: matchedUser ? matchedUser.role : 'Sales Agent',
-          status: matchedUser ? matchedUser.status : 'Active'
+          uid: fbUser.uid || 'demo-user-1',
+          name: matchedUser ? matchedUser.name : 'Rony Mia',
+          email: matchedUser ? matchedUser.email : (fbUser.email || 'ronymia2022@gmail.com'),
+          role: matchedUser ? matchedUser.role : 'Administrator',
+          status: 'Active'
         };
-        await setDoc(userDocRef, profileData);
-      } else {
-        profileData = userDocSnap.data();
       }
 
       if (profileData.status !== 'Active') {
@@ -97,6 +119,8 @@ export default function Login({ settings, onLoginSuccess }: LoginProps) {
         errMsg = 'Network error. Please check your internet connection. / নেটওয়ার্ক ত্রুটি। অনুগ্রহ করে আপনার ইন্টারনেট সংযোগটি পরীক্ষা করুন।';
       } else if (err.code === 'auth/too-many-requests') {
         errMsg = 'Access temporarily disabled due to many failed login attempts. / অতিরিক্ত ভুল চেষ্টার কারণে অ্যাকাউন্টটি সাময়িকভাবে লক করা হয়েছে।';
+      } else if (err.code === 'auth/invalid-api-key' || (err.message && err.message.includes('invalid-api-key'))) {
+        errMsg = 'Firebase API Key is missing or invalid. Please configure your Firebase credentials in environment. / ফায়ারবেস এপিআই কী কনফিগার করা নেই।';
       } else if (err.message && err.message.includes('permission-denied')) {
         errMsg = 'Access denied. Please check your user permissions in Firestore. / প্রবেশাধিকার প্রত্যাখ্যাত। অনুগ্রহ করে ফায়ারস্টোর পারমিশন চেক করুন।';
       }

@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Upload, Download, CheckCircle, AlertTriangle, AlertCircle, 
-  HelpCircle, ChevronRight, RefreshCw, FileText, Check, ArrowRight 
+  HelpCircle, ChevronRight, RefreshCw, FileText, Check, ArrowRight, Minus 
 } from 'lucide-react';
 import { 
   validateRequired, 
@@ -11,6 +11,7 @@ import {
   validateEmail, 
   validatePhone 
 } from '../lib/validation';
+import { useWindowManager } from '../context/WindowManagerContext';
 
 export interface FieldSchema {
   key: string;
@@ -58,6 +59,17 @@ export default function ExcelImportModal({
   const [isSaving, setIsSaving] = useState(false);
   const [summary, setSummary] = useState({ success: 0, skipped: 0, errorsCount: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { openWindow, windows, minimizeWindow, closeWindow } = useWindowManager();
+
+  useEffect(() => {
+    if (isOpen) {
+      openWindow('excel-import', collectionNameEn, `এক্সেল ইমপোর্ট — ${collectionNameBn}`, 'FileSpreadsheet');
+    }
+  }, [isOpen, collectionNameEn, collectionNameBn]);
+
+  const modalWin = windows.find((w) => w.tab === 'excel-import');
+  const isMinimized = modalWin?.isMinimized;
 
   if (!isOpen) return null;
 
@@ -335,25 +347,43 @@ export default function ExcelImportModal({
   const conflictRows = parsedRows.filter(r => r.isValid && r.isDuplicate);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 ${
+      isMinimized ? 'hidden' : 'block'
+    }`}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-slate-100">
         
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">
-              Bulk Excel / CSV Import — {collectionNameEn}
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <span>Bulk Excel / CSV Import — {collectionNameEn}</span>
+              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full font-mono">
+                {collectionNameBn}
+              </span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              বাল্ক এক্সেল / সিএসভি ইমপোর্ট — {collectionNameBn}
+            <p className="text-xs text-slate-400 mt-0.5">
+              মিনিমাইজ করে টাস্কবারে রেখে অন্য পেজে কাজ করতে পারেন
             </p>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={() => minimizeWindow('excel-import')}
+              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
+              title="মিনিমাইজ করুন (Minimize to Taskbar)"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <button 
+              onClick={() => {
+                closeWindow('excel-import');
+                onClose();
+              }}
+              className="p-1.5 hover:bg-rose-600 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="বন্ধ করুন"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body / Steps */}
