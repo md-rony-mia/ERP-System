@@ -878,7 +878,14 @@ function AppContent() {
       })
     );
 
-    // 3. Add to accounts / transactions depending on payment method
+    // 3. Calculate COGS for sold items
+    const totalCOGS = newInvoice.items.reduce((sum, item) => {
+      const prod = products.find((p) => p.id === item.productId);
+      const unitCost = prod ? prod.cost : item.price * 0.7;
+      return sum + unitCost * (item.quantity || 1);
+    }, 0);
+
+    // 4. Add to accounts / transactions depending on payment method
     if (newInvoice.paymentMethod === 'Credit') {
       // Add outstanding credit to customer
       setCustomers((prev) =>
@@ -889,7 +896,7 @@ function AppContent() {
         )
       );
 
-      // Log transaction as Deposit but with pending payment method indicator
+      // Log transaction for sales income
       const newTx: Transaction = {
         id: `tx_dynamic_${Date.now()}`,
         date: newInvoice.date,
@@ -900,18 +907,38 @@ function AppContent() {
         category: 'Sales Income',
         referenceNo: newInvoice.invoiceNo,
       };
-      setTransactions((prev) => [...prev, newTx]);
 
-      // Update Chart of accounts
+      const cogsTx: Transaction = {
+        id: `tx_cogs_${Date.now()}`,
+        date: newInvoice.date,
+        description: `Cost of Goods Sold for invoice ${newInvoice.invoiceNo}`,
+        type: 'Expense',
+        amount: totalCOGS,
+        accountId: 'b1',
+        category: 'Cost of Goods Sold',
+        referenceNo: newInvoice.invoiceNo,
+      };
+
+      setTransactions((prev) => [...prev, newTx, ...(totalCOGS > 0 ? [cogsTx] : [])]);
+
+      // Update Chart of accounts (Accounts Receivable, Revenue, COGS, Inventory Asset)
       setAccountHeads((prev) =>
         prev.map((ah) => {
           if (ah.code === '1030') {
-            // Accounts Receivable increases
+            // Accounts Receivable increases (Debit)
             return { ...ah, balance: ah.balance + newInvoice.total };
           }
           if (ah.code === '4010') {
-            // Sales Revenue increases
+            // Sales Revenue increases (Credit)
             return { ...ah, balance: ah.balance + newInvoice.total };
+          }
+          if (ah.code === '5010') {
+            // Cost of Goods Sold increases (Debit)
+            return { ...ah, balance: ah.balance + totalCOGS };
+          }
+          if (ah.code === '1040') {
+            // Merchandise Inventory decreases (Credit)
+            return { ...ah, balance: Math.max(0, ah.balance - totalCOGS) };
           }
           return ah;
         })
@@ -935,18 +962,38 @@ function AppContent() {
         category: 'Sales Income',
         referenceNo: newInvoice.invoiceNo,
       };
-      setTransactions((prev) => [...prev, newTx]);
 
-      // Update Chart of accounts
+      const cogsTx: Transaction = {
+        id: `tx_cogs_${Date.now()}`,
+        date: newInvoice.date,
+        description: `Cost of Goods Sold for invoice ${newInvoice.invoiceNo}`,
+        type: 'Expense',
+        amount: totalCOGS,
+        accountId: 'b1',
+        category: 'Cost of Goods Sold',
+        referenceNo: newInvoice.invoiceNo,
+      };
+
+      setTransactions((prev) => [...prev, newTx, ...(totalCOGS > 0 ? [cogsTx] : [])]);
+
+      // Update Chart of accounts (Cash, Revenue, COGS, Inventory Asset)
       setAccountHeads((prev) =>
         prev.map((ah) => {
           if (ah.code === '1010') {
-            // Cash in Hand increases
+            // Cash in Hand increases (Debit)
             return { ...ah, balance: ah.balance + newInvoice.total };
           }
           if (ah.code === '4010') {
-            // Sales Revenue increases
+            // Sales Revenue increases (Credit)
             return { ...ah, balance: ah.balance + newInvoice.total };
+          }
+          if (ah.code === '5010') {
+            // Cost of Goods Sold increases (Debit)
+            return { ...ah, balance: ah.balance + totalCOGS };
+          }
+          if (ah.code === '1040') {
+            // Merchandise Inventory decreases (Credit)
+            return { ...ah, balance: Math.max(0, ah.balance - totalCOGS) };
           }
           return ah;
         })
@@ -1012,28 +1059,28 @@ function AppContent() {
       )
     );
 
-    // 4. Log Cost transaction ledger
+    // 4. Log Inventory asset replenishment transaction ledger (NOT Cost of Goods Sold!)
     const newTx: Transaction = {
       id: `tx_dynamic_${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
-      description: `Replenished product inventory matching PO ${po.poNo}`,
-      type: 'Withdrawal',
+      description: `Replenished merchandise inventory matching PO ${po.poNo}`,
+      type: 'Deposit',
       amount: po.total,
       accountId: 'b1',
-      category: 'Cost of Goods Sold',
+      category: 'Inventory',
       referenceNo: po.poNo,
     };
     setTransactions((prev) => [...prev, newTx]);
 
-    // 5. Update chart of accounts (Accounts Payable and Cost of Goods Sold)
+    // 5. Update chart of accounts (Accounts Payable increases & Merchandise Inventory Asset increases)
     setAccountHeads((prev) =>
       prev.map((ah) => {
         if (ah.code === '2010') {
-          // Accounts Payable increases
+          // Accounts Payable increases (Credit Liability)
           return { ...ah, balance: ah.balance + po.total };
         }
-        if (ah.code === '5010') {
-          // Cost of Goods Sold increases
+        if (ah.code === '1040') {
+          // Merchandise Inventory increases (Debit Asset)
           return { ...ah, balance: ah.balance + po.total };
         }
         return ah;
