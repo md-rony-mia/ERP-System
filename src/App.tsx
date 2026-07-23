@@ -1844,7 +1844,16 @@ function AppContent() {
 
           {tabKey === 'manufacturing' && (
             <ErrorBoundary variant="section" sectionName="Manufacturing Production Module">
-              <ManufacturingView activeSubTab={subTabKey} currentUser={currentUser} />
+              <ManufacturingView
+                activeSubTab={subTabKey}
+                currentUser={currentUser}
+                products={products}
+                setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                accountHeads={accountHeads}
+                setAccountHeads={setAccountHeads}
+              />
             </ErrorBoundary>
           )}
 
