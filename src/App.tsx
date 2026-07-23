@@ -33,6 +33,7 @@ const BankingAndLoanView = lazyWithRetry(() => import('./components/BankingAndLo
 const ReportsView = lazyWithRetry(() => import('./components/ReportsView'));
 
 import AccountingView from './components/AccountingView';
+import { getUnitCostForSale, consumeBatchesForSale, DEFAULT_BATCHES } from './lib/inventoryCosting';
 import GridReportView from './components/GridReportView';
 import RdlReportView from './components/RdlReportView';
 import Login from './components/Login';
@@ -878,12 +879,54 @@ function AppContent() {
       })
     );
 
-    // 3. Calculate COGS for sold items
-    const totalCOGS = newInvoice.items.reduce((sum, item) => {
+    // 3. Calculate COGS for sold items using selected valuation method & batch tracking
+    const valuationMethod = localStorage.getItem('nexova_valuation_method') || 'WAC';
+
+    let currentBatches: any[] = [];
+    try {
+      const savedBatches = localStorage.getItem('nexova_batches');
+      if (savedBatches) {
+        currentBatches = JSON.parse(savedBatches);
+      }
+    } catch (e) {
+      console.error('Error reading nexova_batches', e);
+    }
+    if (!currentBatches || currentBatches.length === 0) {
+      currentBatches = DEFAULT_BATCHES;
+    }
+
+    let updatedBatches = [...currentBatches];
+    let totalCOGS = 0;
+
+    for (const item of newInvoice.items) {
       const prod = products.find((p) => p.id === item.productId);
-      const unitCost = prod ? prod.cost : item.price * 0.7;
-      return sum + unitCost * (item.quantity || 1);
-    }, 0);
+      const qtySold = item.quantity || 1;
+      const productObj = prod || { cost: item.price * 0.7 };
+
+      // Calculate sale unit cost according to valuationMethod
+      const unitCost = getUnitCostForSale(
+        item.productId,
+        qtySold,
+        valuationMethod,
+        updatedBatches,
+        productObj
+      );
+      totalCOGS += unitCost * qtySold;
+
+      // Consume batches and update batch tracking
+      const res = consumeBatchesForSale(
+        item.productId,
+        qtySold,
+        valuationMethod,
+        updatedBatches,
+        productObj
+      );
+      updatedBatches = res.updatedBatches;
+    }
+
+    // Save updated batches to localStorage & notify components
+    localStorage.setItem('nexova_batches', JSON.stringify(updatedBatches));
+    window.dispatchEvent(new Event('nexova_batches_updated'));
 
     // 4. Add to accounts / transactions depending on payment method
     if (newInvoice.paymentMethod === 'Credit') {
@@ -1801,7 +1844,16 @@ function AppContent() {
 
           {tabKey === 'manufacturing' && (
             <ErrorBoundary variant="section" sectionName="Manufacturing Production Module">
-              <ManufacturingView activeSubTab={subTabKey} currentUser={currentUser} />
+              <ManufacturingView
+                activeSubTab={subTabKey}
+                currentUser={currentUser}
+                products={products}
+                setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                accountHeads={accountHeads}
+                setAccountHeads={setAccountHeads}
+              />
             </ErrorBoundary>
           )}
 

@@ -21,6 +21,7 @@ import {
 
 import PageStandardsWrapper from './PageStandardsWrapper';
 import { seedCollectionIfEmpty, syncCollectionToFirestore } from '../lib/firebase';
+import { Product, Transaction, AccountHead } from '../types';
 
 interface ManufacturingViewProps {
   activeSubTab?: string;
@@ -29,6 +30,12 @@ interface ManufacturingViewProps {
     role?: string;
     email?: string;
   };
+  products?: Product[];
+  setProducts?: React.Dispatch<React.SetStateAction<Product[]>>;
+  transactions?: Transaction[];
+  setTransactions?: React.Dispatch<React.SetStateAction<Transaction[]>>;
+  accountHeads?: AccountHead[];
+  setAccountHeads?: React.Dispatch<React.SetStateAction<AccountHead[]>>;
 }
 
 interface BOMItem {
@@ -129,7 +136,16 @@ const DEFAULT_QUALITY_INSPECTIONS: QualityInspection[] = [
   }
 ];
 
-export default function ManufacturingView({ activeSubTab = 'bom', currentUser }: ManufacturingViewProps) {
+export default function ManufacturingView({
+  activeSubTab = 'bom',
+  currentUser,
+  products = [],
+  setProducts,
+  transactions = [],
+  setTransactions,
+  accountHeads = [],
+  setAccountHeads
+}: ManufacturingViewProps) {
   const currentTab = ['bom', 'routing', 'production', 'mrp', 'quality'].includes(activeSubTab)
     ? activeSubTab
     : 'bom';
@@ -337,12 +353,141 @@ export default function ManufacturingView({ activeSubTab = 'bom', currentUser }:
   };
 
   const handleCompleteOrder = (id: string) => {
-    setProductionOrders(productionOrders.map(p => {
-      if (p.id === id) {
-        return { ...p, status: 'Completed' as const };
-      }
-      return p;
-    }));
+    const orderToComplete = productionOrders.find((p) => p.id === id);
+    if (!orderToComplete || orderToComplete.status === 'Completed') return;
+
+    const bom =
+      boms.find((b) => b.id === orderToComplete.bomId) ||
+      boms.find(
+        (b) =>
+          b.productName.toLowerCase().includes(orderToComplete.productName.toLowerCase()) ||
+          orderToComplete.productName.toLowerCase().includes(b.productName.toLowerCase())
+      );
+
+    const qtyToProduce = orderToComplete.quantityToProduce || 1;
+    let totalProductionCost = 0;
+
+    // 1. Update stock for raw materials (decrease) & finished goods (increase)
+    if (setProducts) {
+      setProducts((prevProducts) => {
+        const updated = [...prevProducts];
+
+        // Process raw materials from BOM
+        if (bom && bom.rawMaterials) {
+          bom.rawMaterials.forEach((rm) => {
+            const requiredQty = rm.qty * qtyToProduce;
+            const rmIdx = updated.findIndex(
+              (p) =>
+                p.name.toLowerCase().includes(rm.name.toLowerCase()) ||
+                rm.name.toLowerCase().includes(p.name.toLowerCase())
+            );
+
+            if (rmIdx !== -1) {
+              const rawMat = updated[rmIdx];
+              const matCost = rawMat.cost || 0;
+              totalProductionCost += matCost * requiredQty;
+              updated[rmIdx] = {
+                ...rawMat,
+                stock: Math.max(0, rawMat.stock - requiredQty),
+              };
+            } else {
+              totalProductionCost +=
+                (bom.estimatedCost / Math.max(1, bom.rawMaterials.length)) * requiredQty;
+            }
+          });
+        }
+
+        if (totalProductionCost === 0 && bom) {
+          totalProductionCost = bom.estimatedCost * qtyToProduce;
+        } else if (totalProductionCost === 0) {
+          totalProductionCost = 5000 * qtyToProduce;
+        }
+
+        // Process Finished Goods product
+        const fgIdx = updated.findIndex(
+          (p) =>
+            p.name.toLowerCase().includes(orderToComplete.productName.toLowerCase()) ||
+            orderToComplete.productName.toLowerCase().includes(p.name.toLowerCase()) ||
+            (bom && p.sku === bom.sku)
+        );
+
+        if (fgIdx !== -1) {
+          const fg = updated[fgIdx];
+          updated[fgIdx] = {
+            ...fg,
+            stock: fg.stock + qtyToProduce,
+          };
+        } else {
+          // Add new finished goods product if not exists
+          const unitCost = totalProductionCost / qtyToProduce;
+          const newFG: Product = {
+            id: `fg_${Date.now()}`,
+            name: orderToComplete.productName,
+            sku: bom?.sku || `FG-${Date.now().toString().slice(-4)}`,
+            category: 'Finished Goods',
+            unit: 'Pcs',
+            warehouse: 'Main Warehouse',
+            price: Math.round(unitCost * 1.25),
+            cost: unitCost,
+            stock: qtyToProduce,
+            alertQty: 10,
+          };
+          updated.push(newFG);
+        }
+
+        return updated;
+      });
+    }
+
+    if (totalProductionCost === 0) {
+      totalProductionCost = (bom?.estimatedCost || 5000) * qtyToProduce;
+    }
+
+    // 2. Add Transaction record for manufacturing expense/journal
+    if (setTransactions) {
+      const newTx: Transaction = {
+        id: `tx_mfg_${Date.now()}`,
+        date: new Date().toISOString().split('T')[0],
+        description: `Completed production lot ${orderToComplete.batchNo} for ${orderToComplete.productName} (${qtyToProduce} Units)`,
+        type: 'Expense',
+        amount: totalProductionCost,
+        accountId: 'ah11',
+        category: 'Manufacturing Cost',
+        referenceNo: orderToComplete.batchNo,
+      };
+      setTransactions((prev) => [newTx, ...prev]);
+    }
+
+    // 3. Update Chart of Accounts (Account Heads): decrease Raw Materials Inventory & increase Finished Goods Inventory
+    if (setAccountHeads) {
+      setAccountHeads((prevHeads) => {
+        return prevHeads.map((ah) => {
+          if (
+            ah.name.toLowerCase().includes('raw material') ||
+            ah.code === '1041'
+          ) {
+            return { ...ah, balance: Math.max(0, ah.balance - totalProductionCost) };
+          }
+          if (
+            ah.name.toLowerCase().includes('finished goods') ||
+            ah.code === '1042'
+          ) {
+            return { ...ah, balance: ah.balance + totalProductionCost };
+          }
+          return ah;
+        });
+      });
+    }
+
+    // 4. Update status to Completed
+    setProductionOrders((prevOrders) =>
+      prevOrders.map((p) => {
+        if (p.id === id) {
+          return { ...p, status: 'Completed' as const };
+        }
+        return p;
+      })
+    );
   };
 
   const handleCreateQC = (e: React.FormEvent) => {

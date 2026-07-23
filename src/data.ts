@@ -360,6 +360,8 @@ export const INITIAL_ACCOUNT_HEADS: AccountHead[] = [
   { id: 'ah2', name: 'Cash at Bank', code: '1020', type: 'Asset', balance: 2035400 },
   { id: 'ah3', name: 'Accounts Receivable', code: '1030', type: 'Asset', balance: 120739.9 },
   { id: 'ah10', name: 'Merchandise Inventory', code: '1040', type: 'Asset', balance: 1804700 },
+  { id: 'ah11', name: 'Raw Materials Inventory', code: '1041', type: 'Asset', balance: 500000 },
+  { id: 'ah12', name: 'Finished Goods Inventory', code: '1042', type: 'Asset', balance: 1304700 },
   { id: 'ah4', name: 'Accounts Payable', code: '2010', type: 'Liability', balance: 7401714.89 },
   { id: 'ah5', name: 'Capital Equity', code: '3010', type: 'Equity', balance: 5000000 },
   { id: 'ah6', name: 'Sales Revenue', code: '4010', type: 'Revenue', balance: 21518.5 },
