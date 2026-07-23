@@ -10,6 +10,7 @@ const mockSignOutUser = vi.fn();
 
 vi.mock('../lib/firebase', () => ({
   db: {},
+  isFirebaseConfigured: true,
   signIn: (...args: any[]) => mockSignIn(...args),
   signOutUser: (...args: any[]) => mockSignOutUser(...args),
 }));
