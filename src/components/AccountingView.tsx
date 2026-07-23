@@ -113,6 +113,10 @@ export default function AccountingView({
   // Account Heads state extension
   const [localAccountHeads, setLocalAccountHeads] = useState<AccountHead[]>(accountHeads);
 
+  React.useEffect(() => {
+    setLocalAccountHeads(accountHeads);
+  }, [accountHeads]);
+
   // --- FORM MODAL STATES ---
   const [showTxModal, setShowTxModal] = useState(false);
   const [showAccModal, setShowAccModal] = useState(false);

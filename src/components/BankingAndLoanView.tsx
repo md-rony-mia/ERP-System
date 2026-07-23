@@ -510,7 +510,13 @@ export default function BankingAndLoanView({
   const [productSkuRule, setProductSkuRule] = useState(settings?.productSkuRule || 'Auto');
   const [productSkuPrefix, setProductSkuPrefix] = useState(settings?.productSkuPrefix || 'PRD-');
   const [productMarkup, setProductMarkup] = useState(settings?.productMarkup || 15);
-  const [productValuation, setProductValuation] = useState(settings?.productValuation || 'Weighted Average');
+  const [productValuation, setProductValuation] = useState(() => {
+    const saved = localStorage.getItem('nexova_valuation_method');
+    if (saved) {
+      return saved === 'WAC' ? 'Weighted Average' : saved;
+    }
+    return settings?.productValuation || 'Weighted Average';
+  });
 
   // 6. POS Setting
   const [posDefaultCustomer, setPosDefaultCustomer] = useState(settings?.posDefaultCustomer || 'Walk-In Cash Customer');
@@ -995,6 +1001,8 @@ export default function BankingAndLoanView({
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
+    const mappedValuation = productValuation === 'Weighted Average' ? 'WAC' : productValuation;
+    localStorage.setItem('nexova_valuation_method', mappedValuation);
     if (onUpdateSettings) {
       onUpdateSettings({
         ...settings,
@@ -1065,6 +1073,8 @@ export default function BankingAndLoanView({
   };
   
   const handleSaveTabSettings = (tabLabel: string) => {
+    const mappedValuation = productValuation === 'Weighted Average' ? 'WAC' : productValuation;
+    localStorage.setItem('nexova_valuation_method', mappedValuation);
     if (onUpdateSettings) {
       onUpdateSettings({
         ...settings,
