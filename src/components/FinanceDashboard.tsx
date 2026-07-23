@@ -162,7 +162,7 @@ export default function FinanceDashboard({
     { id: '#PAYO0020', date: '11 Sep 2025', payee: 'Zenith Supplies', desc: 'Office Stationery', invoiceId: '#INVO0020', amount: 10000, bank: 'BOA - 4567329878', method: 'Cash', status: 'Paid' },
     { id: '#PAYO0019', date: '10 Sep 2025', payee: 'Apex Computers', desc: 'Server Hosting', invoiceId: '#INVO0019', amount: 12500, bank: 'CHASE - 1102987342', method: 'Card', status: 'Paid' },
     { id: '#PAYO0018', date: '08 Sep 2025', payee: 'Orion Solutions', desc: 'Consultation', invoiceId: '#INVO0018', amount: 4200, bank: 'HSBC - 9988223412', method: 'Transfer', status: 'Pending' },
-    { id: '#PAYO0017', date: '05 Sep 2025', payee: 'Nexa Corp', desc: 'Software Licenses', invoiceId: '#INVO0017', amount: 8900, bank: 'BOA - 4567329878', method: 'Mobile Wallet', status: 'Paid' },
+    { id: '#PAYO0017', date: '05 Sep 2025', payee: 'Nexa Corp', desc: 'Software Licenses', invoiceId: '#INVO0017', amount: 8900, bank: 'BOA - 4567329878', method: 'Mobile Wallet', status: 'Paid' }
   ] : [];
 
   const triggerExport = () => {
@@ -363,7 +363,7 @@ export default function FinanceDashboard({
           <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/15 shrink-0 ml-3">
             <svg className="w-7 h-7 transform -rotate-90" viewBox="0 0 36 36">
               <path className="text-slate-800" strokeWidth="2.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path className="text-brand-orange" strokeWidth="3" strokeDasharray="75, 100" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path className="text-brand-orange" strokeWidth="3" strokeDasharray="75, 100" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831" />
             </svg>
           </div>
         </motion.div>
