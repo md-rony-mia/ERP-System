@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, formatBoxQty } from '../types';
 import { isProductVisibleInBranch, getEffectiveStock } from '../lib/branchUtils';
+import { calculateFIFOValuation, calculateLIFOValuation, DEFAULT_BATCHES } from '../lib/inventoryCosting';
 import {
   Search,
   Plus,
@@ -356,18 +357,28 @@ export default function InventoryView({
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
-    return [
-      { id: 'b1', productId: 'p1', productName: 'Standard Premium cement', batchNo: 'B-CEM-902', qty: 70, cost: 400, mfgDate: '2026-01-10', expiryDate: '2026-12-10', warehouse: 'Main Warehouse' },
-      { id: 'b2', productId: 'p1', productName: 'Standard Premium cement', batchNo: 'B-CEM-903', qty: 50, cost: 424, mfgDate: '2026-02-15', expiryDate: '2027-02-15', warehouse: 'Main Warehouse' },
-      { id: 'b3', productId: 'p2', productName: 'Deformed Steel Bar 60G (12mm)', batchNo: 'B-ST-12-A', qty: 10, cost: 77500, mfgDate: '2026-03-01', expiryDate: '2031-03-01', warehouse: 'Main Warehouse' },
-      { id: 'b4', productId: 'p2', productName: 'Deformed Steel Bar 60G (12mm)', batchNo: 'B-ST-12-B', qty: 5, cost: 79000, mfgDate: '2026-04-10', expiryDate: '2031-04-10', warehouse: 'Main Warehouse' },
-      { id: 'b5', productId: 'p3', productName: 'Deformed Steel Bar 60G (16mm)', batchNo: 'B-ST-16-X', qty: 2, cost: 79000, mfgDate: '2026-02-20', expiryDate: '2031-02-20', warehouse: 'Yard B' },
-    ];
+    return DEFAULT_BATCHES;
   });
 
   useEffect(() => {
     localStorage.setItem('nexova_batches', JSON.stringify(batches));
   }, [batches]);
+
+  // Sync batches state if updated externally (e.g. from sales/invoices in App.tsx)
+  useEffect(() => {
+    const syncBatches = () => {
+      const saved = localStorage.getItem('nexova_batches');
+      if (saved) {
+        try { setBatches(JSON.parse(saved)); } catch (e) {}
+      }
+    };
+    window.addEventListener('storage', syncBatches);
+    window.addEventListener('nexova_batches_updated', syncBatches);
+    return () => {
+      window.removeEventListener('storage', syncBatches);
+      window.removeEventListener('nexova_batches_updated', syncBatches);
+    };
+  }, []);
 
   // --- SERIAL NUMBERS STATE ---
   const [serials, setSerials] = useState<any[]>(() => {
@@ -1828,61 +1839,19 @@ export default function InventoryView({
           ========================================= */}
       {currentTab === 'stock' && (() => {
         // Valuation Helper functions
-        const calculateFIFOValuation = (prodId: string, currentStock: number, defaultCost: number) => {
-          const prodBatches = batches.filter(b => b.productId === prodId);
-          if (prodBatches.length === 0) {
-            return currentStock * defaultCost;
-          }
-          // Sort batches by mfgDate descending (newest first for remaining ending inventory)
-          const sortedBatches = [...prodBatches].sort((a, b) => new Date(b.mfgDate).getTime() - new Date(a.mfgDate).getTime());
-          
-          let remainingToValue = currentStock;
-          let totalValuation = 0;
-          
-          for (const batch of sortedBatches) {
-            if (remainingToValue <= 0) break;
-            const takeQty = Math.min(remainingToValue, batch.qty);
-            totalValuation += takeQty * batch.cost;
-            remainingToValue -= takeQty;
-          }
-          
-          if (remainingToValue > 0) {
-            totalValuation += remainingToValue * defaultCost;
-          }
-          return totalValuation;
-        };
+        const calcFIFO = (prodId: string, currentStock: number, defaultCost: number) =>
+          calculateFIFOValuation(prodId, currentStock, defaultCost, batches);
 
-        const calculateLIFOValuation = (prodId: string, currentStock: number, defaultCost: number) => {
-          const prodBatches = batches.filter(b => b.productId === prodId);
-          if (prodBatches.length === 0) {
-            return currentStock * defaultCost;
-          }
-          // LIFO: Sort batches by mfgDate ascending (oldest first for remaining ending inventory)
-          const sortedBatches = [...prodBatches].sort((a, b) => new Date(a.mfgDate).getTime() - new Date(b.mfgDate).getTime());
-          
-          let remainingToValue = currentStock;
-          let totalValuation = 0;
-          
-          for (const batch of sortedBatches) {
-            if (remainingToValue <= 0) break;
-            const takeQty = Math.min(remainingToValue, batch.qty);
-            totalValuation += takeQty * batch.cost;
-            remainingToValue -= takeQty;
-          }
-          
-          if (remainingToValue > 0) {
-            totalValuation += remainingToValue * defaultCost;
-          }
-          return totalValuation;
-        };
+        const calcLIFO = (prodId: string, currentStock: number, defaultCost: number) =>
+          calculateLIFOValuation(prodId, currentStock, defaultCost, batches);
 
         const getProductValuation = (p: any, method: 'WAC' | 'FIFO' | 'LIFO' | 'Standard Cost') => {
           if (method === 'WAC') {
             return p.stock * p.cost;
           } else if (method === 'FIFO') {
-            return calculateFIFOValuation(p.id, p.stock, p.cost);
+            return calcFIFO(p.id, p.stock, p.cost);
           } else if (method === 'LIFO') {
-            return calculateLIFOValuation(p.id, p.stock, p.cost);
+            return calcLIFO(p.id, p.stock, p.cost);
           } else {
             // Standard Cost method uses 1.05 * cost as a preset standard costing threshold
             return p.stock * (p.cost * 1.05);
@@ -1891,8 +1860,8 @@ export default function InventoryView({
 
         // Aggregates
         const totalWACValuation = products.reduce((sum, p) => sum + (p.stock * p.cost), 0);
-        const totalFIFOValuation = products.reduce((sum, p) => sum + calculateFIFOValuation(p.id, p.stock, p.cost), 0);
-        const totalLIFOValuation = products.reduce((sum, p) => sum + calculateLIFOValuation(p.id, p.stock, p.cost), 0);
+        const totalFIFOValuation = products.reduce((sum, p) => sum + calcFIFO(p.id, p.stock, p.cost), 0);
+        const totalLIFOValuation = products.reduce((sum, p) => sum + calcLIFO(p.id, p.stock, p.cost), 0);
         const totalStandardCostValuation = products.reduce((sum, p) => sum + (p.stock * (p.cost * 1.05)), 0);
 
         const getActiveTotalValuation = () => {
@@ -2369,8 +2338,8 @@ export default function InventoryView({
                   <div className="space-y-4">
                     {products.map((p) => {
                       const pWac = p.stock * p.cost;
-                      const pFifo = calculateFIFOValuation(p.id, p.stock, p.cost);
-                      const pLifo = calculateLIFOValuation(p.id, p.stock, p.cost);
+                      const pFifo = calculateFIFOValuation(p.id, p.stock, p.cost, batches);
+                      const pLifo = calculateLIFOValuation(p.id, p.stock, p.cost, batches);
                       const maxVal = Math.max(pWac, pFifo, pLifo, 1000);
                       
                       const wacPct = (pWac / maxVal) * 100;
