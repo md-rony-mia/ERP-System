@@ -44,6 +44,29 @@ To run this application locally, you need:
 ## Tech Stack
 
 - **Frontend**: React, TypeScript, Tailwind CSS, Framer Motion
+- **Backend / API Proxy**: Node.js Express (`server.ts`) & Vercel Serverless Functions (`api/`)
 - **Tooling**: Vite
 - **Libraries**: Lucide React (Icons), Recharts (Data Visualization), XLSX (Excel Export)
 - **Database**: Cloud-persisted Firestore integration for durable multi-user state synchronization.
+
+## Deployment
+
+### Deploying to Vercel
+This project is pre-configured with Vercel Serverless Functions in `api/` to proxy AI requests safely without exposing API keys:
+1. Push your repository to GitHub.
+2. Import the project into Vercel.
+3. Configure the following Environment Variables in Vercel project settings:
+   - `GEMINI_API_KEY`: Your Google Gemini API Key.
+   - `AI_FEATURE_ENABLED`: Set to `true` to enable AI Assistant features.
+4. Deploy. Vercel automatically routes `/api/health` and `/api/gemini/generate` through serverless functions while serving the React SPA.
+
+### Deploying to Cloud Run / Render / Railway / VPS
+For Node.js hosting environments that run a persistent process:
+1. Set environment variables (`GEMINI_API_KEY`, `AI_FEATURE_ENABLED=true`).
+2. Run build and start commands:
+   ```bash
+   npm run build
+   npm run start
+   ```
+   The bundled Express server (`dist/server.cjs`) will serve both the static assets and the `/api/*` endpoints on port 3000.
+

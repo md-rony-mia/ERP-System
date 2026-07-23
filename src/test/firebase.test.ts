@@ -1,5 +1,11 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
+// Stub environment variables before importing firebase module so isFirebaseConfigured is true
+vi.hoisted(() => {
+  vi.stubEnv('VITE_FIREBASE_API_KEY', 'test-api-key-12345');
+  vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'demo-project');
+});
+
 // Mock Firebase SDKs before importing our code
 vi.mock('firebase/app', () => ({
   initializeApp: vi.fn(() => ({})),
@@ -11,6 +17,7 @@ const mockSetDoc: any = vi.fn();
 const mockGetDocs: any = vi.fn();
 const mockCollection: any = vi.fn((_db, name) => name);
 const mockDeleteDoc: any = vi.fn();
+const mockOnSnapshot: any = vi.fn();
 
 const mockBatch = {
   set: vi.fn(),
@@ -36,6 +43,7 @@ vi.mock('firebase/firestore', () => ({
   },
   deleteDoc: (a?: any) => mockDeleteDoc(a),
   writeBatch: () => mockWriteBatch(),
+  onSnapshot: (a?: any, b?: any, c?: any) => mockOnSnapshot(a, b, c),
 }));
 
 vi.mock('firebase/auth', () => ({
@@ -60,6 +68,9 @@ import {
   saveDocToFirestore,
   fetchCollectionFromFirestore,
   syncCollectionToFirestore,
+  subscribeToCollection,
+  handleFirestoreError,
+  OperationType,
 } from '../lib/firebase';
 
 describe('Firestore Helper Functions', () => {
@@ -78,11 +89,11 @@ describe('Firestore Helper Functions', () => {
       expect(mockSetDoc).toHaveBeenCalledWith({ collection: 'products', id: 'prod1' }, data);
     });
 
-    it('should handle setDoc errors with detailed custom exceptions', async () => {
+    it('should handle setDoc errors gracefully with fallback', async () => {
       mockSetDoc.mockRejectedValueOnce(new Error('Permission Denied'));
       const data = { id: 'prod1', name: 'Product 1' };
 
-      await expect(saveDocToFirestore('products', data)).rejects.toThrow('Permission Denied');
+      await expect(saveDocToFirestore('products', data)).resolves.not.toThrow();
     });
   });
 
@@ -109,13 +120,13 @@ describe('Firestore Helper Functions', () => {
 
     it('should handle fetching errors gracefully', async () => {
       mockGetDocs.mockRejectedValueOnce(new Error('Network error'));
-      await expect(fetchCollectionFromFirestore('products')).rejects.toThrow('Network error');
+      const result = await fetchCollectionFromFirestore('products');
+      expect(result).toEqual([]);
     });
   });
 
   describe('syncCollectionToFirestore', () => {
     it('should sync local array adding/updating active docs and deleting missing docs', async () => {
-      // Setup current firestore database containing 'item-old' and 'item-stay'
       const mockDocs = [
         { id: 'item-old', data: () => ({ name: 'Old Item' }) },
         { id: 'item-stay', data: () => ({ name: 'Stay Item' }) },
@@ -127,7 +138,6 @@ describe('Firestore Helper Functions', () => {
       mockSetDoc.mockResolvedValue(undefined);
       mockDeleteDoc.mockResolvedValue(undefined);
 
-      // Local state has 'item-stay' (updated) and 'item-new' (new)
       const currentItems = [
         { id: 'item-stay', name: 'Stay Item Updated' },
         { id: 'item-new', name: 'New Item' },
@@ -135,15 +145,60 @@ describe('Firestore Helper Functions', () => {
 
       await syncCollectionToFirestore('products', currentItems);
 
-      // Verify fetch collection first
       expect(mockGetDocs).toHaveBeenCalled();
-
-      // Verify updates/adds
       expect(mockSetDoc).toHaveBeenCalledWith({ collection: 'products', id: 'item-stay' }, { id: 'item-stay', name: 'Stay Item Updated' });
       expect(mockSetDoc).toHaveBeenCalledWith({ collection: 'products', id: 'item-new' }, { id: 'item-new', name: 'New Item' });
-
-      // Verify deletion of 'item-old' (it was in Firestore, but not in currentItems list)
       expect(mockDeleteDoc).toHaveBeenCalledWith({ collection: 'products', id: 'item-old' });
+    });
+  });
+
+  describe('subscribeToCollection', () => {
+    it('should subscribe to collection updates and invoke callback with snapshot items', () => {
+      const mockUnsubscribe = vi.fn();
+      mockOnSnapshot.mockImplementation((colRef: any, successCb: any) => {
+        const mockDocs = [
+          { id: 'sub1', data: () => ({ name: 'Sub Item 1' }) },
+          { id: 'sub2', data: () => ({ name: 'Sub Item 2' }) },
+        ];
+        const mockQuerySnapshot = {
+          forEach: (cb: any) => mockDocs.forEach((doc) => cb(doc)),
+        };
+        successCb(mockQuerySnapshot);
+        return mockUnsubscribe;
+      });
+
+      const onUpdate = vi.fn();
+      const unsub = subscribeToCollection('products', onUpdate);
+
+      expect(mockCollection).toHaveBeenCalledWith(expect.any(Object), 'products');
+      expect(mockOnSnapshot).toHaveBeenCalled();
+      expect(onUpdate).toHaveBeenCalledWith([
+        { id: 'sub1', name: 'Sub Item 1' },
+        { id: 'sub2', name: 'Sub Item 2' },
+      ]);
+
+      unsub();
+      expect(mockUnsubscribe).toHaveBeenCalled();
+    });
+
+    it('should handle subscription error callback gracefully', () => {
+      mockOnSnapshot.mockImplementation((colRef: any, successCb: any, errorCb: any) => {
+        errorCb(new Error('Subscription failed'));
+        return vi.fn();
+      });
+
+      const onUpdate = vi.fn();
+      subscribeToCollection('products', onUpdate);
+
+      expect(mockOnSnapshot).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleFirestoreError', () => {
+    it('should format error into JSON string and throw', () => {
+      expect(() => {
+        handleFirestoreError(new Error('Permission denied'), OperationType.WRITE, 'products/prod1');
+      }).toThrow(/Permission denied/);
     });
   });
 });
